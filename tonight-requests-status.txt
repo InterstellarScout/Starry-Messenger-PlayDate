@@ -1,0 +1,121 @@
+#### Starry Messenger Updates
+
+##### In Warp Speed
+| Request | Status |
+| --- | --- |
+| Please change the up, down, left, and right buttons to move the stars and screen up and down the same way trippy mode does when the in Starry Messenger - Processing Example does in the Personal Examples folder. When Trippy Mode is on, the arrow keys make the stars turn a certain way. | Done |
+| While the user is in trippy mode and the user presses A, make that motion's velocity continue. Retain the curving from the last origin of it plus the rotation so they all bend and twist by itself. | In Progress |
+| How can we make warp speed more efficient? Specifically in Warp speed, the game starts to slow down in frame rate. | Done |
+| Make the rotational spinning continue when the A button is pressed, remove the direct manual-rotation crank mode, and let the player jump back and forth between spin control and star speed. | Done |
+
+##### In Falling Stars
+| Request | Status |
+| --- | --- |
+| Please add more stars to the falling stars view as well. And assign left and right buttons to rotate the screen. | Done |
+| Please make the star fall stars a few pixels bigger per level, and add a new and double pixel in the background. | Done |
+| Please also add a single large circular star that spawns between every 2-20 seconds. | Not Started |
+| When auto rotate is on in both star fall and warp speed, allow the crank to turn up and down the speed at the same variable speed rate as the crank when adjusting the star speed. When the crank stops, the speed holds. | Done |
+| In Star Fall, when the speed is negative, make the stars and despawn run opposite as well while still respecting rotating-screen behavior. Also make the A-button rotation modes match Warp Speed: direct crank rotation first, then persistent crank-set rotation speed on the next press. | Done |
+| Make the rotational spinning continue when the A button is pressed, remove the direct manual-rotation crank mode, and let the player jump back and forth between spin control and star speed. | Done |
+
+##### In Game of Life
+| Request | Status |
+| --- | --- |
+| Please do not reset the game of life scene when moving in from the main menu. Controls would then go to game of life mode. | Done |
+| In the game of life, please use the crank to fast forward or rewind the game of life scene. The faster the cranking, the faster the direction. Drop off at the beginning. When the crank is left untouched after a second, resume the game. | Done |
+| Make a game of life control for A button that jumps a bunch of pixels into the game to revive it when the player wants. | Done |
+| When in the game of life and I scroll forward, the frame rate changes. Can you make it continuously load the upcoming frames into buffer at much as it can without crashing the device. | Done |
+| If the player inserts additional pixels into the game of life, the generated bunch need to dump. When the player has caught up to real time, flicker gray the pixels around the screen to make the player stop. They can then go forward when they wish until limit. | Done |
+| Please make the game of life have a mode accessible in the main menu with left/right where the positions of each dot are recorded on a CSV so the same play can be recreated later. | Done |
+
+##### Fishy Pond
+| Request | Status |
+| --- | --- |
+| Please create a new view called Fishy Pond that replicates the fishy pond game example in the Processing Examples folder. When the player uses the crank, move a bubble maker back and forth the bottom of the screen, then when the player presses A, create a bubble. On screen, always start with a fish that wanders the screen, and the player can use the D Pad to move the fish around and pop the bubbles when it makes contact. In the main menu, if Fish Pond is selected and the user uses the right D pad, change the game mode to "Fishy Bubbles" mode just like the first mode except each bubble the player pops should bring in another fish and eventually this will make a school of fish that float around in schools freely. Then add another mode called "Fishy Tank" where about 20 fish spawn in and just float around. When the crank is used, move influence the current of the fish and shift them either up or down, and if the play.date is shaken, make all the fish swim around in a fast panic in every direction randomly. Once it settles down a second later, resume the fish's natural swimming and wandering just as designed in the example game. Like the other games, when the mode is selected, start the game in the background. If the player selects away end the game. Ensure all views are accessible via the main menu's rotational dial. | Done |
+| Please move the bubble maker back and forth when not in use. Also please make bubbles continuously spawn if the player is holding A down. Also please make the fishy in the main mode move back and forth to the closest bubble to pop it after the bubble maker is moved. Remove the bubble around the fish's head, and add a Fish Spawn Mode menu item so A alternates between spawning a bubble and popping it into a fish, disables fish bubble hunting while on, re-enables it while off, and delays new fish schooling by a few seconds. | Done |
+| Please make a new independent game called "Fishy Pond Idle" that's a copy of the original view of Fishy Pond. The player would then add to the bubbles for the fish and accumulate a currency that will be used in future. | Done |
+| In Fishy Pond, make the bubbles spawn on top of the bubbling vent effect so one pop overlaps while the bubble rises. | Done |
+| In Fishy Pond, stop the bubble-maker autopilot so the bubble popper is only controlled by the crank during play. | Done |
+| In Fishy Pond, make the fish a little faster so it can catch bubbles better and make it point in the direction it is moving. | Done |
+| Make Fishy Pond Idle a mode on the Fishy Pond title selector instead of a separate main-menu view. | Done |
+
+##### Fireworks
+| Request | Status |
+| --- | --- |
+| Please create a new view called Fireworks. Replicate the Firework V1 game as closely as possible, but with simpler controls as shown below. In firework mode, if the player presses the A button, shoot off a firework from a controllable firework launching square that moves side to side with the crank. Ensure the user can spam A and send off a ton of fireworks. Otherwise naturally randomly send off fireworks from around the bottom of the screen randomly. Ensure there is a configurable limit that we can change in development to easily tweak for performance. Ensure there's also an upper limit of firework sparks that explode from a given firework, and a variable for the lifespan of those spark. This would dictate how far away they explode. Please replicate the three different types of fireworks that currently exist in Fireworks V 1. | Done |
+| Please make the random fireworks spawn between every 3-10 seconds. Also please make the left and right buttons on the D pad move the player left and right, plus allow the user to change firework type with the up and down arrows. | Done |
+| Please ensure the fireworks fire freely like the bubbles when the player holds down A. | Done |
+| In both Fireworks and in the fish game for the controllable bubble blower, please let the player move out off the screen and respawn on the other side of the screen. It would loop continuous. | Done |
+| For each game, when selected, provide a menu showing the mapping of the keys line by line. Ensure they are adjusted as we change. Ensure the D pad buttons, A, B, and the crank describe each, and also ensure that if it's a button with different modes like Fish tank, list those. | In Progress |
+
+##### RC Arena
+| Request | Status |
+| --- | --- |
+| Please make a game where the user controls a tiny RC car that chases little sliding blocks around the floor, with tweakable slide and car-speed variables, off-screen block respawns that jump in, and a car that wraps from a full car length off-screen. | Done |
+| Make another RC Arena mode that is multiplayer-inspired and lets two cars crash into each other and kick the squares off the board. | Done |
+| Make another RC Arena mode based on that where the players are in a hockey ring with small pucks and the objective is to have the least number of pucks in your own net. | Done |
+
+##### Lava Lamp
+| Request | Status |
+| --- | --- |
+| Please add a play date view that makes the screen a lava lamp. Have a dark background, but bubbly, liquid goop like bubbles liquid-like move up the screen slowly and such. | Done |
+| Use the Playdate's 3-axis accelerometer to detect when the user turns the device. Make the bubbles always goop to the top or bottom respective of their position. Also, please add another click setting to the A button that will make the rotation continue freely. If the button is pressed again, stop the rotation and go to the next setting (speed). | Done |
+| For the lava lamp, please spawn a set number of bubbles limit their ability to go off screen so they collect at the top. Then when the crank is turned, push all the bubbles down at a variable rate for each, so if the play date is oriented up and the user cranks down, each bubble would randomly bump down between 2-4 pixels per crank. When the bubbles settle at the top, when all the bubbles conjoin at the top and the player is pulling the bubbles down with the crank, split the bubbles every other crank again and again. | Done |
+| When the crank is not in use and the bubble has absorbed all bubbles, every 3 seconds, split the bubbles and send the new bubbles down the opposite direction until they all collect again and repeat. Interrupt when the device is oriented differently, and rotate the bottom of the downward dropping bubbles and the top of the upward drifting bubbles. | In Progress |
+| In the lava lamp, please make the blobs circular. If they are a combined blob, make it a little bigger. Do not make them move back and forth. They should only float upwards like a natural bubble. | Done |
+| In the Lava Lamp, when the crank is turned down, move the bubbles opposite of their current direction. Also add a threshold to the accelerometer so it is less reactive to micro movements and responds more to intentional device turns. | Done |
+
+##### General Updates
+| Request | Status |
+| --- | --- |
+| When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
+| Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
+| Please make a sound folder for each view in Starry Messenger on the play date that will play each contained mp3 on loop. | Done |
+| When A is pressed after rotation move, please adjust the warp speed star turning behavior to be like trippy mode and Starry Messenger example in Processing. This leaves the center centered while the stars are worked around and maintain the speed and direction of those stars movements until the user uses the arrow keys to adjust the speed and velocity in the direction. | Done |
+| Do not limit the Warp Speed auto-rotate speed. | Done |
+| Is there a way to keep the screen on when this app is open only? | Not Started |
+| Please limit sparks to a limit of 200. And if a firework pops, ensure sparks randomly in all other bursts of fireworks should despawn to make space. If all the other fireworks dissipated eventually to accommodate the burst that the player's making, that's okay. | Done |
+| Also please do not limit fireworks. Let's find where it breaks. | Done |
+| For all views, please simply let the view continue running unless the player presses B again at the main menu. | Superseded |
+| Please ensure that when the user moves to another menu item, end the last view unless any view explicitly has functionality otherwise. | Done |
+| Can you confirm that a view's instance is fully not running when the player moves to another view? I've noticed that if I am going through instances without resetting, all views collectively slow down. | Answered |
+| Please ensure we always reset view fresh and cleanly when entered. | Superseded |
+| Wait a tick, we only want to cut off the connection from anywhere except from title to view or view to instance. If the save state is retained in any way after the player moves to another title, that old state should be dumped so each view is freshly restarted. If anything was changed that cut that functionality, please restore it | Superseded |
+| Please ensure the title screen's game is the same when the player is entering it from the title menu. This will prevent any jumping between the title and the game. | Done |
+| Please enable the view to title too. When the player leaves the playing view by transitioning to another view via title, then all past saved data should be dumped to save resources for the next view. | Done |
+| When B is pressed on the title menu, the view resets, right? Are there exceptions? | Answered |
+| When B is used in Warp Speed, return the star's speed to speed 9. | Done |
+| Please adjust the max explosion height for fireworks to 95%. | Done |
+| The playboy app isn't opening since our last update. Do you have any way to investigate and remediate it? If not add logging to figure it out. | Done |
+| Please add all prompts used in this chat so far and add them to this tracking list. Output it to the directory. | Done |
+
+##### Additional Tonight Requests
+| Request | Status |
+| --- | --- |
+| When stars in warp speed are falling inward, they currently do not respond. At any speed, and at any time, if any part of the star enters the center zone of the screen, despawn it. Currently it's just collecting so the simulation doesn't continue. | Done |
+| Are folders for sound files and the sound file integration into each individual view implemented? | Answered |
+| When the stars are moving inward in warp speed (neg speed), please make the starting despawn zone smaller, then incrementally expand. | Done |
+| When the crank is turned while in rotational mode in warp speed and star fall, does that rotational speed keep going, and does the user's continued crank turning forward and back continue to change that continuous speed. | Answered and Updated |
+| In warp speed's second A mode, please make the speed only spin directly based on the crank's spinning. Then on the third mode, remove the crank's current mapping to speed and replace it with changing the rotation speed. In these modes, the speed is static. | Done |
+| In the fishy pond, instead of bouncing the fish off the wall, have them float over to the other side. If they hit the ceiling or ground, they bounce. Also when the crank is used, it moves the current speed up and down. Instead, change the behavior so it instead temporarily affects the fish. The faster the user spins it, the harder the current, but once they stop, the fish float to a slow redirect back to their own devices. | Done |
+| Make the stars bigger and add more stars in Star Fall. | Done |
+| Make the Fishy bubble blower a little triangular mountain peeking out of the sand, and have mountain raise-and-pop vents happen before blower bubbles and random mud bubbles. | Done |
+| Before committing to git, check whether anything sensitive or machine-local should be ignored. | Done |
+
+##### Orbital Defense
+| Request | Status |
+| --- | --- |
+| When uploading Orbital Defense to the Playdate, the install failed with Windows cloud file provider errors copying from OneDrive-backed files. | Answered |
+| In the Orbital Defense game, move the orbital ring into a circular shape around the Earth. Player 1 is on the top left, and player 2 is on the top right of the Earth. Then they can shoot up and over to the incoming enemies. | Not Started |
+
+##### Ant Farm
+| Request | Status |
+| --- | --- |
+| In the ant game, when the ant is dropped, the ant placed doesn't appear to move. Please ensure that the ants make lines in the dark soil area and randomly start making tunnels. | Done |
+
+##### Gif Player
+| Request | Status |
+| --- | --- |
+| Please combine gif player into a view in Starry Messenger while keeping the GIF conversion script as a separate project-side step. | Done |
+| Please make a static effect like an old crt tv. If the crank is used, pause the effect and move it forward and back as the user wants, though don’t remember anything. Just have it slow the static effect or make it fuzzy faster. When A is pressed, make a transparent bar-like effect that slowly scroll down the screen and repeat when it goes off screen. Also have a smaller bar that moves at a randomly fast or slower speed each time it goes off screen. In this mode, the crank moves both of them faster or slower, then release after the crank has been left unchanged for 2 seconds or the crank is put into the top move of bottom most points. | Done |
+| Please make an image to pixel adapter that will map each gif’s image to the Playdate’s pixels. Convert proportionately the source gif’s size, shrink it to the play date’s size, then convert the shrink image to a bit map that will be stored in a new app called “gif player”. When loaded up, the user can make the choice of what gif to play. The crank is then used to move the gif forward and back, then b is used to go back. Allow A to invert the color of the pixels. | Done |

@@ -1,0 +1,105 @@
+--[[
+Opening splash scene.
+
+Purpose:
+- shows the static Starry Messenger splash before the menu flow begins
+- advances after a short hold or an A-button press
+- performs incremental Game of Life warmup work during the splash
+]]
+local pd <const> = playdate
+local gfx <const> = pd.graphics
+
+local SPLASH_READY_HOLD_FRAMES <const> = 30
+local PREWARM_BUDGET_MS <const> = 4
+
+local function drawVisibilityBand(topY, height)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
+    gfx.fillRect(0, topY, 400, height)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+end
+
+SplashScene = {}
+SplashScene.__index = SplashScene
+
+function SplashScene.new(config)
+    local self = setmetatable({}, SplashScene)
+    print("[StarryMessenger] SplashScene.new start")
+    self.onContinue = config.onContinue
+    self.preview = Starfield.newWarpSpeed(400, 240, 320)
+    self.preview.speed = 0
+    for _, star in ipairs(self.preview.stars) do
+        star.size = star.size * 2
+        if star.px ~= nil and star.py ~= nil then
+            star.px = star.x
+            star.py = star.y
+        end
+        if self.preview.updateWarpStarScreenCache then
+            self.preview:updateWarpStarScreenCache(star)
+        end
+    end
+    self.titleFont = gfx.font.new("/System/Fonts/Roobert-24-Medium")
+    self.smallFont = gfx.getSystemFont()
+    self.readyFrames = SPLASH_READY_HOLD_FRAMES
+    self.prewarmComplete = false
+    GameOfLife.beginPrewarmStarryMessenger()
+    print("[StarryMessenger] SplashScene.new ready")
+    return self
+end
+
+function SplashScene:activate()
+    print("[StarryMessenger] SplashScene.activate")
+    if self.preview and self.preview.activate then
+        self.preview:activate()
+    end
+end
+
+function SplashScene:shutdown()
+    if self.preview and self.preview.shutdown then
+        self.preview:shutdown()
+    end
+end
+
+function SplashScene:continue()
+    print("[StarryMessenger] SplashScene.continue")
+    if self.onContinue then
+        self.onContinue()
+    end
+end
+
+function SplashScene:update()
+    self.preview:draw()
+    local prewarmFinished = GameOfLife.updatePrewarm(PREWARM_BUDGET_MS)
+    if prewarmFinished and not self.prewarmComplete then
+        self.prewarmComplete = true
+        self.readyFrames = SPLASH_READY_HOLD_FRAMES
+    end
+
+    drawVisibilityBand(90, 64)
+    drawVisibilityBand(194, 46)
+
+    gfx.setFont(self.titleFont or self.smallFont)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned("Starry Messenger", 200, 110, kTextAlignment.center)
+    gfx.setFont(self.smallFont)
+    if self.prewarmComplete then
+        gfx.drawTextAligned("Press A or wait a moment to begin", 200, 204, kTextAlignment.center)
+    else
+        gfx.drawTextAligned("Loading Game of Life...", 200, 204, kTextAlignment.center)
+    end
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+
+    if self.prewarmComplete and pd.buttonJustPressed(pd.kButtonA) then
+        self:continue()
+        return
+    end
+
+    if not self.prewarmComplete then
+        return
+    end
+
+    self.readyFrames = self.readyFrames - 1
+    if self.readyFrames <= 0 then
+        self:continue()
+    end
+end

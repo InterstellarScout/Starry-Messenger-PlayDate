@@ -1,0 +1,6 @@
+name=Starry Messenger
+author=Dean Sheldon
+description=An in-progress Playdate port of Starry Messenger.
+bundleID=com.deansheldon.starrymessenger.playdate
+version=0.1.0
+buildNumber=1

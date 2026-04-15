@@ -1,0 +1,5 @@
+StarryMessenger.pdx/
+*.log
+.sentry-native/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1 @@
+Drop one or more .mp3 files into this folder to play them while Game of Life is active.

@@ -1,0 +1,418 @@
+--[[
+Starry Messenger application entry point.
+
+Purpose:
+- boots shared systems and scene routing
+- defines the single-player and multiplayer title catalogs
+- owns scene transitions, system menu actions, and fatal-error rendering
+]]
+import "CoreLibs/graphics"
+import "CoreLibs/sprites"
+import "systems/starfield"
+import "systems/gameoflife"
+import "systems/lavalamp"
+import "systems/fireworks"
+import "systems/fishpond"
+import "systems/antfarm"
+import "systems/gifplayer"
+import "systems/rccararena"
+import "systems/controlhelp"
+import "systems/sessionstate"
+import "systems/starryportal"
+import "systems/viewaudio"
+import "scenes/splash"
+import "scenes/playercount"
+import "scenes/title"
+import "scenes/view"
+import "scenes/duckgame"
+import "scenes/orbitaldefense"
+
+local pd <const> = playdate
+local gfx <const> = pd.graphics
+
+local app = {
+    fatalError = nil,
+    fatalContext = nil,
+    session = SessionState.new(),
+    portalService = StarryPortalService.new()
+}
+local buildGameTitleScene
+local buildPlayerCountScene
+local buildSplashScene
+
+local SINGLE_VIEW_ITEMS <const> = {
+    {
+        id = "warp",
+        label = "Warp Speed",
+        modes = {
+            Starfield.MODE_STANDARD,
+            Starfield.MODE_INVERSE
+        },
+        modeId = Starfield.MODE_STANDARD,
+        getModeLabel = function(modeId)
+            return Starfield.getModeLabel(modeId, "warp")
+        end
+    },
+    {
+        id = "fall",
+        label = "Star Fall",
+        modes = {
+            Starfield.MODE_STANDARD,
+            Starfield.MODE_INVERSE
+        },
+        modeId = Starfield.MODE_STANDARD,
+        getModeLabel = function(modeId)
+            return Starfield.getModeLabel(modeId, "fall")
+        end
+    },
+    {
+        id = "life",
+        label = "Game of Life",
+        modes = {
+            GameOfLife.MODE_STANDARD,
+            GameOfLife.MODE_ENDLESS,
+            GameOfLife.MODE_RECORD,
+            GameOfLife.MODE_REVIEW
+        },
+        modeId = GameOfLife.MODE_STANDARD,
+        getModeLabel = GameOfLife.getModeLabel
+    },
+    { id = "fireworks", label = "Fireworks" },
+    { id = "antfarm", label = "Ant Farm" },
+    {
+        id = "gifplayer",
+        label = "Gif Player",
+        modes = {
+            GifPlayerEffect.MODE_STATIC,
+            GifPlayerEffect.MODE_GIF
+        },
+        modeId = GifPlayerEffect.MODE_STATIC,
+        getModeLabel = GifPlayerEffect.getModeLabel
+    },
+    {
+        id = "fishpond",
+        label = "Fishy Pond",
+        modes = {
+            FishPond.MODE_POND,
+            FishPond.MODE_BUBBLES,
+            FishPond.MODE_TANK,
+            FishPond.MODE_IDLE
+        },
+        modeId = FishPond.MODE_POND,
+        getModeLabel = FishPond.getModeLabel
+    },
+    {
+        id = "duck",
+        label = "Duck Game",
+        modes = {
+            DuckGameScene.MODE_SOLO_CENTER,
+            DuckGameScene.MODE_SOLO_2,
+            DuckGameScene.MODE_SOLO_3,
+            DuckGameScene.MODE_SOLO_4
+        },
+        modeId = DuckGameScene.MODE_SOLO_CENTER,
+        getModeLabel = DuckGameScene.getModeLabel
+    },
+    { id = "orbital", label = "Orbital Defense" },
+    {
+        id = "rccar",
+        label = "RC Arena",
+        modes = {
+            RCCarArena.MODE_CHASE,
+            RCCarArena.MODE_VERSUS,
+            RCCarArena.MODE_HOCKEY
+        },
+        modeId = RCCarArena.MODE_CHASE,
+        getModeLabel = RCCarArena.getModeLabel
+    },
+    {
+        id = "lava",
+        label = "Lava Lamp",
+        modes = {
+            LavaLamp.MODE_STANDARD,
+            LavaLamp.MODE_INVERSE
+        },
+        modeId = LavaLamp.MODE_STANDARD,
+        getModeLabel = LavaLamp.getModeLabel
+    }
+}
+
+local function getRCCarMultiplayerModeLabel(modeId)
+    if modeId == RCCarArena.MODE_HOCKEY then
+        return "RC Hockey"
+    end
+    return "Crash Racing"
+end
+
+local MULTIPLAYER_VIEW_ITEMS <const> = {
+    { id = "duck", label = "Multiplayer Duck Game" },
+    { id = "orbital", label = "Multiplayer Orbital Defense" },
+    {
+        id = "rccar_multi",
+        label = "Crash Racing",
+        modes = {
+            RCCarArena.MODE_VERSUS,
+            RCCarArena.MODE_HOCKEY
+        },
+        modeId = RCCarArena.MODE_VERSUS,
+        getModeLabel = getRCCarMultiplayerModeLabel
+    }
+}
+
+local function getCatalogViewItems(catalog)
+    if catalog == "multi" then
+        return MULTIPLAYER_VIEW_ITEMS
+    end
+    return SINGLE_VIEW_ITEMS
+end
+
+local function getViewIndex(viewItems, viewId)
+    for index, item in ipairs(viewItems) do
+        if item.id == viewId then
+            return index
+        end
+    end
+
+    return 1
+end
+
+local function setScene(scene)
+    print(string.format("[StarryMessenger] setScene %s -> %s", tostring(app.scene), tostring(scene)))
+    if app.scene and app.scene.shutdown then
+        app.scene:shutdown()
+    end
+
+    app.scene = scene
+
+    if app.scene and app.scene.activate then
+        app.scene:activate()
+    end
+end
+
+local function recordFatalError(context, err)
+    app.fatalContext = context
+    app.fatalError = tostring(err)
+    print(string.format("[StarryMessenger] fatal error in %s: %s", context, app.fatalError))
+end
+
+local function safeCall(context, callback)
+    local ok, result = pcall(callback)
+    if not ok then
+        recordFatalError(context, result)
+        return nil, false
+    end
+
+    return result, true
+end
+
+local function drawFatalError()
+    gfx.setColor(gfx.kColorWhite)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.drawTextInRect("Starry Messenger encountered an error.", 16, 24, 368, 28)
+    if app.fatalContext then
+        gfx.drawTextInRect("Context: " .. tostring(app.fatalContext), 16, 58, 368, 18)
+    end
+    if app.fatalError then
+        gfx.drawTextInRect(tostring(app.fatalError), 16, 84, 368, 132)
+    end
+end
+
+local function logModeSelection(source, viewId)
+    print(string.format("[StarryMessenger] mode selected via %s: %s", source, viewId))
+end
+
+local function returnToCurrentTitle(returnedViewId, options)
+    local catalog = app.session.catalog
+    local viewItems = getCatalogViewItems(catalog)
+    ViewAudio.stop()
+    setScene(buildGameTitleScene(catalog, {
+        selectedIndex = getViewIndex(viewItems, returnedViewId),
+        previewEffect = options and options.previewEffect or nil,
+        previewViewId = returnedViewId,
+        previewModeId = options and options.previewModeId or nil
+    }))
+end
+
+local function showView(viewId, options)
+    options = options or {}
+    logModeSelection("app", viewId)
+    if viewId == "duck" then
+        ViewAudio.stop()
+        setScene(DuckGameScene.new({
+            multiplayer = app.session:isMultiplayer(),
+            modeId = options.modeId,
+            playerCount = app.session.playerCount,
+            portalService = app.portalService,
+            onReturnToTitle = function(returnedViewId)
+                print("[StarryMessenger] returning to title")
+                returnToCurrentTitle(returnedViewId or viewId)
+            end
+        }))
+        return
+    elseif viewId == "orbital" then
+        ViewAudio.stop()
+        setScene(OrbitalDefenseScene.new({
+            multiplayer = app.session:isMultiplayer(),
+            playerCount = app.session.playerCount,
+            portalService = app.portalService,
+            onReturnToTitle = function(returnedViewId)
+                print("[StarryMessenger] returning to title")
+                returnToCurrentTitle(returnedViewId or viewId)
+            end
+        }))
+        return
+    end
+
+    local actualViewId = viewId == "rccar_multi" and "rccar" or viewId
+    if viewId == "life" and options.modeId == GameOfLife.MODE_REVIEW then
+        options.effect = nil
+    end
+    if viewId == "rccar_multi" then
+        options.effect = nil
+    end
+    ViewAudio.playForView(actualViewId)
+    setScene(ViewScene.new({
+        viewId = actualViewId,
+        modeId = options.modeId,
+        effect = options.effect,
+        session = app.session,
+        onReturnToTitle = function(returnedViewId, effect)
+            print("[StarryMessenger] returning to title")
+            returnToCurrentTitle(viewId, {
+                previewEffect = effect,
+                previewModeId = effect and effect.modeId or options.modeId
+            })
+        end
+    }))
+end
+
+buildGameTitleScene = function(catalog, options)
+    options = options or {}
+    ViewAudio.stop()
+    local viewItems = getCatalogViewItems(catalog)
+    local subtitle = catalog == "multi"
+        and string.format("Multiplayer Games  %d Beings", app.session.playerCount)
+        or "Single Player"
+    safeCall("buildSystemMenu", function()
+        buildSystemMenu(viewItems)
+    end)
+    return TitleScene.new({
+        viewItems = viewItems,
+        catalog = catalog,
+        playerCount = app.session.playerCount,
+        selectedIndex = options.selectedIndex,
+        previewEffect = options.previewEffect,
+        previewViewId = options.previewViewId,
+        previewModeId = options.previewModeId,
+        headerTitle = "STARRY MESSENGER",
+        headerSubtitle = subtitle,
+        onBack = function()
+            setScene(buildPlayerCountScene())
+        end,
+        onSelectView = function(viewId, effect, modeId)
+            logModeSelection("title", viewId)
+            showView(viewId, {
+                effect = effect,
+                modeId = modeId
+            })
+        end
+    })
+end
+
+buildPlayerCountScene = function()
+    ViewAudio.stop()
+    return PlayerCountScene.new({
+        onBack = function()
+            setScene(buildSplashScene())
+        end,
+        onSelectCount = function(playerCount)
+            app.session:setPlayerCount(playerCount)
+            local catalog = app.session.catalog
+            setScene(buildGameTitleScene(catalog))
+        end
+    })
+end
+
+buildSplashScene = function()
+    ViewAudio.stop()
+    print("[StarryMessenger] buildSplashScene")
+    return SplashScene.new({
+        onContinue = function()
+            print("[StarryMessenger] splash requested player count scene")
+            setScene(buildPlayerCountScene())
+        end
+    })
+end
+
+function buildSystemMenu(viewItems)
+    local menu = pd.getSystemMenu()
+    menu:removeAllMenuItems()
+
+    menu:addMenuItem("Title Menu", function()
+        ViewAudio.stop()
+        setScene(buildGameTitleScene(app.session.catalog))
+    end)
+
+    menu:addMenuItem("Warp Speed", function()
+        showView("warp")
+    end)
+
+    menu:addMenuItem("Star Fall", function()
+        showView("fall")
+    end)
+
+    menu:addCheckmarkMenuItem("Fish Spawn Mode", FishPond.isSpawnModeEnabled(), function(value)
+        FishPond.setSpawnModeEnabled(value)
+    end)
+end
+
+function pd.update()
+    gfx.clear(gfx.kColorBlack)
+    gfx.setColor(gfx.kColorWhite)
+
+    if app.fatalError then
+        drawFatalError()
+        return
+    end
+
+    if app.portalService and app.portalService.update then
+        local _, ok = safeCall("portal.update", function()
+            app.portalService:update()
+        end)
+        if not ok then
+            drawFatalError()
+            return
+        end
+    end
+
+    if app.scene and app.scene.update then
+        local _, ok = safeCall("scene.update", function()
+            app.scene:update()
+        end)
+        if not ok then
+            drawFatalError()
+        end
+    end
+end
+
+pd.display.setRefreshRate(30)
+print("[StarryMessenger] boot begin")
+safeCall("buildSystemMenu", function()
+    print("[StarryMessenger] building initial system menu")
+    buildSystemMenu(SINGLE_VIEW_ITEMS)
+end)
+
+local initialScene = safeCall("buildSplashScene", function()
+    print("[StarryMessenger] requesting initial splash scene")
+    return buildSplashScene()
+end)
+
+if initialScene then
+    local _, ok = safeCall("setScene(initialScene)", function()
+        print("[StarryMessenger] activating initial scene")
+        setScene(initialScene)
+    end)
+    if not ok then
+        app.scene = nil
+    end
+end
