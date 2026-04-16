@@ -214,6 +214,8 @@ def resolve_media(session: requests.Session, url: str, timeout: int) -> tuple[st
 
 def convert_frame(frame: Image.Image) -> tuple[Image.Image, int, int]:
     rgba = frame.convert("RGBA")
+    if rgba.height > rgba.width:
+        rgba = rgba.rotate(90, expand=True)
     background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
     composited = Image.alpha_composite(background, rgba).convert("L")
     composited.thumbnail(SCREEN_SIZE, Image.Resampling.LANCZOS)

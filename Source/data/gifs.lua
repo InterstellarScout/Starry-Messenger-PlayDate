@@ -49,6 +49,13 @@ GIF_CATALOG = {
         frameCount = 48
     },
     {
+        label = "Dancing Banana GIF - Dancing Banana Dancing Banana",
+        path = "gifs/dancing-banana-gif-dancing-banana-dancing-banana",
+        width = 255,
+        height = 240,
+        frameCount = 8
+    },
+    {
         label = "Dizzy Spongebob Spinning Head",
         path = "gifs/dizzy-spongebob-spinning-head",
         width = 250,
@@ -65,14 +72,14 @@ GIF_CATALOG = {
     {
         label = "Drunk GIF - Drunk",
         path = "gifs/drunk-gif-drunk",
-        width = 184,
+        width = 313,
         height = 240,
         frameCount = 48
     },
     {
         label = "Duck Dance Ducky GIF - Duck dance Ducky Duck jump",
         path = "gifs/duck-dance-ducky-gif-duck-dance-ducky-duck-jump",
-        width = 236,
+        width = 244,
         height = 240,
         frameCount = 48
     },
@@ -86,7 +93,7 @@ GIF_CATALOG = {
     {
         label = "Duck Ducks GIF - Duck Ducks Confused",
         path = "gifs/duck-ducks-gif-duck-ducks-confused",
-        width = 182,
+        width = 316,
         height = 240,
         frameCount = 38
     },
@@ -100,14 +107,14 @@ GIF_CATALOG = {
     {
         label = "Duck Flower GIF - Duck Flower",
         path = "gifs/duck-flower-gif-duck-flower",
-        width = 192,
-        height = 240,
+        width = 275,
+        height = 220,
         frameCount = 48
     },
     {
         label = "Duck Sticker - Duck",
         path = "gifs/duck-sticker-duck",
-        width = 222,
+        width = 259,
         height = 240,
         frameCount = 19
     },
@@ -133,6 +140,13 @@ GIF_CATALOG = {
         frameCount = 5
     },
     {
+        label = "Foodie Frens GIF - Foodie frens",
+        path = "gifs/foodie-frens-gif-foodie-frens",
+        width = 400,
+        height = 227,
+        frameCount = 6
+    },
+    {
         label = "Funny So Funny GIF - Funny So funny",
         path = "gifs/funny-so-funny-gif-funny-so-funny",
         width = 258,
@@ -142,15 +156,15 @@ GIF_CATALOG = {
     {
         label = "Happy Duck Cute Duck GIF - Happy duck Cute duck Duck duck duck",
         path = "gifs/happy-duck-cute-duck-gif-happy-duck-cute-duck-duck-duck-duck",
-        width = 184,
+        width = 313,
         height = 240,
         frameCount = 48
     },
     {
         label = "Happy Poop Emoji Dancing To Music",
         path = "gifs/happy-poop-emoji-dancing-to-music",
-        width = 220,
-        height = 228,
+        width = 228,
+        height = 220,
         frameCount = 31
     },
     {
@@ -182,6 +196,13 @@ GIF_CATALOG = {
         frameCount = 30
     },
     {
+        label = "I Said Oh Baby Turn The Lights Off Dance GIF - I said oh baby turn the lights off Dance Turn the lights off",
+        path = "gifs/i-said-oh-baby-turn-the-lights-off-dance-gif-i-said-oh-baby-turn-the-lights-off-dance-turn-the-lights-off",
+        width = 359,
+        height = 240,
+        frameCount = 48
+    },
+    {
         label = "Ice King Adventure Time Sticker - Ice king Adventure time Twerking",
         path = "gifs/ice-king-adventure-time-sticker-ice-king-adventure-time-twerking",
         width = 240,
@@ -189,10 +210,17 @@ GIF_CATALOG = {
         frameCount = 5
     },
     {
+        label = "In Space National Space Day GIF - In Space National Space Day Dark Universe101",
+        path = "gifs/in-space-national-space-day-gif-in-space-national-space-day-dark-universe101",
+        width = 220,
+        height = 124,
+        frameCount = 48
+    },
+    {
         label = "Inflatable Tube Man Air Dancer GIF - Inflatable Tube Man Air Dancer Wind Balloon",
         path = "gifs/inflatable-tube-man-air-dancer-gif-inflatable-tube-man-air-dancer-wind-balloon",
-        width = 160,
-        height = 240,
+        width = 331,
+        height = 220,
         frameCount = 46
     },
     {
@@ -203,8 +231,64 @@ GIF_CATALOG = {
         frameCount = 7
     },
     {
+        label = "Love Sparkle Love In The Stars GIF - Love sparkle Love in the stars Sparkling heart",
+        path = "gifs/love-sparkle-love-in-the-stars-gif-love-sparkle-love-in-the-stars-sparkling-heart",
+        width = 400,
+        height = 226,
+        frameCount = 48
+    },
+    {
         label = "Mlp Spin Sticker - Mlp Spin Fluttershy",
         path = "gifs/mlp-spin-sticker-mlp-spin-fluttershy",
+        width = 240,
+        height = 240,
+        frameCount = 12
+    },
+    {
+        label = "Moon Space GIF - Moon Space Time",
+        path = "gifs/moon-space-gif-moon-space-time",
+        width = 240,
+        height = 240,
+        frameCount = 31
+    },
+    {
+        label = "Mushishi GIF - Mushishi",
+        path = "gifs/mushishi-gif-mushishi",
+        width = 400,
+        height = 223,
+        frameCount = 21
+    },
+    {
+        label = "Mushishi GIF - Mushishi",
+        path = "gifs/mushishi-gif-mushishi-2",
+        width = 400,
+        height = 223,
+        frameCount = 27
+    },
+    {
+        label = "Mushishi GIF - Mushishi",
+        path = "gifs/mushishi-gif-mushishi-3",
+        width = 400,
+        height = 223,
+        frameCount = 14
+    },
+    {
+        label = "Nature Mushi GIF - Nature Mushi Mushi shi",
+        path = "gifs/nature-mushi-gif-nature-mushi-mushi-shi",
+        width = 400,
+        height = 224,
+        frameCount = 24
+    },
+    {
+        label = "Patrick GIF - Patrick",
+        path = "gifs/patrick-gif-patrick",
+        width = 400,
+        height = 225,
+        frameCount = 48
+    },
+    {
+        label = "Patrick Star Spongebob GIF - Patrick star Patrick Spongebob",
+        path = "gifs/patrick-star-spongebob-gif-patrick-star-patrick-spongebob",
         width = 240,
         height = 240,
         frameCount = 12
@@ -229,6 +313,20 @@ GIF_CATALOG = {
         width = 400,
         height = 216,
         frameCount = 48
+    },
+    {
+        label = "Rave Party GIF - Rave Party",
+        path = "gifs/rave-party-gif-rave-party",
+        width = 338,
+        height = 240,
+        frameCount = 15
+    },
+    {
+        label = "Seal Spinning Spinning Spinning GIF - Spinning Seal Water",
+        path = "gifs/seal-spinning-spinning-spinning-gif-spinning-seal-water",
+        width = 400,
+        height = 196,
+        frameCount = 25
     },
     {
         label = "Shark Blahaj Sticker - Shark Blahaj BLÅHAJ",
@@ -259,6 +357,20 @@ GIF_CATALOG = {
         frameCount = 17
     },
     {
+        label = "Spongebob Spongebob Meme GIF - Spongebob Spongebob meme Patrick",
+        path = "gifs/spongebob-spongebob-meme-gif-spongebob-spongebob-meme-patrick",
+        width = 296,
+        height = 240,
+        frameCount = 6
+    },
+    {
+        label = "Spongebob Spongebob Mocking GIF - Spongebob Spongebob mocking",
+        path = "gifs/spongebob-spongebob-mocking-gif-spongebob-spongebob-mocking",
+        width = 240,
+        height = 240,
+        frameCount = 12
+    },
+    {
         label = "Spongebob Squidward GIF - Spongebob Squidward",
         path = "gifs/spongebob-squidward-gif-spongebob-squidward",
         width = 320,
@@ -273,6 +385,20 @@ GIF_CATALOG = {
         frameCount = 14
     },
     {
+        label = "Star GIF - Star",
+        path = "gifs/star-gif-star",
+        width = 400,
+        height = 223,
+        frameCount = 18
+    },
+    {
+        label = "Starseeds Space GIF - Starseeds Space Stars",
+        path = "gifs/starseeds-space-gif-starseeds-space-stars",
+        width = 375,
+        height = 240,
+        frameCount = 20
+    },
+    {
         label = "Tease Teasing Sticker - Tease Teasing Bla bla bla",
         path = "gifs/tease-teasing-sticker-tease-teasing-bla-bla-bla",
         width = 240,
@@ -285,6 +411,20 @@ GIF_CATALOG = {
         width = 240,
         height = 240,
         frameCount = 14
+    },
+    {
+        label = "Walk Cycle Papaya GIF - Walk Cycle Papaya Spongebob Squarepants",
+        path = "gifs/walk-cycle-papaya-gif-walk-cycle-papaya-spongebob-squarepants",
+        width = 220,
+        height = 168,
+        frameCount = 48
+    },
+    {
+        label = "Walking National Geographic GIF - Walking National Geographic Penguins",
+        path = "gifs/walking-national-geographic-gif-walking-national-geographic-penguins",
+        width = 400,
+        height = 225,
+        frameCount = 48
     },
     {
         label = "Zipz Kirby Sticker - ZIPZ KIRBY PARTY KIRBY",

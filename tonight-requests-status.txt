@@ -114,6 +114,7 @@
 | In GIF Player, pressing B should return from fullscreen playback to the GIF selector first, and only return to the main menu when B is pressed again from the selector. | Done |
 | Fix the title menu crash when cranking causes a warp preview to draw before its cached line coordinates are initialized, producing `systems/starfield.lua:629 drawLine` errors. | Done |
 | Fix the title menu so Gif Player stays a single view label instead of looking like `CRT TV` plus `Gif Player` as separate carousel entries, and keep Ant Farm title text visibly inverted/readable. | Done |
+| Convert the newly provided Tenor GIFs into Gif Player assets and rotate portrait sources to landscape before scaling so they use the Playdate screen better. | Done |
 
 ##### Orbital Defense
 | Request | Status |
