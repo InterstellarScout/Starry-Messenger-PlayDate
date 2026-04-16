@@ -117,6 +117,7 @@
 | Convert the newly provided Tenor GIFs into Gif Player assets and rotate portrait sources to landscape before scaling so they use the Playdate screen better. | Done |
 | Remove CRT TV for now so Gif Player is GIF-only until the static mode can be cleaned up and reintroduced later. | Done |
 | Update the GIF adapter so portrait GIFs only rotate to landscape when explicitly requested instead of rotating by default. | Done |
+| Bulk rotate `drunk-gif-drunk-table-*` and `inflatable-tube-man-air-dancer-gif-inflatable-tube-man-air-dancer-wind-balloon-table-*` clockwise once. | Done |
 
 ##### Orbital Defense
 | Request | Status |
