@@ -387,6 +387,7 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
 
     star.px = star.x
     star.py = star.y
+    self:updateWarpStarScreenCache(star)
 end
 
 function Starfield:refreshWarpFieldForDirection()
@@ -423,6 +424,7 @@ function Starfield:seedWarpStar(star, index, totalCount)
 
     star.px = star.x
     star.py = star.y
+    self:updateWarpStarScreenCache(star)
 end
 
 function Starfield:transformPoint(x, y)
