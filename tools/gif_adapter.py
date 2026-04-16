@@ -43,13 +43,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def read_urls(path: Path) -> list[str]:
-    urls: list[str] = []
+def read_urls(path: Path) -> list[dict[str, str | bool]]:
+    urls: list[dict[str, str | bool]] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         value = line.strip()
         if not value or value.startswith("#"):
             continue
-        urls.append(value)
+        rotate = False
+        if value.lower().startswith("rotate|"):
+            rotate = True
+            value = value[7:].strip()
+        urls.append({
+            "url": value,
+            "rotate": rotate
+        })
     return urls
 
 
@@ -212,9 +219,9 @@ def resolve_media(session: requests.Session, url: str, timeout: int) -> tuple[st
     return title, media_response.url, media_response.content
 
 
-def convert_frame(frame: Image.Image) -> tuple[Image.Image, int, int]:
+def convert_frame(frame: Image.Image, rotate_to_landscape: bool = False) -> tuple[Image.Image, int, int]:
     rgba = frame.convert("RGBA")
-    if rgba.height > rgba.width:
+    if rotate_to_landscape and rgba.height > rgba.width:
         rgba = rgba.rotate(90, expand=True)
     background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
     composited = Image.alpha_composite(background, rgba).convert("L")
@@ -242,13 +249,13 @@ def clear_existing_frames(prefix: str) -> None:
         path.unlink()
 
 
-def write_frames(prefix: str, frames: Iterable[Image.Image]) -> tuple[int, int, int]:
+def write_frames(prefix: str, frames: Iterable[Image.Image], rotate_to_landscape: bool = False) -> tuple[int, int, int]:
     clear_existing_frames(prefix)
     width = 0
     height = 0
     count = 0
     for count, frame in enumerate(frames, start=1):
-        bitmap, width, height = convert_frame(frame)
+        bitmap, width, height = convert_frame(frame, rotate_to_landscape=rotate_to_landscape)
         bitmap.save(GIF_DIR / f"{prefix}-table-{count}.png")
     return width, height, count
 
@@ -282,7 +289,9 @@ def main() -> int:
 
     entries.extend(SEED_ENTRIES)
 
-    for url in urls:
+    for item in urls:
+        url = str(item["url"])
+        rotate_to_landscape = item["rotate"] == True
         try:
             title, media_url, payload = resolve_media(session, url, args.timeout)
         except Exception as exc:
@@ -304,7 +313,7 @@ def main() -> int:
         try:
             image = Image.open(io.BytesIO(payload))
             frames = sample_frames(image, args.max_frames)
-            width, height, frame_count = write_frames(prefix, frames)
+            width, height, frame_count = write_frames(prefix, frames, rotate_to_landscape=rotate_to_landscape)
         except Exception as exc:
             print(f"FAILED convert {url}: {exc}", file=sys.stderr)
             continue
