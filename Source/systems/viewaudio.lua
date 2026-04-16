@@ -26,6 +26,9 @@ local SHARED_AUDIO_FOLDERS <const> = {
     gifplayer = {
         "audio/shared-ambiance/AirplaneAmbiance"
     },
+    crttv = {
+        "audio/shared-ambiance/AirplaneAmbiance"
+    },
     orbital = {
         "audio/shared-ambiance/AirplaneAmbiance"
     }

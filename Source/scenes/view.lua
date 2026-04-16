@@ -47,6 +47,8 @@ function ViewScene.new(config)
         })
     elseif self.viewId == "fireworks" then
         self.effect = FireworksShow.new(400, 240)
+    elseif self.viewId == "crttv" then
+        self.effect = CRTTVEffect.new(400, 240)
     elseif self.viewId == "gifplayer" then
         self.effect = GifPlayerEffect.new(400, 240, {
             modeId = self.modeId
@@ -249,6 +251,8 @@ function ViewScene:update()
             end
         elseif self.viewId == "fireworks" then
             self.effect:launchFromLauncher()
+        elseif self.viewId == "crttv" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "antfarm" then
@@ -286,6 +290,9 @@ function ViewScene:update()
         end
     elseif self.viewId == "antfarm" then
         self.effect:moveHandByCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "crttv" then
+        self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
     elseif self.viewId == "gifplayer" then
         self.effect:applyCrank(change, acceleratedChange)

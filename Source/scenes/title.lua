@@ -81,7 +81,7 @@ function TitleScene:usesDarkText()
         return false
     end
 
-    if selectedView.id == "duck" then
+    if selectedView.id == "duck" or selectedView.id == "antfarm" then
         return true
     end
 
@@ -97,8 +97,7 @@ function TitleScene:usesDarkText()
 end
 
 function TitleScene:usesInvertedText()
-    local selectedView = self:getSelectedView()
-    return selectedView ~= nil and selectedView.id == "antfarm"
+    return false
 end
 
 function TitleScene:getTextColor()
@@ -307,6 +306,10 @@ function TitleScene:setPreview(forceFresh)
             })
         elseif selectedView.id == "fireworks" then
             return FireworksShow.new(400, 240, {
+                preview = true
+            })
+        elseif selectedView.id == "crttv" then
+            return CRTTVEffect.new(400, 240, {
                 preview = true
             })
         elseif selectedView.id == "gifplayer" then

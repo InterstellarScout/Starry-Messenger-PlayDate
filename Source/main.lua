@@ -16,6 +16,7 @@ import "systems/fireworks"
 import "systems/fishpond"
 import "systems/antfarm"
 import "systems/gifplayer"
+import "systems/crttv"
 import "systems/rccararena"
 import "systems/controlhelp"
 import "systems/sessionstate"
@@ -80,6 +81,7 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     { id = "fireworks", label = "Fireworks" },
     { id = "antfarm", label = "Ant Farm" },
+    { id = "crttv", label = "CRT TV" },
     { id = "gifplayer", label = "Gif Player" },
     {
         id = "fishpond",

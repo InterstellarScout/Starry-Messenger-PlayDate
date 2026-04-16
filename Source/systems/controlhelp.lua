@@ -71,6 +71,14 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "B: return to title.",
             "Random fireworks still launch automatically in the background."
         })
+    elseif viewId == "crttv" then
+        return buildSpec("CRT TV Controls", {
+            "A: toggle the transparent rolling bars on and off.",
+            "Crank: temporarily speed the bars up or slow them down while they are active.",
+            "If the crank rests for about 2 seconds, or reaches the top or bottom position, the bars return to their normal speeds.",
+            "In the title preview, the effect bounces between its first two static frames.",
+            "B: return to title."
+        })
     elseif viewId == "gifplayer" then
         return buildSpec("GIF Player Controls", {
             "On entry, Up/Down chooses a GIF and A starts fullscreen playback.",

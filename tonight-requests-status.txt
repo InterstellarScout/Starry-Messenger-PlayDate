@@ -118,6 +118,8 @@
 | Remove CRT TV for now so Gif Player is GIF-only until the static mode can be cleaned up and reintroduced later. | Done |
 | Update the GIF adapter so portrait GIFs only rotate to landscape when explicitly requested instead of rotating by default. | Done |
 | Bulk rotate `drunk-gif-drunk-table-*` and `inflatable-tube-man-air-dancer-gif-inflatable-tube-man-air-dancer-wind-balloon-table-*` clockwise once. | Done |
+| Make a new `CRT TV` view with old-TV static, optional rolling transparent bars on A, crank-controlled temporary bar-speed changes that release after 2 seconds or crank top/bottom, and a title preview that bounces between its first two frames. | Done |
+| When viewing Ant Farm from the title screen, make all title text invert the same way Inverse Fall and Inverse Warp do. | Done |
 
 ##### Orbital Defense
 | Request | Status |
