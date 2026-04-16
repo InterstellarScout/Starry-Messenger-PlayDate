@@ -80,16 +80,7 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     { id = "fireworks", label = "Fireworks" },
     { id = "antfarm", label = "Ant Farm" },
-    {
-        id = "gifplayer",
-        label = "Gif Player",
-        modes = {
-            GifPlayerEffect.MODE_STATIC,
-            GifPlayerEffect.MODE_GIF
-        },
-        modeId = GifPlayerEffect.MODE_STATIC,
-        getModeLabel = GifPlayerEffect.getModeLabel
-    },
+    { id = "gifplayer", label = "Gif Player" },
     {
         id = "fishpond",
         label = "Fishy Pond",

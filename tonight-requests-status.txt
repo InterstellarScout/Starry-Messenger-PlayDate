@@ -115,6 +115,7 @@
 | Fix the title menu crash when cranking causes a warp preview to draw before its cached line coordinates are initialized, producing `systems/starfield.lua:629 drawLine` errors. | Done |
 | Revert `Fix title menu labels and ant title contrast` because the menu/title behavior became worse after that change. | Done |
 | Convert the newly provided Tenor GIFs into Gif Player assets and rotate portrait sources to landscape before scaling so they use the Playdate screen better. | Done |
+| Remove CRT TV for now so Gif Player is GIF-only until the static mode can be cleaned up and reintroduced later. | Done |
 
 ##### Orbital Defense
 | Request | Status |

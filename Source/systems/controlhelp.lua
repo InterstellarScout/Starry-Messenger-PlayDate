@@ -72,22 +72,13 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Random fireworks still launch automatically in the background."
         })
     elseif viewId == "gifplayer" then
-        if modeId == GifPlayerEffect.MODE_GIF then
-            return buildSpec("GIF Player Controls", {
-                "On entry, Up/Down chooses a GIF and A starts fullscreen playback.",
-                "Crank: scrub frames in normal mode, or change playback speed in spin mode.",
-                "D-pad Left/Right: step one frame at a time outside spin mode.",
-                "A: cycle fullscreen playback between normal, inverted, and animation spin.",
-                "B: return to title.",
-                "Run tools/gif_adapter.py from the project files to add more GIFs."
-            })
-        end
-
-        return buildSpec("CRT Static Controls", {
-            "Full-screen static now runs on its own with no crank scrubbing.",
-            "A: toggle the rolling transparent bars.",
-            "The title preview flips between two static frames instead of rolling continuously.",
-            "B: return to title."
+        return buildSpec("GIF Player Controls", {
+            "On entry, Up/Down chooses a GIF and A starts fullscreen playback.",
+            "Crank: scrub frames in normal mode, or change playback speed in spin mode.",
+            "D-pad Left/Right: step one frame at a time outside spin mode.",
+            "A: cycle fullscreen playback between normal, inverted, and animation spin.",
+            "B: return to title.",
+            "Run tools/gif_adapter.py from the project files to add more GIFs."
         })
     elseif viewId == "antfarm" then
         return buildSpec("Ant Farm Controls", {

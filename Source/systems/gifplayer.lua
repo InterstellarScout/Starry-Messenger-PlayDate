@@ -7,18 +7,11 @@ local gfx <const> = pd.graphics
 GifPlayerEffect = {}
 GifPlayerEffect.__index = GifPlayerEffect
 
-GifPlayerEffect.MODE_STATIC = "static"
 GifPlayerEffect.MODE_GIF = "gif"
 GifPlayerEffect.GIF_STATE_NORMAL = "normal"
 GifPlayerEffect.GIF_STATE_INVERT = "invert"
 GifPlayerEffect.GIF_STATE_SPIN = "spin"
 
-local STATIC_NOISE_STEP_X <const> = 4
-local STATIC_NOISE_STEP_Y <const> = 2
-local STATIC_PREVIEW_FRAME_DURATION <const> = 12
-local STATIC_PREVIEW_PHASES <const> = { 3.5, 19.25 }
-local BAR_PATTERN_LARGE <const> = { 0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88 }
-local BAR_PATTERN_SMALL <const> = { 0x88, 0xcc, 0x66, 0x33, 0x11, 0x33, 0x66, 0xcc }
 local GIF_DEFAULT_SPIN_SPEED <const> = 0.45
 
 local function clamp(value, minValue, maxValue)
@@ -31,20 +24,11 @@ local function clamp(value, minValue, maxValue)
     return value
 end
 
-local function fract(value)
-    return value - math.floor(value)
-end
-
 local function roundToTenth(value)
     if value >= 0 then
         return math.floor((value * 10) + 0.5) / 10
     end
     return math.ceil((value * 10) - 0.5) / 10
-end
-
-local function staticNoise(x, y, phase)
-    local seed = (x * 0.173) + (y * 0.619) + (phase * 0.097)
-    return fract(math.sin(seed) * 43758.5453)
 end
 
 local function wrapFrame(frame, frameCount)
@@ -63,31 +47,15 @@ local function wrapFrame(frame, frameCount)
     return frame
 end
 
-local function makeBar(y, height, speed)
-    return {
-        y = y,
-        height = height,
-        baseSpeed = speed,
-        speed = speed
-    }
-end
-
-local function randomSmallBarSpeed()
-    return 0.5 + (math.random() * 2.3)
-end
-
 function GifPlayerEffect.getModeLabel(modeId)
-    if modeId == GifPlayerEffect.MODE_GIF then
-        return "GIF Player"
-    end
-    return "CRT Static"
+    return "GIF Player"
 end
 
 function GifPlayerEffect.new(width, height, options)
     local self = setmetatable({}, GifPlayerEffect)
     self.width = width
     self.height = height
-    self.modeId = options and options.modeId or GifPlayerEffect.MODE_STATIC
+    self.modeId = GifPlayerEffect.MODE_GIF
     self.preview = options and options.preview == true or false
     self.catalog = GIF_CATALOG or {}
     self.gifIndex = 1
@@ -95,25 +63,12 @@ function GifPlayerEffect.new(width, height, options)
     self.activeFrames = nil
     self.activeFramePosition = 1
     self.gifInverted = false
-    self.gifChooserOpen = self.modeId == GifPlayerEffect.MODE_GIF and not self.preview
+    self.gifChooserOpen = not self.preview
     self.gifState = GifPlayerEffect.GIF_STATE_NORMAL
     self.gifPlaybackSpeed = GIF_DEFAULT_SPIN_SPEED
     self.gifSpeedAccumulator = 0
-    self.staticPhase = 0
-    self.staticPreviewFrame = 1
-    self.staticPreviewTimer = STATIC_PREVIEW_FRAME_DURATION
-    self.staticBarsActive = false
-    self.bars = {
-        large = makeBar(-48, 40, 0.9),
-        small = makeBar(-18, 12, randomSmallBarSpeed())
-    }
     self:loadGif(1)
     return self
-end
-
-function GifPlayerEffect:resetBars()
-    self.bars.large = makeBar(-48, 40, 0.9)
-    self.bars.small = makeBar(-18, 12, randomSmallBarSpeed())
 end
 
 function GifPlayerEffect:setPreview(isPreview)
@@ -167,14 +122,6 @@ function GifPlayerEffect:stepGifSelection(delta)
 end
 
 function GifPlayerEffect:handlePrimaryAction()
-    if self.modeId == GifPlayerEffect.MODE_STATIC then
-        self.staticBarsActive = not self.staticBarsActive
-        if self.staticBarsActive then
-            self:resetBars()
-        end
-        return
-    end
-
     if self.gifChooserOpen then
         self.gifChooserOpen = false
         return
@@ -196,7 +143,7 @@ function GifPlayerEffect:handlePrimaryAction()
 end
 
 function GifPlayerEffect:handleBack()
-    if self.modeId ~= GifPlayerEffect.MODE_GIF or self.gifChooserOpen then
+    if self.gifChooserOpen then
         return false
     end
 
@@ -226,10 +173,6 @@ function GifPlayerEffect:stepSpeed(direction)
 end
 
 function GifPlayerEffect:applyCrank(change, acceleratedChange)
-    if self.modeId == GifPlayerEffect.MODE_STATIC then
-        return
-    end
-
     if self.activeGif == nil or self.activeFrames == nil or self.gifChooserOpen then
         return
     end
@@ -253,10 +196,6 @@ function GifPlayerEffect:applyCrank(change, acceleratedChange)
 end
 
 function GifPlayerEffect:updateDirectionalInput(upPressed, downPressed, leftPressed, rightPressed)
-    if self.modeId ~= GifPlayerEffect.MODE_GIF then
-        return
-    end
-
     if self.gifChooserOpen then
         if upPressed then
             self:stepGifSelection(-1)
@@ -281,35 +220,6 @@ function GifPlayerEffect:updateDirectionalInput(upPressed, downPressed, leftPres
     end
 end
 
-function GifPlayerEffect:updateStatic()
-    if self.preview then
-        self.staticPreviewTimer = self.staticPreviewTimer - 1
-        if self.staticPreviewTimer <= 0 then
-            self.staticPreviewFrame = self.staticPreviewFrame == 1 and 2 or 1
-            self.staticPreviewTimer = STATIC_PREVIEW_FRAME_DURATION
-        end
-        self.staticPhase = STATIC_PREVIEW_PHASES[self.staticPreviewFrame]
-    else
-        self.staticPhase = self.staticPhase + 1.35
-    end
-
-    if not self.staticBarsActive then
-        return
-    end
-
-    self.bars.large.y = self.bars.large.y + self.bars.large.baseSpeed
-    self.bars.small.y = self.bars.small.y + self.bars.small.speed
-
-    if self.bars.large.y >= self.height then
-        self.bars.large.y = -self.bars.large.height
-    end
-
-    if self.bars.small.y >= self.height then
-        self.bars.small.y = -self.bars.small.height
-        self.bars.small.speed = randomSmallBarSpeed()
-    end
-end
-
 function GifPlayerEffect:updateGif()
     if self.activeGif == nil then
         return
@@ -326,52 +236,7 @@ function GifPlayerEffect:updateGif()
 end
 
 function GifPlayerEffect:update()
-    if self.modeId == GifPlayerEffect.MODE_STATIC then
-        self:updateStatic()
-    else
-        self:updateGif()
-    end
-end
-
-function GifPlayerEffect:drawStatic()
-    gfx.clear(gfx.kColorWhite)
-    gfx.setColor(gfx.kColorBlack)
-
-    local phase = self.staticPhase
-    local rollingBandY = ((phase * 3.2) % (self.height + 52)) - 26
-    local slowBandY = ((phase * 1.1) % (self.height + 72)) - 36
-
-    for y = 0, self.height - 1, STATIC_NOISE_STEP_Y do
-        local rowOffset = math.floor(staticNoise(0, y, phase * 11) * 12)
-        local bandDistance = math.abs(y - rollingBandY)
-        local secondaryDistance = math.abs(y - slowBandY)
-        local densityBoost = 0
-
-        if bandDistance < 18 then
-            densityBoost = 0.22
-        elseif secondaryDistance < 28 then
-            densityBoost = 0.12
-        end
-
-        for x = -rowOffset, self.width - 1, STATIC_NOISE_STEP_X do
-            if staticNoise(x, y, phase) < (0.44 + densityBoost) then
-                gfx.fillRect(x, y, 2, STATIC_NOISE_STEP_Y)
-            end
-        end
-
-        if y % 6 == 0 or staticNoise(200, y, phase * 0.5) < 0.08 then
-            gfx.drawLine(0, y, self.width, y)
-        end
-    end
-
-    if self.staticBarsActive then
-        gfx.setImageDrawMode(gfx.kDrawModeXOR)
-        gfx.setPattern(BAR_PATTERN_LARGE)
-        gfx.fillRect(0, math.floor(self.bars.large.y), self.width, self.bars.large.height)
-        gfx.setPattern(BAR_PATTERN_SMALL)
-        gfx.fillRect(0, math.floor(self.bars.small.y), self.width, self.bars.small.height)
-        gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    end
+    self:updateGif()
 end
 
 function GifPlayerEffect:drawGif()
@@ -397,7 +262,7 @@ function GifPlayerEffect:drawGif()
 end
 
 function GifPlayerEffect:drawOverlay()
-    if self.preview or self.modeId ~= GifPlayerEffect.MODE_GIF or not self.gifChooserOpen then
+    if self.preview or not self.gifChooserOpen then
         return
     end
 
@@ -417,18 +282,6 @@ function GifPlayerEffect:drawOverlay()
 end
 
 function GifPlayerEffect:draw()
-    if self.modeId == GifPlayerEffect.MODE_STATIC then
-        self:drawStatic()
-    else
-        self:drawGif()
-    end
-    if self.modeId ~= GifPlayerEffect.MODE_STATIC then
-        self:drawOverlay()
-    elseif not self.preview then
-        gfx.setColor(gfx.kColorBlack)
-        gfx.fillRect(0, 0, self.width, 14)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        gfx.drawText("CRT STATIC  A: bars  B: menu", 8, 2)
-        gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    end
+    self:drawGif()
+    self:drawOverlay()
 end
