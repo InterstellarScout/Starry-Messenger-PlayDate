@@ -74,10 +74,10 @@ function ControlHelp.getEntrySpec(viewId, modeId)
     elseif viewId == "gifplayer" then
         if modeId == GifPlayerEffect.MODE_GIF then
             return buildSpec("GIF Player Controls", {
-                "Crank: scrub the current GIF forward and backward frame by frame.",
-                "D-pad Up/Down: switch to another converted GIF in the local catalog.",
-                "D-pad Left/Right: step one frame at a time.",
-                "A: invert the GIF colors.",
+                "On entry, Up/Down chooses a GIF and A starts fullscreen playback.",
+                "Crank: scrub frames in normal mode, or change playback speed in spin mode.",
+                "D-pad Left/Right: step one frame at a time outside spin mode.",
+                "A: cycle fullscreen playback between normal, inverted, and animation spin.",
                 "B: return to title.",
                 "Run tools/gif_adapter.py from the project files to add more GIFs."
             })

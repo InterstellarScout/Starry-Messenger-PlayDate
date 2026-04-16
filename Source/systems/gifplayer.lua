@@ -9,6 +9,9 @@ GifPlayerEffect.__index = GifPlayerEffect
 
 GifPlayerEffect.MODE_STATIC = "static"
 GifPlayerEffect.MODE_GIF = "gif"
+GifPlayerEffect.GIF_STATE_NORMAL = "normal"
+GifPlayerEffect.GIF_STATE_INVERT = "invert"
+GifPlayerEffect.GIF_STATE_SPIN = "spin"
 
 local STATIC_NOISE_STEP_X <const> = 4
 local STATIC_NOISE_STEP_Y <const> = 2
@@ -16,6 +19,7 @@ local STATIC_PREVIEW_FRAME_DURATION <const> = 12
 local STATIC_PREVIEW_PHASES <const> = { 3.5, 19.25 }
 local BAR_PATTERN_LARGE <const> = { 0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88 }
 local BAR_PATTERN_SMALL <const> = { 0x88, 0xcc, 0x66, 0x33, 0x11, 0x33, 0x66, 0xcc }
+local GIF_DEFAULT_SPIN_SPEED <const> = 0.45
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -29,6 +33,13 @@ end
 
 local function fract(value)
     return value - math.floor(value)
+end
+
+local function roundToTenth(value)
+    if value >= 0 then
+        return math.floor((value * 10) + 0.5) / 10
+    end
+    return math.ceil((value * 10) - 0.5) / 10
 end
 
 local function staticNoise(x, y, phase)
@@ -84,6 +95,10 @@ function GifPlayerEffect.new(width, height, options)
     self.activeFrames = nil
     self.activeFramePosition = 1
     self.gifInverted = false
+    self.gifChooserOpen = self.modeId == GifPlayerEffect.MODE_GIF and not self.preview
+    self.gifState = GifPlayerEffect.GIF_STATE_NORMAL
+    self.gifPlaybackSpeed = GIF_DEFAULT_SPIN_SPEED
+    self.gifSpeedAccumulator = 0
     self.staticPhase = 0
     self.staticPreviewFrame = 1
     self.staticPreviewTimer = STATIC_PREVIEW_FRAME_DURATION
@@ -160,7 +175,54 @@ function GifPlayerEffect:handlePrimaryAction()
         return
     end
 
-    self.gifInverted = not self.gifInverted
+    if self.gifChooserOpen then
+        self.gifChooserOpen = false
+        return
+    end
+
+    if self.gifState == GifPlayerEffect.GIF_STATE_NORMAL then
+        self.gifState = GifPlayerEffect.GIF_STATE_INVERT
+        self.gifInverted = true
+    elseif self.gifState == GifPlayerEffect.GIF_STATE_INVERT then
+        self.gifState = GifPlayerEffect.GIF_STATE_SPIN
+        self.gifInverted = false
+        if math.abs(self.gifPlaybackSpeed) < 0.05 then
+            self.gifPlaybackSpeed = GIF_DEFAULT_SPIN_SPEED
+        end
+    else
+        self.gifState = GifPlayerEffect.GIF_STATE_NORMAL
+        self.gifInverted = false
+    end
+end
+
+function GifPlayerEffect:handleBack()
+    if self.modeId ~= GifPlayerEffect.MODE_GIF or self.gifChooserOpen then
+        return false
+    end
+
+    self.gifChooserOpen = true
+    self.gifState = GifPlayerEffect.GIF_STATE_NORMAL
+    self.gifInverted = false
+    return true
+end
+
+function GifPlayerEffect:stepSpeed(direction)
+    if direction == 0 then
+        return
+    end
+
+    if math.abs(self.gifPlaybackSpeed) >= 2 then
+        self.gifPlaybackSpeed = self.gifPlaybackSpeed + direction
+    else
+        local nextSpeed = roundToTenth(self.gifPlaybackSpeed + (direction * 0.1))
+        if nextSpeed > 1 then
+            self.gifPlaybackSpeed = 2
+        elseif nextSpeed < -1 then
+            self.gifPlaybackSpeed = -2
+        else
+            self.gifPlaybackSpeed = nextSpeed
+        end
+    end
 end
 
 function GifPlayerEffect:applyCrank(change, acceleratedChange)
@@ -168,7 +230,21 @@ function GifPlayerEffect:applyCrank(change, acceleratedChange)
         return
     end
 
-    if self.activeGif == nil or self.activeFrames == nil or math.abs(change) <= 0.01 then
+    if self.activeGif == nil or self.activeFrames == nil or self.gifChooserOpen then
+        return
+    end
+
+    if self.gifState == GifPlayerEffect.GIF_STATE_SPIN then
+        self.gifSpeedAccumulator = self.gifSpeedAccumulator + acceleratedChange
+        while math.abs(self.gifSpeedAccumulator) >= 18 do
+            local direction = self.gifSpeedAccumulator > 0 and 1 or -1
+            self:stepSpeed(direction)
+            self.gifSpeedAccumulator = self.gifSpeedAccumulator - (18 * direction)
+        end
+        return
+    end
+
+    if math.abs(change) <= 0.01 then
         return
     end
 
@@ -178,6 +254,19 @@ end
 
 function GifPlayerEffect:updateDirectionalInput(upPressed, downPressed, leftPressed, rightPressed)
     if self.modeId ~= GifPlayerEffect.MODE_GIF then
+        return
+    end
+
+    if self.gifChooserOpen then
+        if upPressed then
+            self:stepGifSelection(-1)
+        elseif downPressed then
+            self:stepGifSelection(1)
+        end
+        return
+    end
+
+    if self.gifState == GifPlayerEffect.GIF_STATE_SPIN then
         return
     end
 
@@ -222,8 +311,17 @@ function GifPlayerEffect:updateStatic()
 end
 
 function GifPlayerEffect:updateGif()
-    if self.preview and self.activeGif ~= nil then
-        self.activeFramePosition = wrapFrame(self.activeFramePosition + 0.45, self.activeGif.frameCount)
+    if self.activeGif == nil then
+        return
+    end
+
+    if self.preview or self.gifChooserOpen then
+        self.activeFramePosition = wrapFrame(self.activeFramePosition + GIF_DEFAULT_SPIN_SPEED, self.activeGif.frameCount)
+        return
+    end
+
+    if self.gifState == GifPlayerEffect.GIF_STATE_SPIN then
+        self.activeFramePosition = wrapFrame(self.activeFramePosition + self.gifPlaybackSpeed, self.activeGif.frameCount)
     end
 end
 
@@ -299,7 +397,7 @@ function GifPlayerEffect:drawGif()
 end
 
 function GifPlayerEffect:drawOverlay()
-    if self.preview then
+    if self.preview or self.modeId ~= GifPlayerEffect.MODE_GIF or not self.gifChooserOpen then
         return
     end
 
@@ -308,16 +406,12 @@ function GifPlayerEffect:drawOverlay()
     gfx.fillRect(0, self.height - 16, self.width, 16)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
 
-    if self.modeId == GifPlayerEffect.MODE_STATIC then
-        gfx.drawText("CRT STATIC  A: bars  B: menu", 8, 2)
-    else
-        local label = self.activeGif and self.activeGif.label or "GIF PLAYER"
-        local frameCount = self.activeGif and self.activeGif.frameCount or 0
-        local frameIndex = frameCount > 0 and wrapFrame(math.floor(self.activeFramePosition + 0.5), frameCount) or 0
-        gfx.drawText(label, 8, 2)
-        gfx.drawText(string.format("Frame %d/%d", frameIndex, frameCount), 292, 2)
-        gfx.drawText("Up/Down gif  A invert  Crank frame  B back", 8, 226)
-    end
+    local label = self.activeGif and self.activeGif.label or "GIF PLAYER"
+    local frameCount = self.activeGif and self.activeGif.frameCount or 0
+    local frameIndex = frameCount > 0 and wrapFrame(math.floor(self.activeFramePosition + 0.5), frameCount) or 0
+    gfx.drawText(label, 8, 2)
+    gfx.drawText(string.format("Frame %d/%d", frameIndex, frameCount), 292, 2)
+    gfx.drawText("Up/Down choose  A play  B back", 8, 226)
 
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end

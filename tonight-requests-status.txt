@@ -110,6 +110,8 @@
 | Please move the shared audio assets from the built StarryMessenger.pdx package into the source tree. | Done |
 | Please give the GIF player its own spot on the rotary. While the user spins the rotary, pause the current title preview view and resume normal behavior after half a second of settling or when A is pressed. | Done |
 | Please make and save a GIF-to-Playdate image adapter, then convert the linked GIFs into selectable GIF Player assets using each GIF's title. | Done |
+| In GIF Player, make A cycle through invert and animation spin behavior, use the crank to change GIF speed in spin mode, and hide surrounding text during fullscreen playback while keeping instructions only in the chooser. | Done |
+| In GIF Player, pressing B should return from fullscreen playback to the GIF selector first, and only return to the main menu when B is pressed again from the selector. | Done |
 
 ##### Orbital Defense
 | Request | Status |

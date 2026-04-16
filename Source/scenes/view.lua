@@ -223,6 +223,9 @@ function ViewScene:update()
         if self:isLifeReviewMode() and self.effect:handleReviewBack() then
             return
         end
+        if self.viewId == "gifplayer" and self.effect and self.effect.handleBack and self.effect:handleBack() then
+            return
+        end
         if self.onReturnToTitle then
             local effect = self.effect
             if self.viewId == "warp" and effect and effect.kind == "warp" then
