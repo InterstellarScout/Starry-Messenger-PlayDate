@@ -23,9 +23,9 @@ local function roundNearest(value)
     return math.ceil(value - 0.5)
 end
 
-local function drawVisibilityBand(topY, height, color, ditherAmount)
-    gfx.setColor(color or gfx.kColorBlack)
-    gfx.setDitherPattern(ditherAmount or 0.5, gfx.image.kDitherTypeBayer8x8)
+local function drawVisibilityBand(topY, height)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
     gfx.fillRect(0, topY, 400, height)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 end
@@ -75,65 +75,47 @@ function TitleScene:getSelectedModeId()
     return selectedView and selectedView.modeId or nil
 end
 
-function TitleScene:usesDarkTextForView(view)
-    if view == nil then
+function TitleScene:usesDarkText()
+    local selectedView = self:getSelectedView()
+    if selectedView == nil then
         return false
     end
 
-    if view.id == "duck" or view.id == "antfarm" then
+    if selectedView.id == "duck" then
         return true
     end
 
-    if (view.id == "warp" or view.id == "fall") and view.modeId == Starfield.MODE_INVERSE then
+    if (selectedView.id == "warp" or selectedView.id == "fall") and selectedView.modeId == Starfield.MODE_INVERSE then
         return true
     end
 
-    if view.id == "lava" and view.modeId == LavaLamp.MODE_INVERSE then
+    if selectedView.id == "lava" and selectedView.modeId == LavaLamp.MODE_INVERSE then
         return true
     end
 
-    return false
-end
-
-function TitleScene:usesDarkText()
-    return self:usesDarkTextForView(self:getSelectedView())
-end
-
-function TitleScene:usesInvertedTextForView(view)
     return false
 end
 
 function TitleScene:usesInvertedText()
-    return self:usesInvertedTextForView(self:getSelectedView())
+    local selectedView = self:getSelectedView()
+    return selectedView ~= nil and selectedView.id == "antfarm"
 end
 
-function TitleScene:usesLightVisibilityBand(view)
-    return view ~= nil and view.id == "antfarm"
-end
-
-function TitleScene:getTextColorForView(view)
-    if self:usesDarkTextForView(view) then
+function TitleScene:getTextColor()
+    if self:usesDarkText() then
         return gfx.kColorBlack
     end
     return gfx.kColorWhite
 end
 
-function TitleScene:getTextColor()
-    return self:getTextColorForView(self:getSelectedView())
-end
-
-function TitleScene:getTextDrawModeForView(view)
-    if self:usesInvertedTextForView(view) then
+function TitleScene:getTextDrawMode()
+    if self:usesInvertedText() then
         return gfx.kDrawModeInverted
     end
-    if self:usesDarkTextForView(view) then
+    if self:usesDarkText() then
         return gfx.kDrawModeFillBlack
     end
     return gfx.kDrawModeFillWhite
-end
-
-function TitleScene:getTextDrawMode()
-    return self:getTextDrawModeForView(self:getSelectedView())
 end
 
 function TitleScene:getScaledTextImage(text, font, keyPrefix)
@@ -164,7 +146,7 @@ function TitleScene:getScaledTextImage(text, font, keyPrefix)
     return cached
 end
 
-function TitleScene:drawScaledText(text, font, keyPrefix, centerX, centerY, scale, view)
+function TitleScene:drawScaledText(text, font, keyPrefix, centerX, centerY, scale)
     local cached = self:getScaledTextImage(text, font, keyPrefix)
     local constrainedScale = scale
     if TITLE_TEXT_MAX_WIDTH > 0 then
@@ -176,7 +158,7 @@ function TitleScene:drawScaledText(text, font, keyPrefix, centerX, centerY, scal
 
     local drawX = centerX - ((cached.width * constrainedScale) * 0.5)
     local drawY = centerY - ((cached.height * constrainedScale) * 0.5)
-    gfx.setImageDrawMode(self:getTextDrawModeForView(view or self:getSelectedView()))
+    gfx.setImageDrawMode(self:getTextDrawMode())
     cached.image:drawScaled(drawX, drawY, constrainedScale)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
@@ -590,7 +572,7 @@ function TitleScene:drawBottomInstructions()
     local topY = 206
 
     gfx.setFont(self.smallFont)
-    gfx.setImageDrawMode(self:getTextDrawModeForView(selectedView))
+    gfx.setImageDrawMode(self:getTextDrawMode())
     local titleLine = "Crank or Up/Down browse. Left/Right mode. A open. B back."
     if self.previewLocked then
         titleLine = "Crank or Up/Down browse. Left/Right mode. A open. B reset preview."
@@ -605,22 +587,18 @@ function TitleScene:drawBottomInstructions()
 end
 
 function TitleScene:drawMenu()
-    local selectedView = self:getSelectedView()
     gfx.setFont(self.smallFont)
-    gfx.setImageDrawMode(self:getTextDrawModeForView(selectedView))
+    gfx.setImageDrawMode(self:getTextDrawMode())
     gfx.drawTextAligned(self.headerTitle, 200, 20, kTextAlignment.center)
     gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
 
+    local selectedView = self:getSelectedView()
     local hasModes = selectedView and selectedView.modes ~= nil
     local centerY = TITLE_BAND_TOP + math.floor(TITLE_BAND_HEIGHT * 0.5) - 1
     local spacing = 56
     local visibilityRange = 1.35
 
-    if self:usesLightVisibilityBand(selectedView) then
-        drawVisibilityBand(TITLE_BAND_TOP, TITLE_BAND_HEIGHT, gfx.kColorWhite, 0.15)
-    else
-        drawVisibilityBand(TITLE_BAND_TOP, TITLE_BAND_HEIGHT, gfx.kColorBlack, 0.5)
-    end
+    drawVisibilityBand(TITLE_BAND_TOP, TITLE_BAND_HEIGHT)
 
     for index, item in ipairs(self.viewItems) do
         local offset = self:getWrappedOffset(index)
@@ -629,23 +607,16 @@ function TitleScene:drawMenu()
             local label = item.label
 
             if math.abs(offset) < 0.35 then
-                local centerScale = hasModes and 1.18 or TITLE_CENTER_SCALE
-                self:drawScaledText(item.label, self.largeFont or self.smallFont, "view", 200, y + (hasModes and 1 or 8), centerScale, item)
+                if hasModes then
+                    self:drawModeCarousel(selectedView, y)
+                else
+                    self:drawScaledText(item.label, self.largeFont or self.smallFont, "view", 200, y + 8, TITLE_CENTER_SCALE)
+                end
             else
                 local emphasis = math.max(0, 1 - math.min(1, math.abs(offset)))
                 local scale = TITLE_SIDE_SCALE + ((TITLE_CENTER_SCALE - TITLE_SIDE_SCALE) * emphasis)
-                self:drawScaledText(label, self.largeFont or self.smallFont, "view", 200, y + 8, scale, item)
+                self:drawScaledText(label, self.largeFont or self.smallFont, "view", 200, y + 8, scale)
             end
-        end
-    end
-
-    if hasModes then
-        local modeLabel = self:getSelectedModeLabel()
-        if modeLabel ~= nil then
-            gfx.setFont(self.smallFont)
-            gfx.setImageDrawMode(self:getTextDrawModeForView(selectedView))
-            gfx.drawTextAligned(modeLabel, 200, centerY + 16, kTextAlignment.center)
-            gfx.setImageDrawMode(gfx.kDrawModeCopy)
         end
     end
 
