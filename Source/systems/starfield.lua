@@ -230,7 +230,7 @@ function Starfield:stepSpeed(direction)
         end
     end
 
-    print(string.format("[StarryMessenger] %s speed changed: %.2f", self.kind, self.speed))
+    StarryLog.info("%s speed changed: %.2f", self.kind, self.speed)
 end
 
 function Starfield:adjustDirection(deltaDegrees, logChange)
@@ -240,7 +240,7 @@ function Starfield:adjustDirection(deltaDegrees, logChange)
 
     self.directionAngle = self.directionAngle + deltaDegrees
     if logChange ~= false then
-        print(string.format("[StarryMessenger] %s direction changed: %.2f", self.kind, self.directionAngle))
+        StarryLog.info("%s direction changed: %.2f", self.kind, self.directionAngle)
     end
 end
 
@@ -269,7 +269,7 @@ function Starfield:rotateScreen(deltaDegrees)
     self.screenAngleRadians = degreesToRadians(self.screenAngle)
     self.screenCos = math.cos(self.screenAngleRadians)
     self.screenSin = math.sin(self.screenAngleRadians)
-    print(string.format("[StarryMessenger] %s screen rotation changed: %.2f", self.kind, self.screenAngle))
+    StarryLog.info("%s screen rotation changed: %.2f", self.kind, self.screenAngle)
 end
 
 function Starfield:rotateField(deltaDegrees)
@@ -313,7 +313,7 @@ function Starfield:rotateField(deltaDegrees)
     end
 
     self:adjustDirection(deltaDegrees, false)
-    print(string.format("[StarryMessenger] %s field rotation changed: %.2f", self.kind, self.directionAngle))
+    StarryLog.info("%s field rotation changed: %.2f", self.kind, self.directionAngle)
 end
 
 function Starfield:movePerspective(deltaX, deltaY)
@@ -402,7 +402,7 @@ function Starfield:refreshWarpFieldForDirection()
         end
     end
 
-    print(string.format("[StarryMessenger] warp field refreshed for speed %.2f", self.speed))
+    StarryLog.info("warp field refreshed for speed %.2f", self.speed)
 end
 
 function Starfield:seedWarpStar(star, index, totalCount)

@@ -84,10 +84,9 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         end
 
         return buildSpec("CRT Static Controls", {
-            "Crank: pause the static briefly and scrub the snow forward or backward.",
+            "Full-screen static now runs on its own with no crank scrubbing.",
             "A: toggle the rolling transparent bars.",
-            "When bars are active, the crank changes both bar speeds.",
-            "The crank speed hold releases after about 2 seconds of rest or at top/bottom crank points.",
+            "The title preview flips between two static frames instead of rolling continuously.",
             "B: return to title."
         })
     elseif viewId == "antfarm" then
@@ -134,14 +133,6 @@ function ControlHelp.getEntrySpec(viewId, modeId)
                 "B: return to title.",
                 "Shake: trigger a short panic burst in the school."
             })
-        elseif modeId == FishPond.MODE_IDLE then
-            return buildSpec("Fishy Pond Idle Controls", {
-                "Crank: move the bubble maker across the bottom.",
-                "Hold A: keep adding bubbles for the fish.",
-                "The fish feeds itself and earns currency when it pops bubbles.",
-                "B: return to title.",
-                "Currency persists for future upgrades."
-            })
         elseif modeId == FishPond.MODE_BUBBLES then
             return buildSpec("Fishy Bubbles Controls", {
                 "Crank: move the bubble maker across the bottom.",
@@ -159,7 +150,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Hold A: create bubbles repeatedly.",
             "B: return to title.",
             "Fish Spawn Mode in the system menu alternates bubble and fish spawning.",
-            "Pop bubbles by swimming into them."
+            "Pop bubbles by swimming into them while the rest of the school still feeds itself."
         })
     elseif viewId == "rccar" then
         if modeId == RCCarArena.MODE_VERSUS then

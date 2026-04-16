@@ -101,6 +101,15 @@
 | Make the stars bigger and add more stars in Star Fall. | Done |
 | Make the Fishy bubble blower a little triangular mountain peeking out of the sand, and have mountain raise-and-pop vents happen before blower bubbles and random mud bubbles. | Done |
 | Before committing to git, check whether anything sensitive or machine-local should be ignored. | Done |
+| Please add a note to agents to commit and push our changes going forward. | Done |
+| Please set logging to just Error. Logs like the repeated Game of Life rewind and step requests may be causing lag. | Done |
+| Please combine Fishy Pond and Fishy Pond Idle into just Fishy Pond. Allow the player to be able to control the fish with the D pad. | Done |
+| In The Game of Life, if the crank is stopped at the top most and bottom most position, or the crank is put into the console, automatically resume playing without delay. | Done |
+| Please make CRTTV to full screen and remove any scrubbing functionality. From the Title screen, please make a static pair of static frames and bounce back and forth. | Done |
+| Please make the shared-audio folder play when falling stars and warp speed. Please add AirplaneAmbiance from shared-ambiance to CRT TV and Orbital Defense. | Done |
+| Please move the shared audio assets from the built StarryMessenger.pdx package into the source tree. | Done |
+| Please give the GIF player its own spot on the rotary. While the user spins the rotary, pause the current title preview view and resume normal behavior after half a second of settling or when A is pressed. | Done |
+| Please make and save a GIF-to-Playdate image adapter, then convert the linked GIFs into selectable GIF Player assets using each GIF's title. | Done |
 
 ##### Orbital Defense
 | Request | Status |
@@ -112,6 +121,8 @@
 | Request | Status |
 | --- | --- |
 | In the ant game, when the ant is dropped, the ant placed doesn't appear to move. Please ensure that the ants make lines in the dark soil area and randomly start making tunnels. | Done |
+| Please invert the color of the title on the ant scene. The current setup rendered the text unreadable with the black on black. | Done |
+| The text is still all black when the ant view is being looked at. Please ensure the title is white - inverted like the inverted text modes. | Done |
 
 ##### Gif Player
 | Request | Status |

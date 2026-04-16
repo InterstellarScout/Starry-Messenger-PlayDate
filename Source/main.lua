@@ -8,6 +8,7 @@ Purpose:
 ]]
 import "CoreLibs/graphics"
 import "CoreLibs/sprites"
+import "systems/log"
 import "systems/starfield"
 import "systems/gameoflife"
 import "systems/lavalamp"
@@ -95,8 +96,7 @@ local SINGLE_VIEW_ITEMS <const> = {
         modes = {
             FishPond.MODE_POND,
             FishPond.MODE_BUBBLES,
-            FishPond.MODE_TANK,
-            FishPond.MODE_IDLE
+            FishPond.MODE_TANK
         },
         modeId = FishPond.MODE_POND,
         getModeLabel = FishPond.getModeLabel
@@ -177,7 +177,7 @@ local function getViewIndex(viewItems, viewId)
 end
 
 local function setScene(scene)
-    print(string.format("[StarryMessenger] setScene %s -> %s", tostring(app.scene), tostring(scene)))
+    StarryLog.info("setScene %s -> %s", tostring(app.scene), tostring(scene))
     if app.scene and app.scene.shutdown then
         app.scene:shutdown()
     end
@@ -192,7 +192,7 @@ end
 local function recordFatalError(context, err)
     app.fatalContext = context
     app.fatalError = tostring(err)
-    print(string.format("[StarryMessenger] fatal error in %s: %s", context, app.fatalError))
+    StarryLog.error("fatal error in %s: %s", context, app.fatalError)
 end
 
 local function safeCall(context, callback)
@@ -218,7 +218,7 @@ local function drawFatalError()
 end
 
 local function logModeSelection(source, viewId)
-    print(string.format("[StarryMessenger] mode selected via %s: %s", source, viewId))
+    StarryLog.info("mode selected via %s: %s", source, viewId)
 end
 
 local function returnToCurrentTitle(returnedViewId, options)
@@ -244,7 +244,7 @@ local function showView(viewId, options)
             playerCount = app.session.playerCount,
             portalService = app.portalService,
             onReturnToTitle = function(returnedViewId)
-                print("[StarryMessenger] returning to title")
+                StarryLog.info("returning to title")
                 returnToCurrentTitle(returnedViewId or viewId)
             end
         }))
@@ -256,7 +256,7 @@ local function showView(viewId, options)
             playerCount = app.session.playerCount,
             portalService = app.portalService,
             onReturnToTitle = function(returnedViewId)
-                print("[StarryMessenger] returning to title")
+                StarryLog.info("returning to title")
                 returnToCurrentTitle(returnedViewId or viewId)
             end
         }))
@@ -277,7 +277,7 @@ local function showView(viewId, options)
         effect = options.effect,
         session = app.session,
         onReturnToTitle = function(returnedViewId, effect)
-            print("[StarryMessenger] returning to title")
+            StarryLog.info("returning to title")
             returnToCurrentTitle(viewId, {
                 previewEffect = effect,
                 previewModeId = effect and effect.modeId or options.modeId
@@ -335,10 +335,10 @@ end
 
 buildSplashScene = function()
     ViewAudio.stop()
-    print("[StarryMessenger] buildSplashScene")
+    StarryLog.info("buildSplashScene")
     return SplashScene.new({
         onContinue = function()
-            print("[StarryMessenger] splash requested player count scene")
+            StarryLog.info("splash requested player count scene")
             setScene(buildPlayerCountScene())
         end
     })
@@ -396,20 +396,20 @@ function pd.update()
 end
 
 pd.display.setRefreshRate(30)
-print("[StarryMessenger] boot begin")
+StarryLog.info("boot begin")
 safeCall("buildSystemMenu", function()
-    print("[StarryMessenger] building initial system menu")
+    StarryLog.info("building initial system menu")
     buildSystemMenu(SINGLE_VIEW_ITEMS)
 end)
 
 local initialScene = safeCall("buildSplashScene", function()
-    print("[StarryMessenger] requesting initial splash scene")
+    StarryLog.info("requesting initial splash scene")
     return buildSplashScene()
 end)
 
 if initialScene then
     local _, ok = safeCall("setScene(initialScene)", function()
-        print("[StarryMessenger] activating initial scene")
+        StarryLog.info("activating initial scene")
         setScene(initialScene)
     end)
     if not ok then

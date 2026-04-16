@@ -8,6 +8,7 @@ Purpose:
 ]]
 local pd <const> = playdate
 local FIREWORK_HOLD_REPEAT_FRAMES <const> = 5
+local LIFE_CRANK_RELEASE_ANGLE_TOLERANCE <const> = 3
 
 ViewScene = {}
 ViewScene.__index = ViewScene
@@ -72,14 +73,14 @@ function ViewScene.new(config)
         self.effect:setPreview(false)
     end
 
-    print(string.format(
-        "[StarryMessenger] view initialized: mode=%s speed=%.2f direction=%.2f screen=%.2f crankMode=%s",
+    StarryLog.info(
+        "view initialized: mode=%s speed=%.2f direction=%.2f screen=%.2f crankMode=%s",
         self.viewId,
         self.effect.speed or 0,
         self.effect.directionAngle or 0,
         self.effect.screenAngle or 0,
         self.crankMode
-    ))
+    )
 
     return self
 end
@@ -169,6 +170,18 @@ function ViewScene:updateLifeCrank(acceleratedChange)
         return
     end
 
+    local crankPosition = pd.getCrankPosition and pd.getCrankPosition() or nil
+    local crankDocked = pd.isCrankDocked and pd.isCrankDocked() or false
+    if crankDocked
+        or (crankPosition ~= nil and (
+            crankPosition <= LIFE_CRANK_RELEASE_ANGLE_TOLERANCE
+            or crankPosition >= (360 - LIFE_CRANK_RELEASE_ANGLE_TOLERANCE)
+            or math.abs(crankPosition - 180) <= LIFE_CRANK_RELEASE_ANGLE_TOLERANCE
+        )) then
+        self.lifeScrubIdleFrames = self.lifeScrubResumeDelay
+        return
+    end
+
     if self.lifeScrubIdleFrames < self.lifeScrubResumeDelay then
         self.lifeScrubIdleFrames = self.lifeScrubIdleFrames + 1
     end
@@ -229,7 +242,7 @@ function ViewScene:update()
                 self.effect:handleReviewPrimaryAction()
             else
                 self.effect:spawnInteractiveCells(48)
-                print("[StarryMessenger] life repopulated via A button")
+                StarryLog.info("life repopulated via A button")
             end
         elseif self.viewId == "fireworks" then
             self.effect:launchFromLauncher()
@@ -247,7 +260,7 @@ function ViewScene:update()
             self.crankMode = self.crankMode == "speed" and "spin" or "speed"
             self.crankAccumulator = 0
             self.rotationAccumulator = 0
-            print(string.format("[StarryMessenger] crank mode changed: %s", self.crankMode))
+            StarryLog.info("crank mode changed: %s", self.crankMode)
         end
     end
 
@@ -344,7 +357,7 @@ function ViewScene:update()
         local inputX = 0
         local inputY = 0
         self.effect:updateActionInput(pd.buttonJustPressed(pd.kButtonA), pd.buttonIsPressed(pd.kButtonA))
-        if self.effect.modeId ~= FishPond.MODE_TANK and self.effect.modeId ~= FishPond.MODE_IDLE then
+        if self.effect.modeId ~= FishPond.MODE_TANK then
             if pd.buttonIsPressed(pd.kButtonUp) then
                 inputY = inputY - 1
             end

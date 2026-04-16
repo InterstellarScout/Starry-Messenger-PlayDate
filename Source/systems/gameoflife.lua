@@ -30,11 +30,7 @@ GameOfLife._standbyInstances = GameOfLife._standbyInstances or {}
 GameOfLife._prewarmQueue = GameOfLife._prewarmQueue or nil
 
 local function lifeLog(message, ...)
-    if select("#", ...) > 0 then
-        print(string.format("[StarryMessenger] life " .. message, ...))
-    else
-        print("[StarryMessenger] life " .. tostring(message))
-    end
+    StarryLog.info("life " .. tostring(message), ...)
 end
 
 local function clamp(value, minValue, maxValue)

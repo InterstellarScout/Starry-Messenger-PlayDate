@@ -14,6 +14,7 @@ local TITLE_TEXT_MAX_WIDTH <const> = 360
 local TITLE_TEXT_MAX_HEIGHT <const> = 34
 local TITLE_CENTER_SCALE <const> = 1.5
 local TITLE_SIDE_SCALE <const> = 0.75
+local PREVIEW_RESUME_DELAY_FRAMES <const> = 15
 
 local function roundNearest(value)
     if value >= 0 then
@@ -54,6 +55,7 @@ function TitleScene.new(config)
     self.previewLocked = self.preview ~= nil
     self.pendingPreviewRequest = nil
     self.previewLoading = false
+    self.previewPauseFrames = 0
     self.modeDisplayPosition = 1
     self.modeTargetPosition = 1
     self.textImageCache = {}
@@ -79,7 +81,7 @@ function TitleScene:usesDarkText()
         return false
     end
 
-    if selectedView.id == "duck" or selectedView.id == "antfarm" then
+    if selectedView.id == "duck" then
         return true
     end
 
@@ -94,6 +96,11 @@ function TitleScene:usesDarkText()
     return false
 end
 
+function TitleScene:usesInvertedText()
+    local selectedView = self:getSelectedView()
+    return selectedView ~= nil and selectedView.id == "antfarm"
+end
+
 function TitleScene:getTextColor()
     if self:usesDarkText() then
         return gfx.kColorBlack
@@ -102,6 +109,9 @@ function TitleScene:getTextColor()
 end
 
 function TitleScene:getTextDrawMode()
+    if self:usesInvertedText() then
+        return gfx.kDrawModeInverted
+    end
     if self:usesDarkText() then
         return gfx.kDrawModeFillBlack
     end
@@ -208,7 +218,7 @@ function TitleScene:makeFallbackPreview()
 end
 
 function TitleScene:replacePreviewWithFallback(context, err)
-    print(string.format("[StarryMessenger] title preview fallback: %s error=%s", tostring(context), tostring(err)))
+    StarryLog.error("title preview fallback: %s error=%s", tostring(context), tostring(err))
 
     if self.preview and self.preview.shutdown then
         self.preview:shutdown()
@@ -401,7 +411,8 @@ function TitleScene:updateSelection(delta)
         self.selected = 1
     end
     self:syncModeDisplayPosition(true)
-    print(string.format("[StarryMessenger] title selection changed: index=%d label=%s", self.selected, self.viewItems[self.selected].label))
+    self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
+    StarryLog.info("title selection changed: index=%d label=%s", self.selected, self.viewItems[self.selected].label)
     if not self:shouldPersistLockedPreview(self:getSelectedView()) then
         self:setPreview()
     end
@@ -424,11 +435,12 @@ function TitleScene:changeSelectedMode(delta)
 
     selectedView.modeId = selectedView.modes[nextIndex]
     self.modeTargetPosition = (self.modeTargetPosition or currentIndex) + (delta < 0 and -1 or 1)
-    print(string.format(
-        "[StarryMessenger] title mode changed: view=%s mode=%s",
+    self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
+    StarryLog.info(
+        "title mode changed: view=%s mode=%s",
         selectedView.id,
         tostring(selectedView.modeId)
-    ))
+    )
 
     if not self:shouldPersistLockedPreview(selectedView) then
         self:setPreview()
@@ -497,6 +509,12 @@ function TitleScene:updateModeDisplayPosition()
 end
 
 function TitleScene:updateCrank(acceleratedChange)
+    if math.abs(acceleratedChange or 0) > 0.01 then
+        self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
+    elseif self.previewPauseFrames > 0 then
+        self.previewPauseFrames = self.previewPauseFrames - 1
+    end
+
     self.crankAccumulator = self.crankAccumulator + acceleratedChange
 
     while self.crankAccumulator >= 14 do
@@ -612,12 +630,16 @@ function TitleScene:update()
     self:updateDisplayPosition()
     self:updateModeDisplayPosition()
     local ok, previewError = pcall(function()
-        self.preview:update()
+        if self.previewPauseFrames <= 0 then
+            self.preview:update()
+        end
         self.preview:draw()
     end)
     if not ok then
         self:replacePreviewWithFallback("preview.updateDraw", previewError)
-        self.preview:update()
+        if self.previewPauseFrames <= 0 then
+            self.preview:update()
+        end
         self.preview:draw()
     end
 
@@ -641,6 +663,7 @@ function TitleScene:update()
             self.onBack()
         end
     elseif pd.buttonJustPressed(pd.kButtonA) then
+        self.previewPauseFrames = 0
         local selectedView = self:getSelectedView()
         local selectedModeId = selectedView.modeId
         local effect = self.preview

@@ -24,7 +24,7 @@ SplashScene.__index = SplashScene
 
 function SplashScene.new(config)
     local self = setmetatable({}, SplashScene)
-    print("[StarryMessenger] SplashScene.new start")
+    StarryLog.info("SplashScene.new start")
     self.onContinue = config.onContinue
     self.preview = Starfield.newWarpSpeed(400, 240, 320)
     self.preview.speed = 0
@@ -43,12 +43,12 @@ function SplashScene.new(config)
     self.readyFrames = SPLASH_READY_HOLD_FRAMES
     self.prewarmComplete = false
     GameOfLife.beginPrewarmStarryMessenger()
-    print("[StarryMessenger] SplashScene.new ready")
+    StarryLog.info("SplashScene.new ready")
     return self
 end
 
 function SplashScene:activate()
-    print("[StarryMessenger] SplashScene.activate")
+    StarryLog.info("SplashScene.activate")
     if self.preview and self.preview.activate then
         self.preview:activate()
     end
@@ -61,7 +61,7 @@ function SplashScene:shutdown()
 end
 
 function SplashScene:continue()
-    print("[StarryMessenger] SplashScene.continue")
+    StarryLog.info("SplashScene.continue")
     if self.onContinue then
         self.onContinue()
     end

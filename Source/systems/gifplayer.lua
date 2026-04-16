@@ -12,9 +12,8 @@ GifPlayerEffect.MODE_GIF = "gif"
 
 local STATIC_NOISE_STEP_X <const> = 4
 local STATIC_NOISE_STEP_Y <const> = 2
-local STATIC_CRANK_PAUSE_FRAMES <const> = 14
-local BAR_CRANK_RELEASE_FRAMES <const> = 60
-local BAR_RELEASE_SNAP_DEGREES <const> = 8
+local STATIC_PREVIEW_FRAME_DURATION <const> = 12
+local STATIC_PREVIEW_PHASES <const> = { 3.5, 19.25 }
 local BAR_PATTERN_LARGE <const> = { 0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88 }
 local BAR_PATTERN_SMALL <const> = { 0x88, 0xcc, 0x66, 0x33, 0x11, 0x33, 0x66, 0xcc }
 
@@ -53,19 +52,6 @@ local function wrapFrame(frame, frameCount)
     return frame
 end
 
-local function distanceBetweenAngles(a, b)
-    local diff = math.abs(a - b) % 360
-    if diff > 180 then
-        diff = 360 - diff
-    end
-    return diff
-end
-
-local function isCrankAtReleasePoint(angle)
-    return distanceBetweenAngles(angle, 0) <= BAR_RELEASE_SNAP_DEGREES
-        or distanceBetweenAngles(angle, 180) <= BAR_RELEASE_SNAP_DEGREES
-end
-
 local function makeBar(y, height, speed)
     return {
         y = y,
@@ -99,10 +85,9 @@ function GifPlayerEffect.new(width, height, options)
     self.activeFramePosition = 1
     self.gifInverted = false
     self.staticPhase = 0
-    self.staticCrankPauseFrames = 0
+    self.staticPreviewFrame = 1
+    self.staticPreviewTimer = STATIC_PREVIEW_FRAME_DURATION
     self.staticBarsActive = false
-    self.barSpeedOverride = nil
-    self.barReleaseFrames = 0
     self.bars = {
         large = makeBar(-48, 40, 0.9),
         small = makeBar(-18, 12, randomSmallBarSpeed())
@@ -114,8 +99,6 @@ end
 function GifPlayerEffect:resetBars()
     self.bars.large = makeBar(-48, 40, 0.9)
     self.bars.small = makeBar(-18, 12, randomSmallBarSpeed())
-    self.barSpeedOverride = nil
-    self.barReleaseFrames = 0
 end
 
 function GifPlayerEffect:setPreview(isPreview)
@@ -173,9 +156,6 @@ function GifPlayerEffect:handlePrimaryAction()
         self.staticBarsActive = not self.staticBarsActive
         if self.staticBarsActive then
             self:resetBars()
-        else
-            self.barSpeedOverride = nil
-            self.barReleaseFrames = 0
         end
         return
     end
@@ -185,16 +165,6 @@ end
 
 function GifPlayerEffect:applyCrank(change, acceleratedChange)
     if self.modeId == GifPlayerEffect.MODE_STATIC then
-        if math.abs(change) > 0.01 then
-            self.staticCrankPauseFrames = STATIC_CRANK_PAUSE_FRAMES
-            self.staticPhase = self.staticPhase + (change * 0.8)
-
-            if self.staticBarsActive then
-                local override = self.barSpeedOverride or 1.0
-                self.barSpeedOverride = clamp(override + (acceleratedChange * 0.005), 0.15, 4.0)
-                self.barReleaseFrames = BAR_CRANK_RELEASE_FRAMES
-            end
-        end
         return
     end
 
@@ -223,8 +193,13 @@ function GifPlayerEffect:updateDirectionalInput(upPressed, downPressed, leftPres
 end
 
 function GifPlayerEffect:updateStatic()
-    if self.staticCrankPauseFrames > 0 then
-        self.staticCrankPauseFrames = self.staticCrankPauseFrames - 1
+    if self.preview then
+        self.staticPreviewTimer = self.staticPreviewTimer - 1
+        if self.staticPreviewTimer <= 0 then
+            self.staticPreviewFrame = self.staticPreviewFrame == 1 and 2 or 1
+            self.staticPreviewTimer = STATIC_PREVIEW_FRAME_DURATION
+        end
+        self.staticPhase = STATIC_PREVIEW_PHASES[self.staticPreviewFrame]
     else
         self.staticPhase = self.staticPhase + 1.35
     end
@@ -233,16 +208,8 @@ function GifPlayerEffect:updateStatic()
         return
     end
 
-    if self.barSpeedOverride ~= nil then
-        self.barReleaseFrames = math.max(0, self.barReleaseFrames - 1)
-        if self.barReleaseFrames <= 0 or isCrankAtReleasePoint(pd.getCrankPosition()) then
-            self.barSpeedOverride = nil
-        end
-    end
-
-    local speedScale = self.barSpeedOverride or 1.0
-    self.bars.large.y = self.bars.large.y + (self.bars.large.baseSpeed * speedScale)
-    self.bars.small.y = self.bars.small.y + (self.bars.small.speed * speedScale)
+    self.bars.large.y = self.bars.large.y + self.bars.large.baseSpeed
+    self.bars.small.y = self.bars.small.y + self.bars.small.speed
 
     if self.bars.large.y >= self.height then
         self.bars.large.y = -self.bars.large.height
@@ -343,11 +310,6 @@ function GifPlayerEffect:drawOverlay()
 
     if self.modeId == GifPlayerEffect.MODE_STATIC then
         gfx.drawText("CRT STATIC  A: bars  B: menu", 8, 2)
-        if self.staticBarsActive then
-            gfx.drawText(string.format("Bars %.2fx  Crank changes speed", self.barSpeedOverride or 1.0), 8, 226)
-        else
-            gfx.drawText("Crank pauses and scrubs the snow", 8, 226)
-        end
     else
         local label = self.activeGif and self.activeGif.label or "GIF PLAYER"
         local frameCount = self.activeGif and self.activeGif.frameCount or 0
@@ -366,5 +328,13 @@ function GifPlayerEffect:draw()
     else
         self:drawGif()
     end
-    self:drawOverlay()
+    if self.modeId ~= GifPlayerEffect.MODE_STATIC then
+        self:drawOverlay()
+    elseif not self.preview then
+        gfx.setColor(gfx.kColorBlack)
+        gfx.fillRect(0, 0, self.width, 14)
+        gfx.setImageDrawMode(gfx.kDrawModeInverted)
+        gfx.drawText("CRT STATIC  A: bars  B: menu", 8, 2)
+        gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    end
 end

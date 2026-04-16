@@ -16,19 +16,48 @@ ViewAudio.currentIndex = 0
 ViewAudio.currentPlayer = nil
 ViewAudio.currentViewId = nil
 
-local function buildTrackList(viewId)
-    local folderViewId = viewId == "fishidle" and "fishpond" or viewId
-    local folder = "audio/" .. folderViewId
+local SHARED_AUDIO_FOLDERS <const> = {
+    warp = {
+        "audio/shared-audio"
+    },
+    fall = {
+        "audio/shared-audio"
+    },
+    gifplayer = {
+        "audio/shared-ambiance/AirplaneAmbiance"
+    },
+    orbital = {
+        "audio/shared-ambiance/AirplaneAmbiance"
+    }
+}
+
+local function appendTracksFromFolder(tracks, folder)
     local entries = pd.file.listFiles(folder) or {}
     table.sort(entries)
-
-    local tracks = {}
     for _, entry in ipairs(entries) do
         local normalized = string.gsub(entry, "\\", "/")
         local lower = string.lower(normalized)
         if string.match(lower, "%.mp3$") then
             tracks[#tracks + 1] = folder .. "/" .. normalized
         end
+    end
+end
+
+local function buildTrackList(viewId)
+    local folderViewId = viewId == "fishidle" and "fishpond" or viewId
+    local folders = {
+        "audio/" .. folderViewId
+    }
+    local sharedFolders = SHARED_AUDIO_FOLDERS[viewId]
+    if sharedFolders ~= nil then
+        for _, folder in ipairs(sharedFolders) do
+            folders[#folders + 1] = folder
+        end
+    end
+
+    local tracks = {}
+    for _, folder in ipairs(folders) do
+        appendTracksFromFolder(tracks, folder)
     end
 
     return tracks
@@ -53,7 +82,7 @@ function ViewAudio.playCurrentTrack()
     local path = ViewAudio.currentTracks[ViewAudio.currentIndex]
     local player = snd.fileplayer.new(path)
     if not player then
-        print(string.format("[StarryMessenger] audio player failed to initialize: %s", path))
+        StarryLog.error("audio player failed to initialize: %s", path)
         return
     end
 
@@ -72,12 +101,12 @@ function ViewAudio.playCurrentTrack()
 
     local ok, errorMessage = player:play()
     if not ok then
-        print(string.format("[StarryMessenger] audio playback failed for %s: %s", path, errorMessage or "unknown error"))
+        StarryLog.error("audio playback failed for %s: %s", path, errorMessage or "unknown error")
         return
     end
 
     ViewAudio.currentPlayer = player
-    print(string.format("[StarryMessenger] audio playing: %s", path))
+    StarryLog.info("audio playing: %s", path)
 end
 
 function ViewAudio.playForView(viewId)
@@ -85,7 +114,7 @@ function ViewAudio.playForView(viewId)
 
     local tracks = buildTrackList(viewId)
     if #tracks == 0 then
-        print(string.format("[StarryMessenger] no audio found for view: %s", viewId))
+        StarryLog.info("no audio found for view: %s", viewId)
         return
     end
 

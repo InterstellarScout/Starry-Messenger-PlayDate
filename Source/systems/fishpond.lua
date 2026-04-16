@@ -21,6 +21,13 @@ FishPond.idleCurrency = 0
 FishPond.idleProgressLoaded = false
 FishPond.IDLE_SAVE_KEY = "fishy-pond-idle"
 
+local function normalizeModeId(modeId)
+    if modeId == FishPond.MODE_IDLE then
+        return FishPond.MODE_POND
+    end
+    return modeId
+end
+
 local function clamp(value, minValue, maxValue)
     if value < minValue then
         return minValue
@@ -153,12 +160,11 @@ function FishPond.getIdleCurrency()
 end
 
 function FishPond.getModeLabel(modeId)
+    modeId = normalizeModeId(modeId)
     if modeId == FishPond.MODE_BUBBLES then
         return "Fishy Bubbles"
     elseif modeId == FishPond.MODE_TANK then
         return "Fishy Tank"
-    elseif modeId == FishPond.MODE_IDLE then
-        return "Fishy Pond Idle"
     end
 
     return "Fishy Pond"
@@ -169,7 +175,7 @@ function FishPond.new(width, height, modeId, options)
     self.width = width
     self.height = height
     self.preview = options and options.preview or false
-    self.modeId = modeId or FishPond.MODE_POND
+    self.modeId = normalizeModeId(modeId or FishPond.MODE_POND)
     self.idleMode = self.modeId == FishPond.MODE_IDLE
     self.time = 0
     self.fishes = {}
@@ -202,7 +208,7 @@ function FishPond:setPreview(isPreview)
 end
 
 function FishPond:reset(modeId)
-    self.modeId = modeId or self.modeId
+    self.modeId = normalizeModeId(modeId or self.modeId)
     self.idleMode = self.modeId == FishPond.MODE_IDLE
     self.time = 0
     self.fishes = {}
