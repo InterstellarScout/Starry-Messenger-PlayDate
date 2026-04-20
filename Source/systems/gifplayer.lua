@@ -91,6 +91,14 @@ local function normalizeAudioFolderName(item)
     end
 
     if #slug > 40 then
+        StarryLog.forceError(
+            "gif audio slug truncate label="
+                .. tostring(item and item.label or nil)
+                .. " path="
+                .. tostring(item and item.path or nil)
+                .. " len="
+                .. tostring(#slug)
+        )
         slug = string.sub(slug, 1, 40) .. "-" .. hashText(slug)
     end
 
@@ -324,6 +332,16 @@ function GifPlayerEffect:findAudioPathForItem(item)
     local folderName = normalizeAudioFolderName(item)
     local folderPath = GIF_AUDIO_ROOT .. "/" .. folderName
     local entries = pd.file.listFiles(folderPath) or {}
+    StarryLog.forceError(
+        "gif audio lookup label="
+            .. tostring(item.label)
+            .. " path="
+            .. tostring(item.path)
+            .. " folder="
+            .. tostring(folderName)
+            .. " entries="
+            .. tostring(#entries)
+    )
     table.sort(entries)
     for _, entry in ipairs(entries) do
         local normalized = string.gsub(entry, "\\", "/")
@@ -494,6 +512,7 @@ end
 
 function GifPlayerEffect:selectCategory(index, resetGifIndex)
     if #self.categories == 0 then
+        StarryLog.forceError("gif category select skipped because no categories are available")
         self.categoryIndex = 1
         self.activeCategory = nil
         self.catalog = {}
@@ -506,6 +525,18 @@ function GifPlayerEffect:selectCategory(index, resetGifIndex)
     self.categoryIndex = clamp(index, 1, #self.categories)
     self.activeCategory = self.categories[self.categoryIndex]
     self.catalog = self.activeCategory.items
+    StarryLog.forceError(
+        "gif category select resolved requested="
+            .. tostring(index)
+            .. " actual="
+            .. tostring(self.categoryIndex)
+            .. " name="
+            .. tostring(self.activeCategory and self.activeCategory.name or nil)
+            .. " items="
+            .. tostring(#self.catalog)
+            .. " resetGifIndex="
+            .. tostring(resetGifIndex ~= false)
+    )
 
     if resetGifIndex ~= false then
         self.gifIndex = 1
@@ -518,6 +549,7 @@ end
 
 function GifPlayerEffect:stepCategorySelection(delta)
     if #self.categories == 0 then
+        StarryLog.forceError("gif category step skipped because no categories are available")
         return
     end
 
@@ -527,6 +559,16 @@ function GifPlayerEffect:stepCategorySelection(delta)
     elseif nextIndex > #self.categories then
         nextIndex = 1
     end
+    StarryLog.forceError(
+        "gif category step delta="
+            .. tostring(delta)
+            .. " current="
+            .. tostring(self.categoryIndex)
+            .. " next="
+            .. tostring(nextIndex)
+            .. " total="
+            .. tostring(#self.categories)
+    )
 
     self:selectCategory(nextIndex, true)
 end

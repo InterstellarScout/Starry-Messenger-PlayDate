@@ -68,6 +68,7 @@
 ##### General Updates
 | Request | Status |
 | --- | --- |
+| Instead of starting with the player-count question, add a `Multiplayer` title item with `Two Beings` onward as mode choices, and make the post-warm splash wait on a `Press A to continue` start screen before entering the title menu. | Done |
 | When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
 | Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
 | Please make a sound folder for each view in Starry Messenger on the play date that will play each contained mp3 on loop. | Done |
@@ -137,6 +138,7 @@
 ##### Gif Player
 | Request | Status |
 | --- | --- |
+| Add additional GIF Player debug logging around category navigation and audio-folder resolution so the persistent on-device category crash can be diagnosed. | Done |
 | When in the gif app and moving down through the categories, fix the `systems/gifplayer.lua:71 bad argument #2 to 'format' (number has no integer representation)` crash. | Done |
 | Please combine gif player into a view in Starry Messenger while keeping the GIF conversion script as a separate project-side step. | Done |
 | Please make a static effect like an old crt tv. If the crank is used, pause the effect and move it forward and back as the user wants, though don’t remember anything. Just have it slow the static effect or make it fuzzy faster. When A is pressed, make a transparent bar-like effect that slowly scroll down the screen and repeat when it goes off screen. Also have a smaller bar that moves at a randomly fast or slower speed each time it goes off screen. In this mode, the crank moves both of them faster or slower, then release after the crank has been left unchanged for 2 seconds or the crank is put into the top move of bottom most points. | Done |
