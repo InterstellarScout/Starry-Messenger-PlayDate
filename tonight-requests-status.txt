@@ -68,6 +68,7 @@
 ##### General Updates
 | Request | Status |
 | --- | --- |
+| In the asteroid game view, double the asteroid sizes, make missiles much larger and strong enough to obliterate any asteroid caught in the blast, prune off-screen small asteroids when entity counts get too high, and add layered stationary/parallax star fields that can pass in front of the ship, asteroids, and weapon fire. | Done |
 | Instead of starting with the player-count question, add a `Multiplayer` title item with `Two Beings` onward as mode choices, and make the post-warm splash wait on a `Press A to continue` start screen before entering the title menu. | Done |
 | When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
 | Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
