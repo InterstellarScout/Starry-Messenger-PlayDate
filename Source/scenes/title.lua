@@ -255,7 +255,7 @@ function TitleScene:shouldHandoffPreview(selectedView)
         return false
     end
 
-    if selectedView.id == "duck" or selectedView.id == "orbital" or selectedView.id == "rccar_multi" then
+    if selectedView.id == "duck" or selectedView.id == "orbital" or selectedView.id == "rccar_multi" or selectedView.id == "multiplayer" then
         return false
     end
 
@@ -268,6 +268,13 @@ end
 
 function TitleScene:setPreview(forceFresh)
     local selectedView = self:getSelectedView()
+    StarryLog.debug(
+        "title setPreview view=%s mode=%s forceFresh=%s locked=%s",
+        tostring(selectedView and selectedView.id or nil),
+        tostring(selectedView and selectedView.modeId or nil),
+        tostring(forceFresh == true),
+        tostring(self.previewLocked)
+    )
     if selectedView and selectedView.id == "life" then
         self.pendingPreviewRequest = {
             modeId = selectedView.modeId,
@@ -298,6 +305,8 @@ function TitleScene:setPreview(forceFresh)
             return Starfield.newStarFall(400, 240, 360, {
                 modeId = selectedView.modeId
             })
+        elseif selectedView.id == "multiplayer" then
+            return Starfield.newWarpSpeed(400, 240, 320)
         elseif selectedView.id == "life" then
             return GameOfLife.new(400, 240, 6, 0.3, {
                 modeId = selectedView.modeId,
@@ -312,10 +321,20 @@ function TitleScene:setPreview(forceFresh)
             return CRTTVEffect.new(400, 240, {
                 preview = true
             })
+        elseif selectedView.id == "wacky" then
+            return WackyInflatable.new(400, 240, {
+                preview = true
+            })
+        elseif selectedView.id == "spaceminer" then
+            return SpaceMiner.new(400, 240, {
+                modeId = selectedView.modeId,
+                preview = true
+            })
         elseif selectedView.id == "gifplayer" then
             return GifPlayerEffect.new(400, 240, {
                 modeId = selectedView.modeId,
-                preview = true
+                preview = true,
+                previewItemPath = "gifs/Spinning/seal-spinning-spinning-spinning-gif-spinning-seal-water"
             })
         elseif selectedView.id == "antfarm" then
             return AntFarm.new(400, 240, {
@@ -374,6 +393,13 @@ function TitleScene:processPendingPreview()
         return
     end
 
+    StarryLog.forceDebug(
+        "title processPendingPreview life mode=%s forceFresh=%s pause=%s",
+        tostring(request.modeId),
+        tostring(request.forceFresh == true),
+        tostring(self.previewPauseFrames)
+    )
+
     self.pendingPreviewRequest = nil
     self.previewLoading = false
 
@@ -395,9 +421,12 @@ function TitleScene:processPendingPreview()
     end)
 
     if not ok then
+        StarryLog.forceError("title life preview construction failed mode=%s err=%s", tostring(request.modeId), tostring(nextPreview))
         self:replacePreviewWithFallback("processPendingPreview:life", nextPreview)
         return
     end
+
+    StarryLog.forceDebug("title life preview ready mode=%s", tostring(request.modeId))
 
     self.preview = nextPreview
     self.previewLocked = false

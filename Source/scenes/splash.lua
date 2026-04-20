@@ -9,7 +9,6 @@ Purpose:
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 
-local SPLASH_READY_HOLD_FRAMES <const> = 30
 local PREWARM_BUDGET_MS <const> = 4
 
 local function drawVisibilityBand(topY, height)
@@ -40,7 +39,6 @@ function SplashScene.new(config)
     end
     self.titleFont = gfx.font.new("/System/Fonts/Roobert-24-Medium")
     self.smallFont = gfx.getSystemFont()
-    self.readyFrames = SPLASH_READY_HOLD_FRAMES
     self.prewarmComplete = false
     GameOfLife.beginPrewarmStarryMessenger()
     StarryLog.info("SplashScene.new ready")
@@ -72,7 +70,6 @@ function SplashScene:update()
     local prewarmFinished = GameOfLife.updatePrewarm(PREWARM_BUDGET_MS)
     if prewarmFinished and not self.prewarmComplete then
         self.prewarmComplete = true
-        self.readyFrames = SPLASH_READY_HOLD_FRAMES
     end
 
     drawVisibilityBand(90, 64)
@@ -83,23 +80,24 @@ function SplashScene:update()
     gfx.drawTextAligned("Starry Messenger", 200, 110, kTextAlignment.center)
     gfx.setFont(self.smallFont)
     if self.prewarmComplete then
-        gfx.drawTextAligned("Press A or wait a moment to begin", 200, 204, kTextAlignment.center)
+        gfx.drawTextAligned("Press A to continue", 200, 204, kTextAlignment.center)
     else
         gfx.drawTextAligned("Loading Game of Life...", 200, 204, kTextAlignment.center)
     end
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 
-    if self.prewarmComplete and pd.buttonJustPressed(pd.kButtonA) then
+    local buttonPressed = pd.buttonJustPressed(pd.kButtonA)
+        or pd.buttonJustPressed(pd.kButtonB)
+        or pd.buttonJustPressed(pd.kButtonUp)
+        or pd.buttonJustPressed(pd.kButtonDown)
+        or pd.buttonJustPressed(pd.kButtonLeft)
+        or pd.buttonJustPressed(pd.kButtonRight)
+    if self.prewarmComplete and buttonPressed then
         self:continue()
         return
     end
 
     if not self.prewarmComplete then
         return
-    end
-
-    self.readyFrames = self.readyFrames - 1
-    if self.readyFrames <= 0 then
-        self:continue()
     end
 end

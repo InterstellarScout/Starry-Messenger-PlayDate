@@ -17,13 +17,14 @@ import "systems/fishpond"
 import "systems/antfarm"
 import "systems/gifplayer"
 import "systems/crttv"
+import "systems/wacky"
+import "systems/spaceminer"
 import "systems/rccararena"
 import "systems/controlhelp"
 import "systems/sessionstate"
 import "systems/starryportal"
 import "systems/viewaudio"
 import "scenes/splash"
-import "scenes/playercount"
 import "scenes/title"
 import "scenes/view"
 import "scenes/duckgame"
@@ -39,8 +40,17 @@ local app = {
     portalService = StarryPortalService.new()
 }
 local buildGameTitleScene
-local buildPlayerCountScene
 local buildSplashScene
+
+local function getBeingCountLabel(playerCount)
+    local count = math.max(2, math.floor(playerCount or 2))
+    if count == 2 then
+        return "Two Beings"
+    elseif count == 3 then
+        return "Three Beings"
+    end
+    return "Four Beings"
+end
 
 local SINGLE_VIEW_ITEMS <const> = {
     {
@@ -82,6 +92,18 @@ local SINGLE_VIEW_ITEMS <const> = {
     { id = "fireworks", label = "Fireworks" },
     { id = "antfarm", label = "Ant Farm" },
     { id = "crttv", label = "CRT TV" },
+    { id = "wacky", label = "Wacky" },
+    {
+        id = "spaceminer",
+        label = "Space Miner",
+        modes = {
+            SpaceMiner.MODE_FULL,
+            SpaceMiner.MODE_HALF,
+            SpaceMiner.MODE_QUARTER
+        },
+        modeId = SpaceMiner.MODE_FULL,
+        getModeLabel = SpaceMiner.getModeLabel
+    },
     { id = "gifplayer", label = "Gif Player" },
     {
         id = "fishpond",
@@ -93,6 +115,13 @@ local SINGLE_VIEW_ITEMS <const> = {
         },
         modeId = FishPond.MODE_POND,
         getModeLabel = FishPond.getModeLabel
+    },
+    {
+        id = "multiplayer",
+        label = "Multiplayer",
+        modes = { 2, 3, 4 },
+        modeId = 2,
+        getModeLabel = getBeingCountLabel
     },
     {
         id = "duck",
@@ -229,6 +258,12 @@ end
 local function showView(viewId, options)
     options = options or {}
     logModeSelection("app", viewId)
+    if viewId == "multiplayer" then
+        app.session:setPlayerCount(options.modeId or 2)
+        ViewAudio.stop()
+        setScene(buildGameTitleScene("multi"))
+        return
+    end
     if viewId == "duck" then
         ViewAudio.stop()
         setScene(DuckGameScene.new({
@@ -300,7 +335,12 @@ buildGameTitleScene = function(catalog, options)
         headerTitle = "STARRY MESSENGER",
         headerSubtitle = subtitle,
         onBack = function()
-            setScene(buildPlayerCountScene())
+            if catalog == "multi" then
+                app.session:setPlayerCount(1)
+                setScene(buildGameTitleScene("single"))
+                return
+            end
+            setScene(buildSplashScene())
         end,
         onSelectView = function(viewId, effect, modeId)
             logModeSelection("title", viewId)
@@ -312,27 +352,14 @@ buildGameTitleScene = function(catalog, options)
     })
 end
 
-buildPlayerCountScene = function()
-    ViewAudio.stop()
-    return PlayerCountScene.new({
-        onBack = function()
-            setScene(buildSplashScene())
-        end,
-        onSelectCount = function(playerCount)
-            app.session:setPlayerCount(playerCount)
-            local catalog = app.session.catalog
-            setScene(buildGameTitleScene(catalog))
-        end
-    })
-end
-
 buildSplashScene = function()
     ViewAudio.stop()
     StarryLog.info("buildSplashScene")
     return SplashScene.new({
         onContinue = function()
-            StarryLog.info("splash requested player count scene")
-            setScene(buildPlayerCountScene())
+            app.session:setPlayerCount(1)
+            StarryLog.info("splash requested title scene")
+            setScene(buildGameTitleScene("single"))
         end
     })
 end
