@@ -81,7 +81,7 @@ function TitleScene:usesDarkText()
         return false
     end
 
-    if selectedView.id == "duck" or selectedView.id == "antfarm" then
+    if selectedView.id == "duck" then
         return true
     end
 
@@ -335,10 +335,6 @@ function TitleScene:setPreview(forceFresh)
                 modeId = selectedView.modeId,
                 preview = true,
                 previewItemPath = "gifs/Spinning/seal-spinning-spinning-spinning-gif-spinning-seal-water"
-            })
-        elseif selectedView.id == "antfarm" then
-            return AntFarm.new(400, 240, {
-                preview = true
             })
         elseif selectedView.id == "fishpond" then
             return FishPond.new(400, 240, selectedView.modeId, {

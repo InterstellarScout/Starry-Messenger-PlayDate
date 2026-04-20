@@ -14,7 +14,6 @@ import "systems/gameoflife"
 import "systems/lavalamp"
 import "systems/fireworks"
 import "systems/fishpond"
-import "systems/antfarm"
 import "systems/gifplayer"
 import "systems/crttv"
 import "systems/wacky"
@@ -97,7 +96,6 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = GameOfLife.getModeLabel
     },
     { id = "fireworks", label = "Fireworks" },
-    { id = "antfarm", label = "Ant Farm" },
     { id = "crttv", label = "CRT TV" },
     { id = "wacky", label = "Wacky" },
     {

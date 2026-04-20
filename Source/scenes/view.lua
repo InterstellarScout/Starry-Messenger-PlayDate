@@ -53,8 +53,6 @@ function ViewScene.new(config)
         self.effect = GifPlayerEffect.new(400, 240, {
             modeId = self.modeId
         })
-    elseif self.viewId == "antfarm" then
-        self.effect = AntFarm.new(400, 240)
     elseif self.viewId == "fishpond" then
         self.effect = FishPond.new(400, 240, self.modeId or FishPond.MODE_POND)
     elseif self.viewId == "rccar" then
@@ -255,8 +253,6 @@ function ViewScene:update()
             self.effect:handlePrimaryAction()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
-        elseif self.viewId == "antfarm" then
-            self.effect:dropAnt()
         elseif self.viewId == "fishpond" then
         elseif self.viewId == "rccar" then
             if self.effect and self.effect.toggleCrankMode then
@@ -288,9 +284,6 @@ function ViewScene:update()
         else
             self.fireworkHoldFrames = 0
         end
-    elseif self.viewId == "antfarm" then
-        self.effect:moveHandByCrank(change)
-        self.crankAccumulator = 0
     elseif self.viewId == "crttv" then
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
@@ -340,22 +333,6 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self.effect:stepSelectedStyle(1)
         end
-    elseif self.viewId == "antfarm" then
-        local inputX = 0
-        local inputY = 0
-        if pd.buttonIsPressed(pd.kButtonLeft) then
-            inputX = inputX - 1
-        end
-        if pd.buttonIsPressed(pd.kButtonRight) then
-            inputX = inputX + 1
-        end
-        if pd.buttonIsPressed(pd.kButtonUp) then
-            inputY = inputY - 1
-        end
-        if pd.buttonIsPressed(pd.kButtonDown) then
-            inputY = inputY + 1
-        end
-        self.effect:setHandInput(inputX, inputY)
     elseif self.viewId == "gifplayer" then
         self.effect:updateDirectionalInput(
             pd.buttonJustPressed(pd.kButtonUp),

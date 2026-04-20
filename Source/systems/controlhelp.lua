@@ -112,16 +112,6 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "B: back out from playback to the GIF browser, then to categories, then to title.",
             "GIF frame sets now live under Source/gifs/<Category>/ as category folders."
         })
-    elseif viewId == "antfarm" then
-        return buildSpec("Ant Farm Controls", {
-            "D-pad: move the hand around the top of the ant farm.",
-            "Crank: nudge the hand left and right more precisely.",
-            "A: drop a new ant into the soil.",
-            "Dropped ants now show up brighter against the dark soil so their movement reads clearly.",
-            "Ants dig light tunnels through the dark soil, then periodically kick into faster tunnel-burst runs.",
-            "When an ant nears an existing tunnel, it tends to connect briefly before wandering off again.",
-            "B: return to title."
-        })
     elseif viewId == "duck" then
         local deliveryLine = "Collect loose chicks, steal trailing chicks, and deliver them to your corner nest."
         local modeLine = "Single-player Duck Game now rotates between Duck Game, Two Ducks, Three Ducks, and Four Ducks from the title menu."
