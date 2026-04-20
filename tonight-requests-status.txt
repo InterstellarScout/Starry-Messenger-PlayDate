@@ -76,6 +76,7 @@
 | Instead of starting with the player-count question, add a `Multiplayer` title item with `Two Beings` onward as mode choices, and make the post-warm splash wait on a `Press A to continue` start screen before entering the title menu. | Done |
 | In Review Life, fully retire the old CSV migration and playback path so review mode only loads binary `.slif` recordings. | Done |
 | Fully remove Ant Farm for now so it no longer exists in Starry Messenger or appears on the title screen. | Done |
+| Remove the retired player-count scene from the packaged app and add a safer Playdate install step that waits for the device drive and retries deployment. | Done |
 | When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
 | Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
 | Please make a sound folder for each view in Starry Messenger on the play date that will play each contained mp3 on loop. | Done |
