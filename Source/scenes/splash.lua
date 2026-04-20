@@ -41,6 +41,7 @@ function SplashScene.new(config)
     self.smallFont = gfx.getSystemFont()
     self.prewarmComplete = false
     GameOfLife.beginPrewarmStarryMessenger()
+    CRTTVEffect.prewarmTitleFrames(400, 240)
     StarryLog.info("SplashScene.new ready")
     return self
 end

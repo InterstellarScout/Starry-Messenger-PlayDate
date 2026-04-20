@@ -50,7 +50,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             lines[#lines + 1] = "Cells near death can sprout new neighbors until the live-cell cap is reached."
         elseif modeId == GameOfLife.MODE_RECORD then
             title = "Game of Life Recorder Controls"
-            lines[#lines + 1] = "Recorder mode writes each shown board state to a CSV."
+            lines[#lines + 1] = "Recorder mode writes each shown board state to a compact replay file."
         elseif modeId == GameOfLife.MODE_REVIEW then
             title = "Review Life Controls"
             lines = {
@@ -73,20 +73,44 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         })
     elseif viewId == "crttv" then
         return buildSpec("CRT TV Controls", {
-            "A: toggle the transparent rolling bars on and off.",
-            "Crank: temporarily speed the bars up or slow them down while they are active.",
-            "If the crank rests for about 2 seconds, or reaches the top or bottom position, the bars return to their normal speeds.",
-            "In the title preview, the effect bounces between its first two static frames.",
+            "A: toggle the transparent automatic rolling bars on and off.",
+            "Crank: spawn a random-sized manual bar and drag it upward or downward through the screen.",
+            "If you crank the manual bar off-screen, it wraps to the opposite side as a freshly sized bar.",
+            "If you stop cranking, the manual bar slides down the screen and disappears.",
+            "The title preview now uses cached CRT playback frames that pre-render during startup.",
+            "B: return to title."
+        })
+    elseif viewId == "wacky" then
+        return buildSpec("Wacky Controls", {
+            "Crank either direction to pump the tube figure back upright.",
+            "Faster crank turns add more lift, so the body rises taller before it starts wobbling again.",
+            "When the crank stops, the inflatable slowly loses pressure and flops back over.",
+            "The preview starts fully extended, then collapses into its idle wobble on purpose.",
+            "B: return to title."
+        })
+    elseif viewId == "spaceminer" then
+        return buildSpec("Space Miner Controls", {
+            "Crank: turn the ship. Turn 360 maps crank 1:1, while Turn 180 and Turn 90 compress a full ship rotation into a smaller crank window.",
+            "D-pad Up/Down: thrust forward or reverse. Momentum carries until you counter it with opposite thrust.",
+            "Hold Left: fire the laser drill straight ahead to mine asteroids or burn enemy ships.",
+            "Press Right: launch a missile. Press Right again while one is active to detonate it early, like Orbital Defense.",
+            "Asteroids split into two smaller chunks three times, so mining escalates into denser debris fields.",
+            "The run opens with two minutes of mining, then three seeker waves at 4, 8, and 16 ships, then another two-minute mining break.",
+            "Later waves add escaper ships that avoid the player and missiles, then agile striker ships that aim at you and fire missiles of their own.",
+            "You can absorb 4 hits total: 2 shield blocks first, then 2 hull hits.",
             "B: return to title."
         })
     elseif viewId == "gifplayer" then
         return buildSpec("GIF Player Controls", {
-            "On entry, Up/Down chooses a GIF and A starts fullscreen playback.",
-            "Crank: scrub frames in normal mode, or change playback speed in spin mode.",
+            "On entry, crank or D-pad chooses a GIF category and A opens it.",
+            "Inside a category, Up/Down chooses a GIF and A starts fullscreen playback.",
+            "Crank: scrub frames and synced audio in normal mode, or change playback speed in spin mode.",
             "D-pad Left/Right: step one frame at a time outside spin mode.",
-            "A: cycle fullscreen playback between normal, inverted, and animation spin.",
-            "B: return to title.",
-            "Run tools/gif_adapter.py from the project files to add more GIFs."
+            "A: open the current category, start the current GIF, or cycle fullscreen playback between normal, inverted, and animation spin.",
+            "If a GIF has audio in its matching Source/audio/gifplayer folder, forward playback stays synced and manual scrubbing seeks through it.",
+            "Reverse spin remains visual-only because Playdate file streaming cannot play backwards.",
+            "B: back out from playback to the GIF browser, then to categories, then to title.",
+            "GIF frame sets now live under Source/gifs/<Category>/ as category folders."
         })
     elseif viewId == "antfarm" then
         return buildSpec("Ant Farm Controls", {
@@ -175,7 +199,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             })
         end
 
-        return buildSpec("RC Block Chase Controls", {
+        return buildSpec("RC Arena Controls", {
             "Crank: rotate the car.",
             "A: toggle the crank between steering and max-speed control.",
             "D-pad Left/Right: fine steering.",
