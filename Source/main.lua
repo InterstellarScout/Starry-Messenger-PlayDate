@@ -54,6 +54,18 @@ end
 
 local SINGLE_VIEW_ITEMS <const> = {
     {
+        id = "fall",
+        label = "Star Fall",
+        modes = {
+            Starfield.MODE_STANDARD,
+            Starfield.MODE_INVERSE
+        },
+        modeId = Starfield.MODE_STANDARD,
+        getModeLabel = function(modeId)
+            return Starfield.getModeLabel(modeId, "fall")
+        end
+    },
+    {
         id = "warp",
         label = "Warp Speed",
         modes = {
@@ -66,16 +78,11 @@ local SINGLE_VIEW_ITEMS <const> = {
         end
     },
     {
-        id = "fall",
-        label = "Star Fall",
-        modes = {
-            Starfield.MODE_STANDARD,
-            Starfield.MODE_INVERSE
-        },
-        modeId = Starfield.MODE_STANDARD,
-        getModeLabel = function(modeId)
-            return Starfield.getModeLabel(modeId, "fall")
-        end
+        id = "multiplayer",
+        label = "Multiplayer",
+        modes = { 2, 3, 4 },
+        modeId = 2,
+        getModeLabel = getBeingCountLabel
     },
     {
         id = "life",
@@ -115,13 +122,6 @@ local SINGLE_VIEW_ITEMS <const> = {
         },
         modeId = FishPond.MODE_POND,
         getModeLabel = FishPond.getModeLabel
-    },
-    {
-        id = "multiplayer",
-        label = "Multiplayer",
-        modes = { 2, 3, 4 },
-        modeId = 2,
-        getModeLabel = getBeingCountLabel
     },
     {
         id = "duck",
