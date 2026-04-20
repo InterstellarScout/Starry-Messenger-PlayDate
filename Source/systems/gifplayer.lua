@@ -47,6 +47,14 @@ local function roundToTenth(value)
     return math.ceil((value * 10) - 0.5) / 10
 end
 
+local function displayInteger(value)
+    local numericValue = tonumber(value) or 0
+    if numericValue >= 0 then
+        return tostring(math.floor(numericValue + 0.00001))
+    end
+    return tostring(math.ceil(numericValue - 0.00001))
+end
+
 local function wrapFrame(frame, frameCount)
     if frameCount <= 0 then
         return 1
@@ -68,7 +76,7 @@ local function toHex32(value)
     local remainder = math.floor(tonumber(value) or 0) % 4294967296
     local output = {}
     for index = 8, 1, -1 do
-        local digit = (remainder % 16) + 1
+        local digit = math.floor((remainder % 16) + 1)
         output[index] = string.sub(digits, digit, digit)
         remainder = math.floor(remainder / 16)
     end
@@ -793,7 +801,7 @@ function GifPlayerEffect:drawCategoryOverlay()
 
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawText("GIF Categories", 8, 4)
-    gfx.drawText(string.format("%d/%d", self.categoryIndex, categoryCount), 350, 4)
+    gfx.drawText(displayInteger(self.categoryIndex) .. "/" .. displayInteger(categoryCount), 350, 4)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 
     self:drawScaledText(activeCategoryName, self.selectedFont or self.smallFont, "category-selected", 200, 88, CATEGORY_CENTER_SCALE)
@@ -806,7 +814,7 @@ function GifPlayerEffect:drawCategoryOverlay()
 
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     if self.activeCategory ~= nil then
-        gfx.drawTextAligned(string.format("%d GIFs", #self.activeCategory.items), 200, 138, kTextAlignment.center)
+        gfx.drawTextAligned(displayInteger(#self.activeCategory.items) .. " GIFs", 200, 138, kTextAlignment.center)
     end
     gfx.drawText("Crank/Up/Down choose category  A open  B title", 8, 228)
 
@@ -823,7 +831,7 @@ function GifPlayerEffect:drawGifChooserOverlay()
     local label = self.activeGif and self.activeGif.label or "No GIFs"
     local count = #self.catalog
     gfx.drawText(categoryName, 8, 4)
-    gfx.drawText(string.format("%d/%d", self.gifIndex, math.max(1, count)), 350, 4)
+    gfx.drawText(displayInteger(self.gifIndex) .. "/" .. displayInteger(math.max(1, count)), 350, 4)
     gfx.drawTextAligned(label, 200, 212, kTextAlignment.center)
     gfx.drawText("Up/Down choose gif  A play  B categories", 8, 228)
 
@@ -841,7 +849,7 @@ function GifPlayerEffect:drawPlaybackOverlay()
     local frameCount = self.activeGif and self.activeGif.frameCount or 0
     local frameIndex = frameCount > 0 and wrapFrame(math.floor(self.activeFramePosition + 0.5), frameCount) or 0
     gfx.drawText(categoryName .. ": " .. label, 8, 2)
-    gfx.drawText(string.format("Frame %d/%d", frameIndex, frameCount), 292, 2)
+    gfx.drawText("Frame " .. displayInteger(frameIndex) .. "/" .. displayInteger(frameCount), 292, 2)
 
     local audioLine = "Audio: none"
     if self.audioPath ~= nil then
