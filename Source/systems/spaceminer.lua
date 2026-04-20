@@ -35,8 +35,8 @@ local MISSILE_LIFE_FRAMES <const> = 110
 local PLAYER_MISSILE_DRAW_RADIUS <const> = 5
 local PLAYER_MISSILE_DRAW_LENGTH <const> = 10
 local MAX_ACTIVE_ENTITIES <const> = 54
-local TARGET_ASTEROID_COUNT <const> = 12
-local PREVIEW_ASTEROID_COUNT <const> = 8
+local TARGET_ASTEROID_COUNT <const> = 24
+local PREVIEW_ASTEROID_COUNT <const> = 16
 local DECOR_ITEM_COUNT <const> = 120
 local SHIELD_HITS <const> = 2
 local HULL_HITS <const> = 2
@@ -46,10 +46,10 @@ local INTERMISSION_STAGE_FRAMES <const> = 30 * 120
 local STRIKER_MISSILE_COOLDOWN <const> = 70
 
 local ASTEROID_STAGE_CONFIG <const> = {
-    [0] = { radius = 40, hp = 7, speed = 0.28, fragments = 2, score = 20 },
-    [1] = { radius = 24, hp = 4, speed = 0.45, fragments = 2, score = 10 },
-    [2] = { radius = 14, hp = 2, speed = 0.68, fragments = 2, score = 6 },
-    [3] = { radius = 8, hp = 1, speed = 0.95, fragments = 0, score = 3 }
+    [0] = { radius = 30, hp = 7, speed = 0.28, fragments = 2, score = 20 },
+    [1] = { radius = 18, hp = 4, speed = 0.45, fragments = 2, score = 10 },
+    [2] = { radius = 11, hp = 2, speed = 0.68, fragments = 2, score = 6 },
+    [3] = { radius = 6, hp = 1, speed = 0.95, fragments = 0, score = 3 }
 }
 
 local TURN_WINDOW_DEGREES <const> = {
