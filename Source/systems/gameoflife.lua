@@ -3,7 +3,7 @@ Game of Life simulation, recorder, and playback system.
 
 Purpose:
 - runs the standard and Endless Life cellular automata modes
-- records CSV sessions and replays them in Review Life
+- records compact sparse-frame sessions and replays them in Review Life
 - manages warm caches, title previews, standby instances, and scrub history
 ]]
 local pd <const> = playdate
@@ -22,15 +22,54 @@ local WARM_FRAME_COUNT <const> = 50
 local ENDLESS_MAX_LIVE_CELL_RATIO <const> = 0.34
 
 local LIFE_RECORDINGS_DIR <const> = "exports/life-recordings"
+local LIFE_RECORDING_EXTENSION <const> = ".slif"
+local LIFE_DELETE_CSV_AFTER_MIGRATION <const> = false
 local LIFE_RECORDINGS_META_KEY <const> = "life-recordings-meta"
 local LIFE_REVIEW_META_KEY <const> = "life-review-meta"
+local LIFE_RECORDING_MAGIC <const> = "SLIF"
+local LIFE_RECORDING_VERSION <const> = 1
+local LIFE_RECORDING_FRAME_TAG <const> = "FRM1"
+
+local LIFE_REASON_CODES <const> = {
+    ["initial"] = 1,
+    ["generation"] = 2,
+    ["inject"] = 3,
+    ["history-forward"] = 4,
+    ["scrub-forward"] = 5,
+    ["scrub-history-forward"] = 6,
+    ["scrub-rewind"] = 7,
+    ["preview-handoff"] = 8,
+    ["unknown"] = 255
+}
+
+local LIFE_REASON_NAMES <const> = {
+    [1] = "initial",
+    [2] = "generation",
+    [3] = "inject",
+    [4] = "history-forward",
+    [5] = "scrub-forward",
+    [6] = "scrub-history-forward",
+    [7] = "scrub-rewind",
+    [8] = "preview-handoff",
+    [255] = "unknown"
+}
 
 GameOfLife._warmCaches = GameOfLife._warmCaches or {}
 GameOfLife._standbyInstances = GameOfLife._standbyInstances or {}
 GameOfLife._prewarmQueue = GameOfLife._prewarmQueue or nil
+GameOfLife._migrationAttempted = GameOfLife._migrationAttempted or false
+local LIFE_FORCE_DEBUG_LOGGING <const> = true
 
 local function lifeLog(message, ...)
-    StarryLog.info("life " .. tostring(message), ...)
+    if LIFE_FORCE_DEBUG_LOGGING then
+        StarryLog.forceDebug("life " .. tostring(message), ...)
+    else
+        StarryLog.debug("life " .. tostring(message), ...)
+    end
+end
+
+local function lifeLogError(message, ...)
+    StarryLog.forceError("life " .. tostring(message), ...)
 end
 
 local function clamp(value, minValue, maxValue)
@@ -81,6 +120,297 @@ local function splitCsvLine(line)
     return fields
 end
 
+local function encodeU16(value)
+    local clamped = clamp(math.floor(tonumber(value) or 0), 0, 65535)
+    local low = clamped % 256
+    local high = math.floor(clamped / 256) % 256
+    return string.char(low, high)
+end
+
+local function encodeU32(value)
+    local clamped = math.max(0, math.floor(tonumber(value) or 0))
+    local b1 = clamped % 256
+    local b2 = math.floor(clamped / 256) % 256
+    local b3 = math.floor(clamped / 65536) % 256
+    local b4 = math.floor(clamped / 16777216) % 256
+    return string.char(b1, b2, b3, b4)
+end
+
+local function decodeU16(bytes, startIndex)
+    local first = bytes:byte(startIndex, startIndex) or 0
+    local second = bytes:byte(startIndex + 1, startIndex + 1) or 0
+    return first + (second * 256)
+end
+
+local function decodeU32(bytes, startIndex)
+    local b1 = bytes:byte(startIndex, startIndex) or 0
+    local b2 = bytes:byte(startIndex + 1, startIndex + 1) or 0
+    local b3 = bytes:byte(startIndex + 2, startIndex + 2) or 0
+    local b4 = bytes:byte(startIndex + 3, startIndex + 3) or 0
+    return b1 + (b2 * 256) + (b3 * 65536) + (b4 * 16777216)
+end
+
+local function readExact(file, byteCount)
+    if not file or not file.read or byteCount <= 0 then
+        return nil
+    end
+
+    local chunk = file:read(byteCount)
+    if chunk == nil or #chunk ~= byteCount then
+        return nil
+    end
+    return chunk
+end
+
+local function getReasonCode(reason)
+    return LIFE_REASON_CODES[reason or "unknown"] or LIFE_REASON_CODES.unknown
+end
+
+local function getReasonName(reasonCode)
+    return LIFE_REASON_NAMES[reasonCode] or LIFE_REASON_NAMES[LIFE_REASON_CODES.unknown]
+end
+
+local function buildRecordingHeader(width, height, cellSize, rows, columns)
+    return table.concat({
+        LIFE_RECORDING_MAGIC,
+        string.char(LIFE_RECORDING_VERSION),
+        encodeU16(width),
+        encodeU16(height),
+        string.char(clamp(cellSize, 0, 255)),
+        string.char(clamp(rows, 0, 255)),
+        string.char(clamp(columns, 0, 255))
+    })
+end
+
+local function parseRecordingHeader(file)
+    local header = readExact(file, 12)
+    if header == nil or header:sub(1, 4) ~= LIFE_RECORDING_MAGIC then
+        return nil
+    end
+
+    return {
+        version = header:byte(5, 5) or 0,
+        width = decodeU16(header, 6),
+        height = decodeU16(header, 8),
+        cellSize = header:byte(10, 10) or 0,
+        rows = header:byte(11, 11) or 0,
+        columns = header:byte(12, 12) or 0
+    }
+end
+
+local function isBinaryRecordingPath(path)
+    return path ~= nil and path:match("%.slif$") ~= nil
+end
+
+local function replaceExtension(path, nextExtension)
+    return (path:gsub("%.[^./\\]+$", "")) .. nextExtension
+end
+
+local function readCsvRecordingFrames(path)
+    local file = pd.file and pd.file.open and pd.file.open(path, pd.file.kFileRead)
+    if not file then
+        return nil, "open-failed"
+    end
+
+    local frames = {}
+    local frameMap = {}
+
+    while true do
+        local line = file:readline()
+        if line == nil then
+            break
+        end
+
+        if not line:find("^session,frame,reason,row,column,x,y$") then
+            local fields = splitCsvLine(line)
+            local frameNumber = tonumber(fields[2] or "")
+            if frameNumber ~= nil then
+                local frame = frameMap[frameNumber]
+                if frame == nil then
+                    frame = {
+                        index = frameNumber,
+                        reason = fields[3] or "unknown",
+                        cells = {}
+                    }
+                    frameMap[frameNumber] = frame
+                    frames[#frames + 1] = frame
+                end
+
+                local row = tonumber(fields[4] or "")
+                local column = tonumber(fields[5] or "")
+                if row ~= nil and column ~= nil then
+                    frame.cells[#frame.cells + 1] = {
+                        row = row,
+                        column = column
+                    }
+                end
+            end
+        end
+    end
+
+    file:close()
+    table.sort(frames, function(a, b)
+        return a.index < b.index
+    end)
+
+    return frames
+end
+
+local function writeBinaryRecording(path, width, height, cellSize, rows, columns, frames)
+    local file = pd.file and pd.file.open and pd.file.open(path, pd.file.kFileWrite)
+    if not file then
+        return false, "open-failed"
+    end
+
+    file:write(buildRecordingHeader(width, height, cellSize, rows, columns))
+
+    for _, frame in ipairs(frames) do
+        file:write(LIFE_RECORDING_FRAME_TAG)
+        file:write(encodeU32(frame.index))
+        file:write(string.char(getReasonCode(frame.reason)))
+        file:write(encodeU16(#frame.cells))
+        for _, cell in ipairs(frame.cells) do
+            file:write(string.char(
+                clamp(cell.row, 0, 255),
+                clamp(cell.column, 0, 255)
+            ))
+        end
+    end
+
+    file:close()
+    return true
+end
+
+local function summarizeBinaryRecording(path)
+    local file = pd.file and pd.file.open and pd.file.open(path, pd.file.kFileRead)
+    if not file then
+        return nil, "open-failed"
+    end
+
+    local header = parseRecordingHeader(file)
+    if header == nil then
+        file:close()
+        return nil, "bad-header"
+    end
+
+    local summary = {
+        frameCount = 0,
+        frames = {}
+    }
+
+    while true do
+        local tag = file:read(4)
+        if tag == nil then
+            break
+        end
+        if #tag ~= 4 or tag ~= LIFE_RECORDING_FRAME_TAG then
+            file:close()
+            return nil, "bad-tag"
+        end
+
+        local frameHeader = readExact(file, 7)
+        if frameHeader == nil then
+            file:close()
+            return nil, "short-frame-header"
+        end
+
+        local frameNumber = decodeU32(frameHeader, 1)
+        local reasonCode = frameHeader:byte(5, 5) or LIFE_REASON_CODES.unknown
+        local cellCount = decodeU16(frameHeader, 6)
+        local cellBytes = cellCount > 0 and readExact(file, cellCount * 2) or ""
+        if cellCount > 0 and cellBytes == nil then
+            file:close()
+            return nil, "short-cell-data"
+        end
+
+        summary.frameCount = summary.frameCount + 1
+        summary.frames[#summary.frames + 1] = {
+            index = frameNumber,
+            reason = getReasonName(reasonCode),
+            cellCount = cellCount
+        }
+    end
+
+    file:close()
+    return summary
+end
+
+local function verifyMigratedRecording(sourceFrames, targetPath)
+    local summary, err = summarizeBinaryRecording(targetPath)
+    if summary == nil then
+        return false, err
+    end
+
+    if summary.frameCount ~= #sourceFrames then
+        return false, "frame-count-mismatch"
+    end
+
+    for index, sourceFrame in ipairs(sourceFrames) do
+        local targetFrame = summary.frames[index]
+        if targetFrame == nil
+            or targetFrame.index ~= sourceFrame.index
+            or targetFrame.reason ~= (sourceFrame.reason or "unknown")
+            or targetFrame.cellCount ~= #sourceFrame.cells then
+            return false, "frame-mismatch"
+        end
+    end
+
+    return true
+end
+
+local function migrateCsvRecordings()
+    if GameOfLife._migrationAttempted then
+        return
+    end
+    GameOfLife._migrationAttempted = true
+
+    if not pd.file or not pd.file.listFiles then
+        return
+    end
+
+    local fileList = safeListLifeRecordingFiles()
+    if #fileList == 0 then
+        lifeLog("migration found no review recordings in %s", LIFE_RECORDINGS_DIR)
+        return
+    end
+
+    for _, fileName in ipairs(fileList) do
+        if fileName:match("%.csv$") then
+            local csvPath = string.format("%s/%s", LIFE_RECORDINGS_DIR, fileName)
+            local slifPath = replaceExtension(csvPath, LIFE_RECORDING_EXTENSION)
+            local frames = readCsvRecordingFrames(csvPath)
+
+            if frames ~= nil and #frames > 0 then
+                local shouldWrite = true
+                local existingSummary = summarizeBinaryRecording(slifPath)
+                if existingSummary ~= nil then
+                    shouldWrite = false
+                end
+
+                if shouldWrite then
+                    local ok, writeErr = writeBinaryRecording(slifPath, 400, 240, 5, 48, 80, frames)
+                    if not ok then
+                        lifeLog("migration write failed: %s -> %s err=%s", csvPath, slifPath, tostring(writeErr))
+                    end
+                end
+
+                local verified, verifyErr = verifyMigratedRecording(frames, slifPath)
+                if verified then
+                    lifeLog("migration verified: %s -> %s frames=%d", csvPath, slifPath, #frames)
+                    if LIFE_DELETE_CSV_AFTER_MIGRATION and pd.file and pd.file.delete then
+                        pd.file.delete(csvPath)
+                        lifeLog("migration deleted original csv: %s", csvPath)
+                    end
+                else
+                    lifeLog("migration verify failed: %s -> %s err=%s", csvPath, slifPath, tostring(verifyErr))
+                end
+            else
+                lifeLog("migration skipped unreadable csv: %s", csvPath)
+            end
+        end
+    end
+end
+
 local function getReviewMeta()
     local meta = nil
     if pd.datastore and pd.datastore.read then
@@ -97,11 +427,39 @@ local function saveReviewMeta(meta)
     end
 end
 
+local function ensureLifeRecordingsDirectory()
+    if pd.file and pd.file.mkdir then
+        local ok, err = pcall(function()
+            pd.file.mkdir(LIFE_RECORDINGS_DIR)
+        end)
+        if not ok then
+            lifeLog("recordings dir mkdir skipped path=%s err=%s", LIFE_RECORDINGS_DIR, tostring(err))
+        end
+    end
+end
+
+local function safeListLifeRecordingFiles()
+    if not pd.file or not pd.file.listFiles then
+        return {}
+    end
+
+    ensureLifeRecordingsDirectory()
+    local ok, entriesOrErr = pcall(function()
+        return pd.file.listFiles(LIFE_RECORDINGS_DIR) or {}
+    end)
+    if not ok then
+        lifeLogError("recordings dir list failed path=%s err=%s", LIFE_RECORDINGS_DIR, tostring(entriesOrErr))
+        return {}
+    end
+
+    return entriesOrErr or {}
+end
+
 function GameOfLife.getModeLabel(modeId)
     if modeId == GameOfLife.MODE_ENDLESS then
         return "Endless Life"
     elseif modeId == GameOfLife.MODE_RECORD then
-        return "CSV Recorder"
+        return "Life Recorder"
     elseif modeId == GameOfLife.MODE_REVIEW then
         return "Review Life"
     end
@@ -267,6 +625,22 @@ function GameOfLife.new(width, height, cellSize, seedChance, options)
     local modeId = options.modeId or GameOfLife.MODE_STANDARD
     local preview = options.preview and true or false
     local reviewMode = modeId == GameOfLife.MODE_REVIEW and not preview
+    lifeLog(
+        "new requested width=%s height=%s cellSize=%s seedChance=%s preview=%s mode=%s forceFresh=%s",
+        tostring(width),
+        tostring(height),
+        tostring(cellSize),
+        tostring(seedChance),
+        tostring(preview),
+        tostring(modeId),
+        tostring(options.forceFresh == true)
+    )
+    if reviewMode then
+        lifeLog("review mode requested; running csv migration before browser load")
+        migrateCsvRecordings()
+    else
+        lifeLog("csv migration skipped for mode=%s preview=%s", tostring(modeId), tostring(preview))
+    end
     local forceFresh = options.forceFresh == true
     local standbyKey = GameOfLife.getStandbyKey(width, height, cellSize or 5, seedChance or 0.28, modeId)
 
@@ -490,6 +864,7 @@ function GameOfLife:buildPreviewFrames()
         self.previewFrames = nil
         self.previewFrameIndex = 1
         self.previewDirection = 1
+        lifeLog("buildPreviewFrames skipped preview=%s review=%s", tostring(self.preview), tostring(self.reviewMode))
         return
     end
 
@@ -516,6 +891,15 @@ function GameOfLife:buildPreviewFrames()
     if self.previewFrames[1] then
         self:restoreGrid(self.previewFrames[1])
     end
+
+    lifeLog(
+        "preview frames built count=%d history=%d start=%d end=%d frameIndex=%d",
+        #self.previewFrames,
+        #self.history,
+        startIndex,
+        endIndex,
+        self.previewFrameIndex
+    )
 end
 
 function GameOfLife:restoreGrid(snapshot)
@@ -606,17 +990,17 @@ function GameOfLife:beginRecordingSession()
     end
 
     self.recordingSessionId = string.format("life-%04d-%d", sessionIndex, pd.getSecondsSinceEpoch())
-    self.recordingPath = string.format("%s/session-%04d.csv", LIFE_RECORDINGS_DIR, sessionIndex)
+    self.recordingPath = string.format("%s/session-%04d%s", LIFE_RECORDINGS_DIR, sessionIndex, LIFE_RECORDING_EXTENSION)
     self.recordingFrame = 0
     self.recordingStarted = true
 
     local file = pd.file and pd.file.open and pd.file.open(self.recordingPath, pd.file.kFileWrite)
     if file then
-        file:write("session,frame,reason,row,column,x,y\n")
+        file:write(buildRecordingHeader(self.width, self.height, self.cellSize, self.rows, self.columns))
         file:close()
         lifeLog("recording started: %s", self.recordingPath)
     else
-        lifeLog("recording failed to open CSV")
+        lifeLog("recording failed to open file")
     end
 end
 
@@ -650,40 +1034,147 @@ function GameOfLife:flushRecording()
         return
     end
 
+    local encodedCells = {}
     local wroteRows = 0
     for row = 1, self.rows do
         for column = 1, self.columns do
             if self.grid[row][column] == 1 then
-                local x = math.floor(((column - 0.5) * self.cellSize) + 0.5)
-                local y = math.floor(((row - 0.5) * self.cellSize) + 0.5)
-                file:write(string.format(
-                    "%s,%d,%s,%d,%d,%d,%d\n",
-                    self.recordingSessionId,
-                    self.recordingFrame,
-                    self.recordReason,
-                    row,
-                    column,
-                    x,
-                    y
-                ))
+                encodedCells[#encodedCells + 1] = string.char(
+                    clamp(row, 0, 255),
+                    clamp(column, 0, 255)
+                )
                 wroteRows = wroteRows + 1
             end
         end
     end
 
-    if wroteRows == 0 then
-        file:write(string.format(
-            "%s,%d,%s,,,,\n",
-            self.recordingSessionId,
-            self.recordingFrame,
-            self.recordReason
-        ))
+    file:write(LIFE_RECORDING_FRAME_TAG)
+    file:write(encodeU32(self.recordingFrame))
+    file:write(string.char(getReasonCode(self.recordReason)))
+    file:write(encodeU16(wroteRows))
+    if wroteRows > 0 then
+        file:write(table.concat(encodedCells))
     end
 
     file:close()
     lifeLog("recording flushed frame=%d rows=%d reason=%s", self.recordingFrame, wroteRows, tostring(self.recordReason))
     self.recordingFrame = self.recordingFrame + 1
     self.recordDirty = false
+end
+
+function GameOfLife:loadReviewPlaybackCsv(entry)
+    local file = pd.file and pd.file.open and pd.file.open(entry.path, pd.file.kFileRead)
+    if not file then
+        self.reviewStatusMessage = "Could not open " .. entry.name
+        lifeLog("review playback open failed: %s", tostring(entry.path))
+        return false
+    end
+
+    local frameOffsets = {}
+    while true do
+        local lineOffset = file:tell()
+        local line = file:readline()
+        if line == nil then
+            break
+        end
+
+        if not line:find("^session,frame,reason,row,column,x,y$") then
+            local fields = splitCsvLine(line)
+            local frameNumber = tonumber(fields[2] or "")
+            if frameNumber ~= nil and (frameOffsets[#frameOffsets] == nil or frameOffsets[#frameOffsets].index ~= frameNumber) then
+                frameOffsets[#frameOffsets + 1] = {
+                    index = frameNumber,
+                    offset = lineOffset,
+                    format = "csv"
+                }
+            end
+        end
+    end
+    file:close()
+
+    if #frameOffsets == 0 then
+        self.reviewStatusMessage = "No frames found in " .. entry.name
+        lifeLog("review playback had no frames: %s", tostring(entry.path))
+        return false
+    end
+
+    self.reviewFrames = nil
+    self.reviewFrameOffsets = frameOffsets
+    self.reviewFrameCount = #frameOffsets
+    self.reviewLoadedEntry = entry
+    self.reviewFrameCursor = 1
+    self.reviewState = "playback"
+    self.reviewStatusMessage = string.format("Indexed %d frames.", #frameOffsets)
+    lifeLog("review playback indexed: %s frames=%d format=csv", tostring(entry.path), #frameOffsets)
+    return self:loadReviewFrameAt(1)
+end
+
+function GameOfLife:loadReviewPlaybackBinary(entry)
+    local file = pd.file and pd.file.open and pd.file.open(entry.path, pd.file.kFileRead)
+    if not file then
+        self.reviewStatusMessage = "Could not open " .. entry.name
+        lifeLog("review playback open failed: %s", tostring(entry.path))
+        return false
+    end
+
+    local header = parseRecordingHeader(file)
+    if header == nil then
+        file:close()
+        self.reviewStatusMessage = "Unsupported file " .. entry.name
+        lifeLog("review playback header invalid: %s", tostring(entry.path))
+        return false
+    end
+
+    local frameOffsets = {}
+    while true do
+        local offset = file:tell()
+        local tag = file:read(4)
+        if tag == nil then
+            break
+        end
+        if #tag ~= 4 or tag ~= LIFE_RECORDING_FRAME_TAG then
+            file:close()
+            self.reviewStatusMessage = "Corrupt file " .. entry.name
+            lifeLog("review playback tag invalid: %s offset=%s tag=%s", tostring(entry.path), tostring(offset), tostring(tag))
+            return false
+        end
+
+        local frameHeader = readExact(file, 7)
+        if frameHeader == nil then
+            break
+        end
+
+        local frameNumber = decodeU32(frameHeader, 1)
+        local reasonCode = frameHeader:byte(5, 5) or LIFE_REASON_CODES.unknown
+        local cellCount = decodeU16(frameHeader, 6)
+        frameOffsets[#frameOffsets + 1] = {
+            index = frameNumber,
+            offset = offset,
+            reasonCode = reasonCode,
+            cellCount = cellCount,
+            format = "slif"
+        }
+
+        local skipBytes = cellCount * 2
+        file:seek(skipBytes, pd.file.kSeekCurrent)
+    end
+    file:close()
+
+    if #frameOffsets == 0 then
+        self.reviewStatusMessage = "No frames found in " .. entry.name
+        lifeLog("review playback had no frames: %s", tostring(entry.path))
+        return false
+    end
+
+    self.reviewFrames = nil
+    self.reviewFrameOffsets = frameOffsets
+    self.reviewFrameCount = #frameOffsets
+    self.reviewLoadedEntry = entry
+    self.reviewFrameCursor = 1
+    self.reviewState = "playback"
+    self.reviewStatusMessage = string.format("Indexed %d frames.", #frameOffsets)
+    lifeLog("review playback indexed: %s frames=%d format=slif", tostring(entry.path), #frameOffsets)
+    return self:loadReviewFrameAt(1)
 end
 
 function GameOfLife:isReviewMode()
@@ -705,15 +1196,12 @@ function GameOfLife:refreshReviewEntries()
         previousPath = self.reviewEntries[self.reviewSelection].path
     end
 
-    local fileList = {}
-    if pd.file and pd.file.listFiles then
-        fileList = pd.file.listFiles(LIFE_RECORDINGS_DIR) or {}
-    end
+    local fileList = safeListLifeRecordingFiles()
 
     local meta = getReviewMeta()
     local entries = {}
     for _, fileName in ipairs(fileList or {}) do
-        if fileName:match("%.csv$") then
+        if fileName:match("%.csv$") or fileName:match("%.slif$") then
             local path = string.format("%s/%s", LIFE_RECORDINGS_DIR, fileName)
             entries[#entries + 1] = {
                 name = fileName,
@@ -802,49 +1290,11 @@ function GameOfLife:loadReviewPlayback(entry)
         return false
     end
 
-    local file = pd.file and pd.file.open and pd.file.open(entry.path, pd.file.kFileRead)
-    if not file then
-        self.reviewStatusMessage = "Could not open " .. entry.name
-        lifeLog("review playback open failed: %s", tostring(entry.path))
-        return false
+    if isBinaryRecordingPath(entry.path) then
+        return self:loadReviewPlaybackBinary(entry)
     end
 
-    local frameOffsets = {}
-    while true do
-        local lineOffset = file:tell()
-        local line = file:readline()
-        if line == nil then
-            break
-        end
-
-        if not line:find("^session,frame,reason,row,column,x,y$") then
-            local fields = splitCsvLine(line)
-            local frameNumber = tonumber(fields[2] or "")
-            if frameNumber ~= nil and (frameOffsets[#frameOffsets] == nil or frameOffsets[#frameOffsets].index ~= frameNumber) then
-                frameOffsets[#frameOffsets + 1] = {
-                    index = frameNumber,
-                    offset = lineOffset
-                }
-            end
-        end
-    end
-    file:close()
-
-    if #frameOffsets == 0 then
-        self.reviewStatusMessage = "No frames found in " .. entry.name
-        lifeLog("review playback had no frames: %s", tostring(entry.path))
-        return false
-    end
-
-    self.reviewFrames = nil
-    self.reviewFrameOffsets = frameOffsets
-    self.reviewFrameCount = #frameOffsets
-    self.reviewLoadedEntry = entry
-    self.reviewFrameCursor = 1
-    self.reviewState = "playback"
-    self.reviewStatusMessage = string.format("Indexed %d frames.", #frameOffsets)
-    lifeLog("review playback indexed: %s frames=%d", tostring(entry.path), #frameOffsets)
-    return self:loadReviewFrameAt(1)
+    return self:loadReviewPlaybackCsv(entry)
 end
 
 function GameOfLife:loadReviewFrameAt(frameCursor)
@@ -858,6 +1308,51 @@ function GameOfLife:loadReviewFrameAt(frameCursor)
     if not file then
         self.reviewStatusMessage = "Could not open " .. self.reviewLoadedEntry.name
         return false
+    end
+
+    if frameInfo.format == "slif" then
+        local header = parseRecordingHeader(file)
+        if header == nil then
+            file:close()
+            self.reviewStatusMessage = "Unsupported file " .. self.reviewLoadedEntry.name
+            return false
+        end
+
+        file:seek(frameInfo.offset, pd.file.kSeekSet)
+        local tag = readExact(file, 4)
+        local frameHeader = readExact(file, 7)
+        if tag == nil or frameHeader == nil or tag ~= LIFE_RECORDING_FRAME_TAG then
+            file:close()
+            self.reviewStatusMessage = "Could not load frame."
+            return false
+        end
+
+        local frame = {
+            index = decodeU32(frameHeader, 1),
+            reason = getReasonName(frameHeader:byte(5, 5) or LIFE_REASON_CODES.unknown),
+            cells = {}
+        }
+
+        local cellCount = decodeU16(frameHeader, 6)
+        local cellBytes = cellCount > 0 and readExact(file, cellCount * 2) or ""
+        file:close()
+
+        if cellCount > 0 and cellBytes == nil then
+            self.reviewStatusMessage = "Could not load frame."
+            return false
+        end
+
+        for byteIndex = 1, #cellBytes, 2 do
+            frame.cells[#frame.cells + 1] = {
+                row = cellBytes:byte(byteIndex, byteIndex),
+                column = cellBytes:byte(byteIndex + 1, byteIndex + 1)
+            }
+        end
+
+        self.reviewFrameCursor = clampedCursor
+        self.reviewLoadedFrame = frame
+        self.reviewStatusMessage = string.format("Loaded frame %d.", clampedCursor)
+        return true
     end
 
     file:seek(frameInfo.offset, pd.file.kSeekSet)
@@ -1271,6 +1766,7 @@ function GameOfLife:update()
 
     if self.preview then
         if not self.previewFrames or #self.previewFrames == 0 then
+            lifeLog("preview update rebuilding frames history=%d", #self.history)
             self:buildPreviewFrames()
         end
 
@@ -1291,6 +1787,10 @@ function GameOfLife:update()
                 self.previewFrameIndex = clamp(nextIndex, 1, #self.previewFrames)
                 self:restoreGrid(self.previewFrames[self.previewFrameIndex])
             end
+        end
+
+        if self.previewFrames == nil or #self.previewFrames == 0 then
+            lifeLogError("preview update has no frames after rebuild mode=%s history=%d", tostring(self.modeId), #self.history)
         end
 
         self:updateBackground()

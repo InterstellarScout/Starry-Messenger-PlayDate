@@ -68,6 +68,7 @@
 ##### General Updates
 | Request | Status |
 | --- | --- |
+| Fix the `Review Life` crash when entering gameplay from the title menu by hardening Game of Life recording-directory migration and file-list loading. | Done |
 | In the asteroid game view, double the asteroid sizes, make missiles much larger and strong enough to obliterate any asteroid caught in the blast, prune off-screen small asteroids when entity counts get too high, and add layered stationary/parallax star fields that can pass in front of the ship, asteroids, and weapon fire. | Done |
 | In the asteroid game view, make the new asteroid sizing 25% smaller than the last pass and double the number of generated asteroids. | Done |
 | Instead of starting with the player-count question, add a `Multiplayer` title item with `Two Beings` onward as mode choices, and make the post-warm splash wait on a `Press A to continue` start screen before entering the title menu. | Done |
