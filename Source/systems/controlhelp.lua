@@ -82,9 +82,9 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         })
     elseif viewId == "wacky" then
         return buildSpec("Wacky Controls", {
-            "Crank either direction to pump the tube figure back upright.",
-            "Faster crank turns add more lift, so the body rises taller before it starts wobbling again.",
-            "When the crank stops, the inflatable slowly loses pressure and flops back over.",
+            "Crank forward to fling the tube figure upward. Crank backward to help gravity yank it back down faster.",
+            "A: toggle between the normal rigid body mode and a pile-up mode that lets the limbs collapse over each other once the crank is idle.",
+            "In pile-up mode, Wacky can heap on the ground instead of always falling as one stiff stack.",
             "The preview starts fully extended, then collapses into its idle wobble on purpose.",
             "B: return to title."
         })

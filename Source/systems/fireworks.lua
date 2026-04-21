@@ -20,6 +20,7 @@ local AUTO_LAUNCH_INTERVAL_MIN <const> = 3
 local AUTO_LAUNCH_INTERVAL_MAX <const> = 10
 local MAX_EXPLOSION_HEIGHT_PERCENT <const> = 0.95
 local MIN_EXPLOSION_HEIGHT_PERCENT <const> = 0.58
+local BACKGROUND_STAR_COUNT <const> = 20
 
 local GRAVITY <const> = 0.16
 local TAU <const> = math.pi * 2
@@ -75,6 +76,16 @@ function FireworksShow.new(width, height, options)
     self.backgroundPhase = math.random() * TAU
     self.styleOrder = { "standard", "willow", "grasser" }
     self.selectedStyleIndex = 1
+    self.backgroundStars = {}
+    for index = 1, BACKGROUND_STAR_COUNT do
+        self.backgroundStars[index] = {
+            x = randomRange(8, width - 8),
+            y = randomRange(10, math.floor(height * 0.34)),
+            drift = randomRange(2, 11),
+            phase = math.random() * TAU,
+            size = math.random() < 0.18 and 2 or 1
+        }
+    end
     self:resetAutoLaunchTimer()
     return self
 end
@@ -358,10 +369,9 @@ function FireworksShow:drawLauncher()
 end
 
 function FireworksShow:drawSky()
-    for index = 0, 7 do
-        local x = (index * 57) + 10 + (math.sin(self.backgroundPhase + index) * 8)
-        local y = 14 + ((index % 4) * 9)
-        gfx.fillRect(x, y, 1, 1)
+    for _, star in ipairs(self.backgroundStars) do
+        local x = star.x + (math.sin(self.backgroundPhase + star.phase) * star.drift)
+        gfx.fillRect(x, star.y, star.size, star.size)
     end
 end
 

@@ -49,6 +49,12 @@ function ViewScene.new(config)
         self.effect = FireworksShow.new(400, 240)
     elseif self.viewId == "crttv" then
         self.effect = CRTTVEffect.new(400, 240)
+    elseif self.viewId == "wacky" then
+        self.effect = WackyInflatable.new(400, 240)
+    elseif self.viewId == "spaceminer" then
+        self.effect = SpaceMiner.new(400, 240, {
+            modeId = self.modeId
+        })
     elseif self.viewId == "gifplayer" then
         self.effect = GifPlayerEffect.new(400, 240, {
             modeId = self.modeId
@@ -253,6 +259,9 @@ function ViewScene:update()
             self.effect:handlePrimaryAction()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
+        elseif self.viewId == "wacky" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "spaceminer" then
         elseif self.viewId == "fishpond" then
         elseif self.viewId == "rccar" then
             if self.effect and self.effect.toggleCrankMode then
@@ -286,6 +295,12 @@ function ViewScene:update()
         end
     elseif self.viewId == "crttv" then
         self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
+    elseif self.viewId == "wacky" then
+        self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
+    elseif self.viewId == "spaceminer" then
+        self.effect:applyCrank(change)
         self.crankAccumulator = 0
     elseif self.viewId == "gifplayer" then
         self.effect:applyCrank(change, acceleratedChange)
@@ -340,6 +355,13 @@ function ViewScene:update()
             pd.buttonJustPressed(pd.kButtonLeft),
             pd.buttonJustPressed(pd.kButtonRight)
         )
+    elseif self.viewId == "spaceminer" then
+        self.effect:updateInput(
+            pd.buttonIsPressed(pd.kButtonUp),
+            pd.buttonIsPressed(pd.kButtonDown),
+            pd.buttonIsPressed(pd.kButtonLeft),
+            pd.buttonJustPressed(pd.kButtonRight)
+        )
     elseif self.viewId == "fishpond" then
         local inputX = 0
         local inputY = 0
@@ -391,12 +413,12 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self:applySpeedStep(-1)
         end
-    elseif self.viewId == "gifplayer" then
+    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "wacky" or self.viewId == "spaceminer" then
     elseif self.viewId ~= "lava" then
         if self.effect and self.effect.steerDirectionToward then
             self:updateStarfieldDirection()
-        else
-            local moveAmount = math.max(1, math.abs(self.effect.speed))
+        elseif self.effect and self.effect.movePerspective then
+            local moveAmount = math.max(1, math.abs(self.effect.speed or 0))
             if pd.buttonIsPressed(pd.kButtonUp) then
                 self.effect:movePerspective(0, -moveAmount)
             end
