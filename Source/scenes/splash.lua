@@ -2,7 +2,7 @@
 Opening splash scene.
 
 Purpose:
-- shows the static Starry Messenger splash before the menu flow begins
+- shows the animated Starry Messenger splash before the menu flow begins
 - advances after a short hold or an A-button press
 - performs incremental Game of Life warmup work during the splash
 ]]
@@ -26,7 +26,7 @@ function SplashScene.new(config)
     StarryLog.info("SplashScene.new start")
     self.onContinue = config.onContinue
     self.preview = Starfield.newWarpSpeed(400, 240, 320)
-    self.preview.speed = 0
+    self.preview.speed = 8
     for _, star in ipairs(self.preview.stars) do
         star.size = star.size * 2
         if star.px ~= nil and star.py ~= nil then
@@ -67,6 +67,7 @@ function SplashScene:continue()
 end
 
 function SplashScene:update()
+    self.preview:update()
     self.preview:draw()
     local prewarmFinished = GameOfLife.updatePrewarm(PREWARM_BUDGET_MS)
     if prewarmFinished and not self.prewarmComplete then
@@ -81,7 +82,8 @@ function SplashScene:update()
     gfx.drawTextAligned("Starry Messenger", 200, 110, kTextAlignment.center)
     gfx.setFont(self.smallFont)
     if self.prewarmComplete then
-        gfx.drawTextAligned("Press A to continue", 200, 204, kTextAlignment.center)
+        gfx.drawTextAligned("Interact to show consiousness", 200, 198, kTextAlignment.center)
+        gfx.drawTextAligned("and flow beyond.", 200, 214, kTextAlignment.center)
     else
         gfx.drawTextAligned("Loading Game of Life...", 200, 204, kTextAlignment.center)
     end

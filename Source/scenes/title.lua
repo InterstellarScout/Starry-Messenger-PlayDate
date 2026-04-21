@@ -40,6 +40,16 @@ local function drawVisibilityBand(topY, height)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 end
 
+local function getDefaultSelectedIndex(viewItems)
+    for index, item in ipairs(viewItems or {}) do
+        if item.id == "warp" then
+            return index
+        end
+    end
+
+    return 1
+end
+
 TitleScene = {}
 TitleScene.__index = TitleScene
 
@@ -50,7 +60,7 @@ function TitleScene.new(config)
     self.onBack = config.onBack
     self.catalog = config.catalog or "single"
     self.playerCount = config.playerCount or 1
-    self.selected = config.selectedIndex or 1
+    self.selected = config.selectedIndex or getDefaultSelectedIndex(config.viewItems)
     self.displayPosition = self.selected
     self.crankAccumulator = 0
     self.headerTitle = config.headerTitle or "STARRY MESSENGER"
