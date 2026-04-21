@@ -382,14 +382,6 @@ function buildSystemMenu(viewItems)
         setScene(buildGameTitleScene(app.session.catalog))
     end)
 
-    menu:addMenuItem("Warp Speed", function()
-        showView("warp")
-    end)
-
-    menu:addMenuItem("Star Fall", function()
-        showView("fall")
-    end)
-
     menu:addCheckmarkMenuItem("Sound", ViewAudio.isEnabled(), function(value)
         ViewAudio.setEnabled(value)
         refreshActiveSceneAudio()
