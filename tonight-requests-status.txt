@@ -119,6 +119,7 @@
 | On the startup splash, move `Starry Messenger` up 5 pixels and restore the `flow beyond` prompt to two lines. | Done |
 | In Wacky, add an A-toggle collapse mode where the body can pile over itself when idle, make reverse crank amplify downward gravity, and switch the face to a surprised expression while falling. | Done |
 | Remove the black borders and on-screen text from Wacky so the scene stays full-screen. | Done |
+| Give the Wacky guy a top hat. | Done |
 | Add more stars to the Fireworks background. | Done |
 
 ##### Additional Tonight Requests

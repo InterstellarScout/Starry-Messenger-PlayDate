@@ -383,6 +383,10 @@ function WackyInflatable:drawHead(topPoint)
     local headCenterX = topPoint.x
     local headCenterY = topPoint.y - 10
 
+    gfx.fillRect(headCenterX - 10, headCenterY - 28, 20, 3)
+    gfx.fillRect(headCenterX - 6, headCenterY - 42, 12, 14)
+    gfx.drawRect(headCenterX - 6, headCenterY - 42, 12, 14)
+
     gfx.drawCircleAtPoint(headCenterX, headCenterY, HEAD_RADIUS)
     gfx.fillCircleAtPoint(headCenterX - 5, headCenterY - 3, 2)
     gfx.fillCircleAtPoint(headCenterX + 5, headCenterY - 2, 2)
