@@ -506,26 +506,12 @@ function Starfield:updateWarpStarScreenCache(star)
 end
 
 function Starfield:getWarpStarFade(star)
-    local fade = 1
-    if self.speed < 0 then
-        local zoneRadius = WARP_CENTER_DESPAWN_RADIUS
-        if star.despawnRadius and star.despawnRadius > 0 then
-            zoneRadius = star.despawnRadius
-        end
-
-        local fadeRadius = zoneRadius + WARP_CENTER_FADE_MARGIN + star.size
-        local worldX = (self.playerCenterX + star.x) - self.centerX
-        local worldY = (self.playerCenterY + star.y) - self.centerY
-        local distance = math.sqrt((worldX * worldX) + (worldY * worldY))
-        fade = clamp((distance - zoneRadius) / math.max(1, fadeRadius - zoneRadius), 0, 1)
-    end
-
     if star.spawnFadeFrames and star.spawnFadeFrames > 0 then
         local spawnFade = 1 - (star.spawnFadeFrames / WARP_SPAWN_FADE_IN_FRAMES)
-        fade = math.min(fade, clamp(spawnFade, 0, 1))
+        return clamp(spawnFade, 0, 1)
     end
 
-    return fade
+    return 1
 end
 
 function Starfield:updateStarFall()
