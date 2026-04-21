@@ -97,6 +97,7 @@ local WARP_OFFSCREEN_RADIUS <const> = WARP_VISIBLE_RADIUS + 40
 local WARP_OFFSCREEN_RADIUS_SQUARED <const> = WARP_OFFSCREEN_RADIUS * WARP_OFFSCREEN_RADIUS
 local WARP_CENTER_DESPAWN_RADIUS <const> = 10
 local WARP_CENTER_FADE_MARGIN <const> = 18
+local WARP_SPAWN_FADE_IN_FRAMES <const> = 8
 local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = 2
 local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = 5
 local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = 0.08
@@ -181,6 +182,7 @@ function Starfield.newWarpSpeed(width, height, count, options)
             py = 0,
             despawnRadius = 0,
             despawnGrowth = 0,
+            spawnFadeFrames = WARP_SPAWN_FADE_IN_FRAMES,
             speed = 0.3 + math.random() * 0.9,
             size = math.random(1, 2)
         }
@@ -356,6 +358,7 @@ end
 function Starfield:spawnWarpStar(star, spawnAtEdge)
     self:assignWarpStarVisuals(star)
     star.despawnGrowth = WARP_INWARD_DESPAWN_GROWTH_MIN + (math.random() * (WARP_INWARD_DESPAWN_GROWTH_MAX - WARP_INWARD_DESPAWN_GROWTH_MIN))
+    star.spawnFadeFrames = WARP_SPAWN_FADE_IN_FRAMES
 
     if spawnAtEdge then
         if self.speed < 0 then
@@ -410,6 +413,7 @@ function Starfield:seedWarpStar(star, index, totalCount)
     self:assignWarpStarVisuals(star)
     star.despawnRadius = 0
     star.despawnGrowth = 0
+    star.spawnFadeFrames = WARP_SPAWN_FADE_IN_FRAMES
     local columns = math.max(1, math.floor(math.sqrt(totalCount * (self.width / self.height))))
     local rows = math.max(1, math.ceil(totalCount / columns))
     local cellWidth = self.width / columns
@@ -447,10 +451,21 @@ function Starfield:warpStarTouchesCenterZone(star)
         zoneRadius = star.despawnRadius
     end
     local effectiveRadius = zoneRadius + math.max(1, star.size)
+    local effectiveRadiusSquared = effectiveRadius * effectiveRadius
     local x1 = (self.playerCenterX + star.px) - self.centerX
     local y1 = (self.playerCenterY + star.py) - self.centerY
     local x2 = (self.playerCenterX + star.x) - self.centerX
     local y2 = (self.playerCenterY + star.y) - self.centerY
+
+    local currentDistanceSquared = (x2 * x2) + (y2 * y2)
+    if currentDistanceSquared <= effectiveRadiusSquared then
+        return true
+    end
+
+    local previousDistanceSquared = (x1 * x1) + (y1 * y1)
+    if previousDistanceSquared <= effectiveRadiusSquared then
+        return true
+    end
 
     if (x1 > effectiveRadius and x2 > effectiveRadius)
         or (x1 < -effectiveRadius and x2 < -effectiveRadius)
@@ -460,18 +475,29 @@ function Starfield:warpStarTouchesCenterZone(star)
     end
 
     local distanceSquared = distanceSquaredToSegment(0, 0, x1, y1, x2, y2)
-    return distanceSquared <= (effectiveRadius * effectiveRadius)
+    return distanceSquared <= effectiveRadiusSquared
 end
 
 function Starfield:updateWarpStarScreenCache(star)
-    local px = (self.playerCenterX + star.px) - self.centerX
-    local py = (self.playerCenterY + star.py) - self.centerY
-    local x = (self.playerCenterX + star.x) - self.centerX
-    local y = (self.playerCenterY + star.y) - self.centerY
-    local screenCos = self.screenCos
-    local screenSin = self.screenSin
-    local prevX, prevY = rotatePointWithTrig(px, py, screenCos, screenSin)
-    local nextX, nextY = rotatePointWithTrig(x, y, screenCos, screenSin)
+    local prevWorldX = self.playerCenterX + star.px
+    local prevWorldY = self.playerCenterY + star.py
+    local worldX = self.playerCenterX + star.x
+    local worldY = self.playerCenterY + star.y
+
+    if self.screenAngle == 0 then
+        star.sx1 = prevWorldX
+        star.sy1 = prevWorldY
+        star.sx2 = worldX
+        star.sy2 = worldY
+        return
+    end
+
+    local px = prevWorldX - self.centerX
+    local py = prevWorldY - self.centerY
+    local x = worldX - self.centerX
+    local y = worldY - self.centerY
+    local prevX, prevY = rotatePointWithTrig(px, py, self.screenCos, self.screenSin)
+    local nextX, nextY = rotatePointWithTrig(x, y, self.screenCos, self.screenSin)
 
     star.sx1 = self.centerX + prevX
     star.sy1 = self.centerY + prevY
@@ -480,20 +506,26 @@ function Starfield:updateWarpStarScreenCache(star)
 end
 
 function Starfield:getWarpStarFade(star)
-    if self.speed >= 0 then
-        return 1
+    local fade = 1
+    if self.speed < 0 then
+        local zoneRadius = WARP_CENTER_DESPAWN_RADIUS
+        if star.despawnRadius and star.despawnRadius > 0 then
+            zoneRadius = star.despawnRadius
+        end
+
+        local fadeRadius = zoneRadius + WARP_CENTER_FADE_MARGIN + star.size
+        local worldX = (self.playerCenterX + star.x) - self.centerX
+        local worldY = (self.playerCenterY + star.y) - self.centerY
+        local distance = math.sqrt((worldX * worldX) + (worldY * worldY))
+        fade = clamp((distance - zoneRadius) / math.max(1, fadeRadius - zoneRadius), 0, 1)
     end
 
-    local zoneRadius = WARP_CENTER_DESPAWN_RADIUS
-    if star.despawnRadius and star.despawnRadius > 0 then
-        zoneRadius = star.despawnRadius
+    if star.spawnFadeFrames and star.spawnFadeFrames > 0 then
+        local spawnFade = 1 - (star.spawnFadeFrames / WARP_SPAWN_FADE_IN_FRAMES)
+        fade = math.min(fade, clamp(spawnFade, 0, 1))
     end
 
-    local fadeRadius = zoneRadius + WARP_CENTER_FADE_MARGIN + star.size
-    local worldX = (self.playerCenterX + star.x) - self.centerX
-    local worldY = (self.playerCenterY + star.y) - self.centerY
-    local distance = math.sqrt((worldX * worldX) + (worldY * worldY))
-    return clamp((distance - zoneRadius) / math.max(1, fadeRadius - zoneRadius), 0, 1)
+    return fade
 end
 
 function Starfield:updateStarFall()
@@ -615,6 +647,10 @@ function Starfield:updateWarpSpeed()
             end
         end
 
+        if star.spawnFadeFrames and star.spawnFadeFrames > 0 then
+            star.spawnFadeFrames = star.spawnFadeFrames - 1
+        end
+
         self:updateWarpStarScreenCache(star)
     end
 
@@ -626,9 +662,14 @@ function Starfield:drawWarpSpeed()
     for _, star in ipairs(self.stars) do
         local fade = self:getWarpStarFade(star)
         if fade < 1 then
-            gfx.setDitherPattern(fade, gfx.image.kDitherTypeBayer8x8)
+            local fadeBucket = math.floor((fade * 4) + 0.5) / 4
+            gfx.setDitherPattern(fadeBucket, gfx.image.kDitherTypeBayer8x8)
         end
-        gfx.drawLine(star.sx1, star.sy1, star.sx2, star.sy2)
+        local dx = star.sx2 - star.sx1
+        local dy = star.sy2 - star.sy1
+        if ((dx * dx) + (dy * dy)) > 4 then
+            gfx.drawLine(star.sx1, star.sy1, star.sx2, star.sy2)
+        end
         gfx.fillRect(star.sx2, star.sy2, star.size, star.size)
         if fade < 1 then
             gfx.setColor(self:getForegroundColor())

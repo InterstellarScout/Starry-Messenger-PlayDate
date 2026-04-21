@@ -70,7 +70,7 @@ function ViewScene.new(config)
             modeId = self.modeId
         })
     else
-        self.effect = Starfield.newWarpSpeed(400, 240, 360, {
+        self.effect = Starfield.newWarpSpeed(400, 240, 180, {
             modeId = self.modeId
         })
     end

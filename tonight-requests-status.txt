@@ -7,6 +7,7 @@
 | While the user is in trippy mode and the user presses A, make that motion's velocity continue. Retain the curving from the last origin of it plus the rotation so they all bend and twist by itself. | In Progress |
 | How can we make warp speed more efficient? Specifically in Warp speed, the game starts to slow down in frame rate. | Done |
 | Make the rotational spinning continue when the A button is pressed, remove the direct manual-rotation crank mode, and let the player jump back and forth between spin control and star speed. | Done |
+| In Warp Speed, make newly spawned on-screen stars fade in, halve the live star count, optimize center-zone checks, and add a no-rotation fast path so the view runs more efficiently. | Done |
 
 ##### In Falling Stars
 | Request | Status |
@@ -80,10 +81,15 @@
 | Fix Review Life binary playback indexing so `.slif` frame scanning does not rely on an unavailable current-seek constant on device. | Done |
 | Make the Playdate launcher thumbnail use the same splash-screen presentation shown when Starry Messenger first starts. | Done |
 | In CRT TV, make the crank-controlled bar move more sensitively and ensure upward crank motion spawns the manual bar from the bottom of the screen. | Done |
+| In Duck Game, add a `Duck Turn Mode` Home menu checkbox so the crank turns the duck while Up and Down move it forward and backward, and keep that setting active throughout play. | Done |
+| In RC Arena, add a persistent `RC Auto Brake` Home menu checkbox that returns the target speed to zero when Up and Down are released. | Done |
+| In Space Miner, rename the entry from the old Turn 360 mode setup to just `Space Miner`, remove the extra title-level turn variants, and expose the turn compression as a Home menu checkbox instead. | Done |
+| In Space Miner, fix the front decor layer so it no longer draws over the ship, shield, and weapon fire and turns them black. | Done |
 | In Space Miner `Turn 360`, automatically stop the ship once it slows below a low speed threshold, starting with a gentle braking setup. | Done |
 | In Space Miner `Turn 360`, make missile blasts break asteroids down by one tier instead of fully vaporizing larger rocks, and draw asteroid interiors as solid gray fills. | Done |
 | Double how long Lava Lamp bubbles can linger before cycling away. | Done |
 | Fix Review Life binary indexing so clean end-of-file reads do not get reported as corrupt frame tags on device. | Done |
+| Default Star Fall and Warp Speed audio to off and add a Home menu `Sound` checkmark toggle to turn view audio on or off. | Done |
 | When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
 | Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
 | Please make a sound folder for each view in Starry Messenger on the play date that will play each contained mp3 on loop. | Done |
@@ -104,6 +110,11 @@
 | Please adjust the max explosion height for fireworks to 95%. | Done |
 | The playboy app isn't opening since our last update. Do you have any way to investigate and remediate it? If not add logging to figure it out. | Done |
 | Please add all prompts used in this chat so far and add them to this tracking list. Output it to the directory. | Done |
+| Fix the title-menu stall triggered by preview swaps forcing full garbage collection while idling/cranking in the menu. | Done |
+| Change the startup splash prompt to `Interact to show consiousness` / `and flow beyond.`, use an animated warp background there, and default the title menu selection back to `Warp Speed`. | Done |
+| In Wacky, add an A-toggle collapse mode where the body can pile over itself when idle, make reverse crank amplify downward gravity, and switch the face to a surprised expression while falling. | Done |
+| Remove the black borders and on-screen text from Wacky so the scene stays full-screen. | Done |
+| Add more stars to the Fireworks background. | Done |
 
 ##### Additional Tonight Requests
 | Request | Status |
