@@ -78,6 +78,7 @@
 | Fully remove Ant Farm for now so it no longer exists in Starry Messenger or appears on the title screen. | Done |
 | Remove the retired player-count scene from the packaged app and add a safer Playdate install step that waits for the device drive and retries deployment. | Done |
 | Fix Review Life binary playback indexing so `.slif` frame scanning does not rely on an unavailable current-seek constant on device. | Done |
+| Make the Playdate launcher thumbnail use the same splash-screen presentation shown when Starry Messenger first starts. | Done |
 | When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
 | Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
 | Please make a sound folder for each view in Starry Messenger on the play date that will play each contained mp3 on loop. | Done |
