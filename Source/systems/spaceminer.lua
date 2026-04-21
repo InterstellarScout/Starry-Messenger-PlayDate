@@ -942,11 +942,13 @@ function SpaceMiner:drawDecorLayer(layer)
                 elseif item.kind == "square" then
                     gfx.fillRect(drawX - 1, drawY - 1, 2, 2)
                 else
-                    gfx.setDitherPattern(0.25, gfx.image.kDitherTypeBayer8x8)
-                    gfx.setColor(gfx.kColorBlack)
-                    gfx.fillCircleAtPoint(drawX, drawY, item.radius)
-                    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
-                    gfx.setColor(gfx.kColorWhite)
+                    if item.layer ~= "front" then
+                        gfx.setDitherPattern(0.25, gfx.image.kDitherTypeBayer8x8)
+                        gfx.setColor(gfx.kColorBlack)
+                        gfx.fillCircleAtPoint(drawX, drawY, item.radius)
+                        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+                        gfx.setColor(gfx.kColorWhite)
+                    end
                     gfx.drawCircleAtPoint(drawX, drawY, item.radius)
                 end
             end
