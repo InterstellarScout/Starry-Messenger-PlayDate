@@ -50,6 +50,12 @@ local function getDefaultSelectedIndex(viewItems)
     return 1
 end
 
+local function makeWarpPreviewAtSpeedOne()
+    local preview = Starfield.newWarpSpeed(400, 240, 320)
+    preview.speed = 1
+    return preview
+end
+
 TitleScene = {}
 TitleScene.__index = TitleScene
 
@@ -233,7 +239,7 @@ function TitleScene:activatePreview(preview)
 end
 
 function TitleScene:makeFallbackPreview()
-    return Starfield.newWarpSpeed(400, 240, 320)
+    return makeWarpPreviewAtSpeedOne()
 end
 
 function TitleScene:replacePreviewWithFallback(context, err)
@@ -324,7 +330,7 @@ function TitleScene:setPreview(forceFresh)
                 modeId = selectedView.modeId
             })
         elseif selectedView.id == "multiplayer" then
-            return Starfield.newWarpSpeed(400, 240, 320)
+            return makeWarpPreviewAtSpeedOne()
         elseif selectedView.id == "life" then
             return GameOfLife.new(400, 240, 6, 0.3, {
                 modeId = selectedView.modeId,
@@ -381,9 +387,11 @@ function TitleScene:setPreview(forceFresh)
             })
         end
 
-        return Starfield.newWarpSpeed(400, 240, 320, {
+        local preview = Starfield.newWarpSpeed(400, 240, 320, {
             modeId = selectedView.modeId
         })
+        preview.speed = 1
+        return preview
     end)
 
     if not ok then
