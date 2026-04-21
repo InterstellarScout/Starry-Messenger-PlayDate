@@ -18,7 +18,7 @@ local LARGE_BAR_HEIGHT <const> = 40
 local SMALL_BAR_HEIGHT <const> = 12
 local STATIC_FRAME_PHASE_STEP <const> = 7.25
 local PREVIEW_FRAME_COUNT <const> = 12
-local MANUAL_BAR_SPEED_SCALE <const> = 0.2
+local MANUAL_BAR_SPEED_SCALE <const> = 0.45
 local MANUAL_BAR_IDLE_FALL_SPEED <const> = 1.4
 local MANUAL_BAR_MAX_EXTRA_HEIGHT <const> = 20
 
@@ -238,7 +238,7 @@ end
 function CRTTVEffect:applyCrank(change, acceleratedChange)
     if math.abs(change or 0) > 0.01 or math.abs(acceleratedChange or 0) > 0.01 then
         local crankDelta = acceleratedChange or change or 0
-        local direction = crankDelta >= 0 and -1 or 1
+        local direction = crankDelta <= 0 and -1 or 1
         if self.manualBar == nil then
             self:spawnManualBar(direction)
         end
