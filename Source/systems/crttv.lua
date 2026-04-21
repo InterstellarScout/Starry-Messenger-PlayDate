@@ -207,9 +207,9 @@ function CRTTVEffect:applyCrank(change, acceleratedChange)
         self.manualBar.direction = direction
         self.manualBar.y = self.manualBar.y + (crankDelta * MANUAL_BAR_SPEED_SCALE)
         if self.manualBar.y >= self.height then
-            self:respawnManualBar(-1)
-        elseif (self.manualBar.y + self.manualBar.height) <= 0 then
             self:respawnManualBar(1)
+        elseif (self.manualBar.y + self.manualBar.height) <= 0 then
+            self:respawnManualBar(-1)
         end
         self.manualBarIdleFrames = 0
 
