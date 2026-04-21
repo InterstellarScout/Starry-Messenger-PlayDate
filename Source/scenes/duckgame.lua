@@ -23,6 +23,7 @@ local TARGET_FREE_CHICKS <const> = 18
 local MIN_FREE_CHICKS <const> = 12
 local SNAPSHOT_INTERVAL_FRAMES <const> = 2
 local WIN_SCORE <const> = 50
+local TURN_MODE_CRANK_DEGREES <const> = 0.04
 
 local PLAYFIELD_LEFT <const> = 16
 local PLAYFIELD_TOP <const> = 18
@@ -125,6 +126,7 @@ local function createPlayer(slot, controlKind)
         moving = false,
         facingX = facingX,
         facingY = 0,
+        headingAngle = math.atan2(0, facingX),
         controlKind = controlKind or "remote",
         score = 0,
         chicks = {},
@@ -148,6 +150,7 @@ DuckGameScene.MODE_SOLO_2 = "solo-2"
 DuckGameScene.MODE_SOLO_3 = "solo-3"
 DuckGameScene.MODE_SOLO_4 = "solo-4"
 DuckGameScene.MODE_SOLO_CENTER = "solo-center"
+DuckGameScene.turnModeEnabled = false
 
 function DuckGameScene.getModeLabel(modeId)
     if modeId == DuckGameScene.MODE_SOLO_CENTER then
@@ -169,6 +172,14 @@ function DuckGameScene.getSoloDuckCount(modeId)
         return 3
     end
     return 4
+end
+
+function DuckGameScene.isTurnModeEnabled()
+    return DuckGameScene.turnModeEnabled == true
+end
+
+function DuckGameScene.setTurnModeEnabled(enabled)
+    DuckGameScene.turnModeEnabled = enabled == true
 end
 
 function DuckGameScene.new(config)
@@ -536,6 +547,32 @@ function DuckGameScene:updateLocalInput()
 
     local _, acceleratedChange = pd.getCrankChange()
     local inputX, inputY = self:readCurrentInput()
+    if DuckGameScene.isTurnModeEnabled() then
+        if math.abs(acceleratedChange) > CRANK_DRIVE_THRESHOLD then
+            player.headingAngle = player.headingAngle + (acceleratedChange * TURN_MODE_CRANK_DEGREES)
+            player.facingX = math.cos(player.headingAngle)
+            player.facingY = math.sin(player.headingAngle)
+        end
+
+        local throttle = 0
+        if inputY < 0 then
+            throttle = 1
+        elseif inputY > 0 then
+            throttle = -1
+        end
+
+        if throttle ~= 0 then
+            player.inputX = player.facingX * throttle
+            player.inputY = player.facingY * throttle
+            player.moving = true
+        else
+            player.inputX = 0
+            player.inputY = 0
+            player.moving = false
+        end
+        return
+    end
+
     local normalizedX, normalizedY = normalize(inputX, inputY)
     local hasDirectionalInput = math.abs(normalizedX) > 0.001 or math.abs(normalizedY) > 0.001
     local crankDriving = math.abs(acceleratedChange) > CRANK_DRIVE_THRESHOLD
@@ -544,6 +581,7 @@ function DuckGameScene:updateLocalInput()
         player.inputX = normalizedX
         player.inputY = normalizedY
         player.moving = true
+        player.headingAngle = math.atan2(normalizedY, normalizedX)
     elseif crankDriving and (math.abs(player.inputX) > 0.001 or math.abs(player.inputY) > 0.001) then
         player.moving = true
     else
@@ -586,6 +624,7 @@ function DuckGameScene:updatePlayerMovement(player, dt)
     if math.abs(inputX) > 0.001 or math.abs(inputY) > 0.001 then
         player.facingX = inputX
         player.facingY = inputY
+        player.headingAngle = math.atan2(inputY, inputX)
     end
 
     self:wrapPlayerPosition(player)

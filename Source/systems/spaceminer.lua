@@ -9,6 +9,7 @@ SpaceMiner.__index = SpaceMiner
 SpaceMiner.MODE_FULL = "full"
 SpaceMiner.MODE_HALF = "half"
 SpaceMiner.MODE_QUARTER = "quarter"
+SpaceMiner.compactTurnEnabled = false
 
 local SCREEN_WIDTH <const> = 400
 local SCREEN_HEIGHT <const> = 240
@@ -168,6 +169,20 @@ function SpaceMiner.getModeLabel(modeId)
     return "Turn 360"
 end
 
+function SpaceMiner.isCompactTurnEnabled()
+    return SpaceMiner.compactTurnEnabled == true
+end
+
+function SpaceMiner.setCompactTurnEnabled(enabled)
+    SpaceMiner.compactTurnEnabled = enabled == true
+end
+
+function SpaceMiner:applyTurnModeSetting()
+    self.modeId = SpaceMiner.isCompactTurnEnabled() and SpaceMiner.MODE_HALF or SpaceMiner.MODE_FULL
+    self.turnWindow = TURN_WINDOW_DEGREES[self.modeId] or 360
+    self.turnScale = 360 / self.turnWindow
+end
+
 function SpaceMiner.new(width, height, options)
     local self = setmetatable({}, SpaceMiner)
     options = options or {}
@@ -175,8 +190,8 @@ function SpaceMiner.new(width, height, options)
     self.height = height
     self.modeId = options.modeId or SpaceMiner.MODE_FULL
     self.preview = options.preview == true
-    self.turnWindow = TURN_WINDOW_DEGREES[self.modeId] or 360
-    self.turnScale = 360 / self.turnWindow
+    self.turnWindow = 360
+    self.turnScale = 1
     self.player = {
         x = 0,
         y = 0,
@@ -213,6 +228,7 @@ function SpaceMiner.new(width, height, options)
     self.previewDriftAngle = 0
     self.previewFrameCounter = 0
     self.decor = {}
+    self:applyTurnModeSetting()
     self:seedDecor()
     self:seedAsteroids(10)
     return self
@@ -220,6 +236,10 @@ end
 
 function SpaceMiner:setPreview(isPreview)
     self.preview = isPreview == true
+end
+
+function SpaceMiner:refreshSettings()
+    self:applyTurnModeSetting()
 end
 
 function SpaceMiner:activate()
@@ -1025,7 +1045,7 @@ function SpaceMiner:drawHud()
     gfx.drawText("Space Miner", 8, 8)
     gfx.drawText(self.stageLabel, 8, 24)
     gfx.drawText(string.format("Ore %d  Score %d", self.minedChunks, self.score), 8, 40)
-    gfx.drawText(string.format("Shield %d  Hull %d  Mode %s", self.playerShieldHits, self.playerHullHits, SpaceMiner.getModeLabel(self.modeId)), 8, 56)
+    gfx.drawText(string.format("Shield %d  Hull %d", self.playerShieldHits, self.playerHullHits), 8, 56)
     gfx.drawText(string.format("Vel %.1f", magnitude(self.player.vx, self.player.vy)), 8, 72)
     if not self.preview then
         gfx.drawText("Up/Down thrust  Left laser  Right missile  Crank turn", 8, 220)
@@ -1042,10 +1062,10 @@ function SpaceMiner:draw()
     self:drawDecorLayer("back")
     self:drawAsteroids()
     self:drawEnemies()
+    self:drawDecorLayer("front")
     self:drawMissiles()
     self:drawExplosions()
     self:drawLaser()
     self:drawShip()
-    self:drawDecorLayer("front")
     self:drawHud()
 end

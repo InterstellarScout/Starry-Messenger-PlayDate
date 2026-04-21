@@ -100,14 +100,7 @@ local SINGLE_VIEW_ITEMS <const> = {
     { id = "wacky", label = "Wacky" },
     {
         id = "spaceminer",
-        label = "Space Miner",
-        modes = {
-            SpaceMiner.MODE_FULL,
-            SpaceMiner.MODE_HALF,
-            SpaceMiner.MODE_QUARTER
-        },
-        modeId = SpaceMiner.MODE_FULL,
-        getModeLabel = SpaceMiner.getModeLabel
+        label = "Space Miner"
     },
     { id = "gifplayer", label = "Gif Player" },
     {
@@ -239,6 +232,24 @@ end
 
 local function logModeSelection(source, viewId)
     StarryLog.info("mode selected via %s: %s", source, viewId)
+end
+
+local function refreshActiveSceneAudio()
+    if not ViewAudio.isEnabled() then
+        ViewAudio.stop()
+        return
+    end
+
+    if app.scene == nil then
+        return
+    end
+
+    if app.scene.viewId ~= nil then
+        ViewAudio.playForView(app.scene.viewId)
+        return
+    end
+
+    ViewAudio.stop()
 end
 
 local function returnToCurrentTitle(returnedViewId, options)
@@ -379,8 +390,28 @@ function buildSystemMenu(viewItems)
         showView("fall")
     end)
 
+    menu:addCheckmarkMenuItem("Sound", ViewAudio.isEnabled(), function(value)
+        ViewAudio.setEnabled(value)
+        refreshActiveSceneAudio()
+    end)
+
     menu:addCheckmarkMenuItem("Fish Spawn Mode", FishPond.isSpawnModeEnabled(), function(value)
         FishPond.setSpawnModeEnabled(value)
+    end)
+
+    menu:addCheckmarkMenuItem("Duck Turn Mode", DuckGameScene.isTurnModeEnabled(), function(value)
+        DuckGameScene.setTurnModeEnabled(value)
+    end)
+
+    menu:addCheckmarkMenuItem("RC Auto Brake", RCCarArena.isAutoBrakeEnabled(), function(value)
+        RCCarArena.setAutoBrakeEnabled(value)
+    end)
+
+    menu:addCheckmarkMenuItem("Space Miner Compact Turn", SpaceMiner.isCompactTurnEnabled(), function(value)
+        SpaceMiner.setCompactTurnEnabled(value)
+        if app.scene and app.scene.viewId == "spaceminer" and app.scene.effect and app.scene.effect.refreshSettings then
+            app.scene.effect:refreshSettings()
+        end
     end)
 end
 

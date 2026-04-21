@@ -15,6 +15,7 @@ RCCarArena.__index = RCCarArena
 RCCarArena.MODE_CHASE = "chase"
 RCCarArena.MODE_VERSUS = "versus"
 RCCarArena.MODE_HOCKEY = "hockey"
+RCCarArena.autoBrakeEnabled = false
 
 local CAR_LENGTH <const> = 18
 local CAR_WIDTH <const> = 10
@@ -103,7 +104,15 @@ function RCCarArena.getModeLabel(modeId)
         return "Puck Ring"
     end
 
-    return "Block Chase"
+    return "RC Arena"
+end
+
+function RCCarArena.isAutoBrakeEnabled()
+    return RCCarArena.autoBrakeEnabled == true
+end
+
+function RCCarArena.setAutoBrakeEnabled(enabled)
+    RCCarArena.autoBrakeEnabled = enabled == true
 end
 
 function RCCarArena.new(width, height, modeId, options)
@@ -340,11 +349,15 @@ function RCCarArena:updateCars()
     local previewSpeed = CAR_PREVIEW_SPEED_MIN + (math.abs(math.sin(self.time * 1.2)) * CAR_PREVIEW_SPEED_VARIATION)
 
     if not self.preview then
-        self.playerTargetSpeed = clamp(
-            self.playerTargetSpeed + (self.playerInputY * CAR_BUTTON_SPEED_STEP),
-            -self.playerMaxSpeed,
-            self.playerMaxSpeed
-        )
+        if RCCarArena.isAutoBrakeEnabled() and self.playerInputY == 0 then
+            self.playerTargetSpeed = 0
+        else
+            self.playerTargetSpeed = clamp(
+                self.playerTargetSpeed + (self.playerInputY * CAR_BUTTON_SPEED_STEP),
+                -self.playerMaxSpeed,
+                self.playerMaxSpeed
+            )
+        end
     end
 
     for _, car in ipairs(self.cars) do

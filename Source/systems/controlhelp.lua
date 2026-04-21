@@ -90,7 +90,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         })
     elseif viewId == "spaceminer" then
         return buildSpec("Space Miner Controls", {
-            "Crank: turn the ship. Turn 360 maps crank 1:1, while Turn 180 and Turn 90 compress a full ship rotation into a smaller crank window.",
+            "Crank: turn the ship. Space Miner Compact Turn in the Home menu switches between full 360 steering and a tighter turn window.",
             "D-pad Up/Down: thrust forward or reverse. Momentum carries until you counter it with opposite thrust.",
             "Turn 360 now lightly brakes on its own and snaps to a stop once your drift falls under a low speed threshold.",
             "Hold Left: fire the laser drill straight ahead to mine asteroids or burn enemy ships.",
@@ -122,8 +122,8 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             winLine = "Center Nest is an endless solo collection run."
         end
         return buildSpec("Duck Game Controls", {
-            "D-pad: set the lead duck's travel direction.",
-            "Crank: drive the duck forward in that chosen direction without adding extra speed.",
+            "Normal mode: D-pad sets the lead duck's travel direction, and the crank drives the duck forward in that chosen direction.",
+            "Duck Turn Mode in the Home menu: the crank turns the duck, while Up and Down move it forward and backward.",
             deliveryLine,
             modeLine,
             winLine,
@@ -173,6 +173,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
                 "A: toggle the crank between steering and max-speed control.",
                 "D-pad Left/Right: fine steering.",
                 "D-pad Up/Down: accelerate forward or reverse within the current signed max speed.",
+                "RC Auto Brake in the Home menu returns the target speed to zero when Up and Down are released.",
                 "Crash into the rival and kick squares off the floor.",
                 "In crank speed mode, the crank changes the shared max speed in both directions, such as +7 and -7 or +90 and -90.",
                 "The rival matches your current speed while it steers itself.",
@@ -184,6 +185,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
                 "A: toggle the crank between steering and max-speed control.",
                 "D-pad Left/Right: fine steering.",
                 "D-pad Up/Down: accelerate forward or reverse within the current signed max speed.",
+                "RC Auto Brake in the Home menu returns the target speed to zero when Up and Down are released.",
                 "Push pucks into the opponent's net and keep them out of yours.",
                 "In crank speed mode, the crank changes the shared max speed in both directions, such as +7 and -7 or +90 and -90.",
                 "B: return to title."
@@ -195,6 +197,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "A: toggle the crank between steering and max-speed control.",
             "D-pad Left/Right: fine steering.",
             "D-pad Up/Down: accelerate forward or reverse within the current signed max speed.",
+            "RC Auto Brake in the Home menu returns the target speed to zero when Up and Down are released.",
             "Slam sliding blocks off the screen so new ones jump in.",
             "In crank speed mode, the crank changes the shared max speed in both directions, such as +7 and -7 or +90 and -90.",
             "B: return to title."

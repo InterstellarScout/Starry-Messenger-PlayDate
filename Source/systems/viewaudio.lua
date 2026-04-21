@@ -15,6 +15,7 @@ ViewAudio.currentTracks = nil
 ViewAudio.currentIndex = 0
 ViewAudio.currentPlayer = nil
 ViewAudio.currentViewId = nil
+ViewAudio.enabled = false
 
 local SHARED_AUDIO_FOLDERS <const> = {
     warp = {
@@ -77,6 +78,17 @@ function ViewAudio.stop()
     ViewAudio.currentViewId = nil
 end
 
+function ViewAudio.isEnabled()
+    return ViewAudio.enabled == true
+end
+
+function ViewAudio.setEnabled(enabled)
+    ViewAudio.enabled = enabled == true
+    if not ViewAudio.enabled then
+        ViewAudio.stop()
+    end
+end
+
 function ViewAudio.playCurrentTrack()
     if not ViewAudio.currentTracks or #ViewAudio.currentTracks == 0 then
         return
@@ -113,6 +125,11 @@ function ViewAudio.playCurrentTrack()
 end
 
 function ViewAudio.playForView(viewId)
+    if not ViewAudio.isEnabled() then
+        ViewAudio.stop()
+        return
+    end
+
     ViewAudio.stop()
 
     local tracks = buildTrackList(viewId)
