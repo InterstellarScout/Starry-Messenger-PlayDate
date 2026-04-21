@@ -66,7 +66,9 @@ function SplashScene:continue()
 end
 
 function SplashScene:update()
-    self.preview:update()
+    if self.prewarmComplete then
+        self.preview:update()
+    end
     self.preview:draw()
     local prewarmFinished = GameOfLife.updatePrewarm(PREWARM_BUDGET_MS)
     if prewarmFinished and not self.prewarmComplete then
@@ -80,8 +82,7 @@ function SplashScene:update()
     gfx.drawTextAligned("Starry Messenger", 200, 110, kTextAlignment.center)
     gfx.setFont(self.smallFont)
     if self.prewarmComplete then
-        gfx.drawTextAligned("Interact to show consiousness", 200, 198, kTextAlignment.center)
-        gfx.drawTextAligned("and flow beyond.", 200, 214, kTextAlignment.center)
+        gfx.drawTextAligned("Interact to show consiousness and flow beyond.", 200, 206, kTextAlignment.center)
     else
         gfx.drawTextAligned("Loading Game of Life...", 200, 204, kTextAlignment.center)
     end

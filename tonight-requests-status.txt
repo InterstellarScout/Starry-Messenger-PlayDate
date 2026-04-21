@@ -112,6 +112,7 @@
 | Please add all prompts used in this chat so far and add them to this tracking list. Output it to the directory. | Done |
 | Fix the title-menu stall triggered by preview swaps forcing full garbage collection while idling/cranking in the menu. | Done |
 | Change the startup splash prompt to `Interact to show consiousness` / `and flow beyond.`, use an animated warp background there, and default the title menu selection back to `Warp Speed`. | Done |
+| On startup, keep the old stationary splash background while Game of Life prewarm is running, then switch to animated Warp once loading completes, and collapse the prompt text to a single line. | Done |
 | In Wacky, add an A-toggle collapse mode where the body can pile over itself when idle, make reverse crank amplify downward gravity, and switch the face to a surprised expression while falling. | Done |
 | Remove the black borders and on-screen text from Wacky so the scene stays full-screen. | Done |
 | Add more stars to the Fireworks background. | Done |
