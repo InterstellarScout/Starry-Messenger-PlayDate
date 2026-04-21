@@ -879,7 +879,10 @@ function GameOfLife:loadReviewPlaybackBinary(entry)
         }
 
         local skipBytes = cellCount * 2
-        file:seek(skipBytes, pd.file.kSeekCurrent)
+        if skipBytes > 0 then
+            local nextOffset = (file:tell() or 0) + skipBytes
+            file:seek(nextOffset, pd.file.kSeekSet)
+        end
     end
     file:close()
 
