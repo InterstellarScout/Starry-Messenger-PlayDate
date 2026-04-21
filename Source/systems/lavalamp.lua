@@ -15,10 +15,10 @@ LavaLamp.__index = LavaLamp
 LavaLamp.MODE_STANDARD = "standard"
 LavaLamp.MODE_INVERSE = "inverse"
 
-local BOTTOM_LINGER_FRAMES <const> = 165
+local BOTTOM_LINGER_FRAMES <const> = 330
 local TOP_LINGER_VALUE_MIN <const> = 6
 local TOP_LINGER_VALUE_MAX <const> = 20
-local TOP_LINGER_UNIT_FRAMES <const> = 6
+local TOP_LINGER_UNIT_FRAMES <const> = 12
 local FLOW_SMOOTHING <const> = 0.06
 local ORIENTATION_RETARGET_DOT_THRESHOLD <const> = 0.972
 local ACTIVE_DRAG <const> = 0.9
