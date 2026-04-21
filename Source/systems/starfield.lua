@@ -653,7 +653,7 @@ function Starfield:drawWarpSpeed()
         end
         local dx = star.sx2 - star.sx1
         local dy = star.sy2 - star.sy1
-        if ((dx * dx) + (dy * dy)) > 4 then
+        if self.speed < 0 and ((dx * dx) + (dy * dy)) > 4 then
             gfx.drawLine(star.sx1, star.sy1, star.sx2, star.sy2)
         end
         gfx.fillRect(star.sx2, star.sy2, star.size, star.size)

@@ -9,6 +9,7 @@
 | Make the rotational spinning continue when the A button is pressed, remove the direct manual-rotation crank mode, and let the player jump back and forth between spin control and star speed. | Done |
 | In Warp Speed, make newly spawned on-screen stars fade in, halve the live star count, optimize center-zone checks, and add a no-rotation fast path so the view runs more efficiently. | Done |
 | In Warp Speed, remove the second fade so stars only use the initial spawn fade-in instead of fading again afterward. | Done |
+| In Warp Speed, remove the visible streak lines behind outward-moving stars around the default speed. | Done |
 
 ##### In Falling Stars
 | Request | Status |
