@@ -6,8 +6,6 @@ CRTTVEffect.__index = CRTTVEffect
 
 local STATIC_NOISE_STEP_X <const> = 4
 local STATIC_NOISE_STEP_Y <const> = 2
-local STATIC_PREVIEW_FRAME_DURATION <const> = 12
-local STATIC_PREVIEW_PHASES <const> = { 3.5, 19.25 }
 local STATIC_FRAME_COUNT <const> = 8
 local BAR_PATTERN_LARGE <const> = { 0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88 }
 local BAR_PATTERN_SMALL <const> = { 0x88, 0xcc, 0x66, 0x33, 0x11, 0x33, 0x66, 0xcc }
@@ -17,13 +15,11 @@ local LARGE_BAR_BASE_SPEED <const> = 0.9
 local LARGE_BAR_HEIGHT <const> = 40
 local SMALL_BAR_HEIGHT <const> = 12
 local STATIC_FRAME_PHASE_STEP <const> = 7.25
-local PREVIEW_FRAME_COUNT <const> = 12
 local MANUAL_BAR_SPEED_SCALE <const> = 0.45
 local MANUAL_BAR_IDLE_FALL_SPEED <const> = 1.4
 local MANUAL_BAR_MAX_EXTRA_HEIGHT <const> = 20
 
 CRTTVEffect._noiseFrames = nil
-CRTTVEffect._previewFrames = nil
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -120,43 +116,13 @@ local function drawNoiseBands(width, height, phase)
     end
 end
 
-local function ensurePreviewFrames(width, height)
-    if CRTTVEffect._previewFrames ~= nil then
-        return CRTTVEffect._previewFrames
-    end
-
-    local noiseFrames = ensureNoiseFrames(width, height)
-    local frames = {}
-    for index = 1, PREVIEW_FRAME_COUNT do
-        local phase = index * STATIC_FRAME_PHASE_STEP
-        local frame = gfx.image.new(width, height, gfx.kColorWhite)
-        gfx.pushContext(frame)
-            gfx.setColor(gfx.kColorWhite)
-            gfx.fillRect(0, 0, width, height)
-            gfx.setColor(gfx.kColorBlack)
-            local baseFrame = noiseFrames[((index - 1) % #noiseFrames) + 1]
-            if baseFrame then
-                baseFrame:draw(0, 0)
-            end
-            drawNoiseBands(width, height, phase)
-        gfx.popContext()
-        frames[index] = frame
-    end
-
-    CRTTVEffect._previewFrames = frames
-    return frames
-end
-
 function CRTTVEffect.new(width, height, options)
     local self = setmetatable({}, CRTTVEffect)
     self.width = width
     self.height = height
     self.preview = options and options.preview == true or false
     self.staticPhase = 0
-    self.staticPreviewFrame = 1
-    self.staticPreviewTimer = STATIC_PREVIEW_FRAME_DURATION
     self.noiseFrames = ensureNoiseFrames(width, height)
-    self.previewFrames = ensurePreviewFrames(width, height)
     self.noiseFrameIndex = 1
     self.frameCounter = 0
     self.barsActive = false
@@ -186,11 +152,6 @@ function CRTTVEffect:resetBars()
     self.bars.small = makeBar(-18, SMALL_BAR_HEIGHT, randomSmallBarSpeed())
     self.barSpeedScale = 1
     self.barSpeedIdleFrames = CRANK_RELEASE_IDLE_FRAMES
-end
-
-function CRTTVEffect.prewarmTitleFrames(width, height)
-    ensureNoiseFrames(width, height)
-    ensurePreviewFrames(width, height)
 end
 
 function CRTTVEffect:spawnManualBar(direction)
@@ -276,24 +237,11 @@ end
 
 function CRTTVEffect:updateStaticPhase()
     self.frameCounter = self.frameCounter + 1
-    if self.preview then
-        self.staticPreviewTimer = self.staticPreviewTimer - 1
-        if self.staticPreviewTimer <= 0 then
-            self.staticPreviewFrame = self.staticPreviewFrame + 1
-            if self.staticPreviewFrame > PREVIEW_FRAME_COUNT then
-                self.staticPreviewFrame = 1
-            end
-            self.staticPreviewTimer = STATIC_PREVIEW_FRAME_DURATION
-        end
-        self.staticPhase = self.staticPreviewFrame * STATIC_FRAME_PHASE_STEP
-        self.noiseFrameIndex = ((self.staticPreviewFrame - 1) % #self.noiseFrames) + 1
-    else
-        self.staticPhase = self.staticPhase + 1.35
-        if self.frameCounter % 2 == 0 then
-            self.noiseFrameIndex = self.noiseFrameIndex + 1
-            if self.noiseFrameIndex > #self.noiseFrames then
-                self.noiseFrameIndex = 1
-            end
+    self.staticPhase = self.staticPhase + 1.35
+    if self.frameCounter % 2 == 0 then
+        self.noiseFrameIndex = self.noiseFrameIndex + 1
+        if self.noiseFrameIndex > #self.noiseFrames then
+            self.noiseFrameIndex = 1
         end
     end
 end
@@ -331,16 +279,13 @@ end
 
 function CRTTVEffect:update()
     self:updateStaticPhase()
-    self:updateBars()
-    self:updateManualBar()
+    if not self.preview then
+        self:updateBars()
+        self:updateManualBar()
+    end
 end
 
 function CRTTVEffect:drawNoise()
-    if self.preview and self.previewFrames and self.previewFrames[self.staticPreviewFrame] then
-        self.previewFrames[self.staticPreviewFrame]:draw(0, 0)
-        return
-    end
-
     local frame = self.noiseFrames and self.noiseFrames[self.noiseFrameIndex]
     if frame then
         frame:draw(0, 0)
@@ -376,12 +321,4 @@ function CRTTVEffect:draw()
     gfx.setColor(gfx.kColorBlack)
     self:drawNoise()
     self:drawBars()
-
-    if not self.preview then
-        gfx.setColor(gfx.kColorBlack)
-        gfx.fillRect(0, 0, self.width, 14)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        gfx.drawText("CRT TV  A: auto bars  Crank: spawn/move bar  B: menu", 8, 2)
-        gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    end
 end
