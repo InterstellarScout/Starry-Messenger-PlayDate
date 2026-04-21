@@ -15,6 +15,9 @@ local TITLE_TEXT_MAX_HEIGHT <const> = 34
 local TITLE_CENTER_SCALE <const> = 1.5
 local TITLE_SIDE_SCALE <const> = 0.75
 local PREVIEW_RESUME_DELAY_FRAMES <const> = 15
+local TITLE_FIREWORK_MIN_DELAY_FRAMES <const> = 30
+local TITLE_FIREWORK_MAX_DELAY_FRAMES <const> = 120
+local TITLE_FIREWORK_GRAVITY <const> = 0.07
 
 local function roundNearest(value)
     if value >= 0 then
@@ -56,6 +59,10 @@ local function makeWarpPreviewAtSpeedOne()
     return preview
 end
 
+local function randomTitleFireworkDelay()
+    return math.random(TITLE_FIREWORK_MIN_DELAY_FRAMES, TITLE_FIREWORK_MAX_DELAY_FRAMES)
+end
+
 TitleScene = {}
 TitleScene.__index = TitleScene
 
@@ -85,6 +92,8 @@ function TitleScene.new(config)
     self.modeDisplayPosition = 1
     self.modeTargetPosition = 1
     self.textImageCache = {}
+    self.titleFireworkBursts = {}
+    self.titleFireworkTimer = randomTitleFireworkDelay()
     if not self.preview then
         self:setPreview()
     end
@@ -580,6 +589,55 @@ function TitleScene:updateCrank(acceleratedChange)
     end
 end
 
+function TitleScene:spawnTitleFireworkBurst(originX, originY)
+    local sparks = {}
+    local sparkCount = math.random(10, 14)
+    for index = 1, sparkCount do
+        local angle = ((index - 1) / sparkCount) * (math.pi * 2)
+        local speed = 1.2 + (math.random() * 1.6)
+        sparks[index] = {
+            x = originX,
+            y = originY,
+            vx = math.cos(angle) * speed,
+            vy = math.sin(angle) * speed,
+            life = 12 + math.random(0, 8),
+            size = math.random() < 0.2 and 2 or 1
+        }
+    end
+
+    self.titleFireworkBursts[#self.titleFireworkBursts + 1] = {
+        sparks = sparks
+    }
+end
+
+function TitleScene:updateTitleFireworks()
+    self.titleFireworkTimer = self.titleFireworkTimer - 1
+    if self.titleFireworkTimer <= 0 then
+        local groundY = 232
+        self:spawnTitleFireworkBurst(100, groundY)
+        self:spawnTitleFireworkBurst(300, groundY)
+        self.titleFireworkTimer = randomTitleFireworkDelay()
+    end
+
+    for burstIndex = #self.titleFireworkBursts, 1, -1 do
+        local burst = self.titleFireworkBursts[burstIndex]
+        for sparkIndex = #burst.sparks, 1, -1 do
+            local spark = burst.sparks[sparkIndex]
+            spark.x = spark.x + spark.vx
+            spark.y = spark.y + spark.vy
+            spark.vy = spark.vy + TITLE_FIREWORK_GRAVITY
+            spark.life = spark.life - 1
+            if spark.life <= 0 then
+                table.remove(burst.sparks, sparkIndex)
+            end
+        end
+
+        if #burst.sparks == 0 then
+            table.remove(self.titleFireworkBursts, burstIndex)
+        end
+    end
+end
+
 function TitleScene:drawModeCarousel(selectedView, centerY)
     if not selectedView or not selectedView.modes or #selectedView.modes == 0 then
         return
@@ -638,6 +696,15 @@ function TitleScene:drawBottomInstructions()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function TitleScene:drawTitleFireworks()
+    gfx.setColor(gfx.kColorBlack)
+    for _, burst in ipairs(self.titleFireworkBursts) do
+        for _, spark in ipairs(burst.sparks) do
+            gfx.fillRect(spark.x, spark.y, spark.size, spark.size)
+        end
+    end
+end
+
 function TitleScene:drawMenu()
     gfx.setFont(self.smallFont)
     gfx.setImageDrawMode(self:getTextDrawMode())
@@ -681,6 +748,7 @@ function TitleScene:update()
     self:updateCrank(acceleratedChange)
     self:updateDisplayPosition()
     self:updateModeDisplayPosition()
+    self:updateTitleFireworks()
     local ok, previewError = pcall(function()
         if self.previewPauseFrames <= 0 then
             self.preview:update()
@@ -726,6 +794,7 @@ function TitleScene:update()
         self.onSelectView(selectedView.id, effect, selectedModeId)
     end
 
+    self:drawTitleFireworks()
     self:drawMenu()
     self:processPendingPreview()
 end
