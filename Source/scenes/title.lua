@@ -23,6 +23,16 @@ local function roundNearest(value)
     return math.ceil(value - 0.5)
 end
 
+local function stepPreviewGarbageCollector()
+    if collectgarbage == nil then
+        return
+    end
+
+    pcall(function()
+        collectgarbage("step", 64)
+    end)
+end
+
 local function drawVisibilityBand(topY, height)
     gfx.setColor(gfx.kColorBlack)
     gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
@@ -297,9 +307,7 @@ function TitleScene:setPreview(forceFresh)
         previousPreview:shutdown()
     end
     self.preview = nil
-    if collectgarbage then
-        collectgarbage("collect")
-    end
+    stepPreviewGarbageCollector()
     local ok, nextPreview = pcall(function()
         if selectedView.id == "fall" then
             return Starfield.newStarFall(400, 240, 360, {
@@ -404,9 +412,7 @@ function TitleScene:processPendingPreview()
         previousPreview:shutdown()
     end
     self.preview = nil
-    if collectgarbage then
-        collectgarbage("collect")
-    end
+    stepPreviewGarbageCollector()
 
     local ok, nextPreview = pcall(function()
         return GameOfLife.new(400, 240, 6, 0.3, {
