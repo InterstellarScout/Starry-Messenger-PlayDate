@@ -579,9 +579,7 @@ function SpaceMiner:explodePlayerMissile(x, y)
         local asteroid = self.asteroids[asteroidIndex]
         local hitRadius = MISSILE_BLAST_RADIUS + asteroid.radius
         if distanceSquared(x, y, asteroid.x, asteroid.y) <= (hitRadius * hitRadius) then
-            self:damageAsteroid(asteroidIndex, MISSILE_DAMAGE, {
-                spawnFragments = false
-            })
+            self:damageAsteroid(asteroidIndex, MISSILE_DAMAGE)
         end
     end
 
@@ -964,6 +962,9 @@ function SpaceMiner:drawAsteroids()
     for _, asteroid in ipairs(self.asteroids) do
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, asteroid.x, asteroid.y)
         if drawX >= -30 and drawX <= (SCREEN_WIDTH + 30) and drawY >= -30 and drawY <= (SCREEN_HEIGHT + 30) then
+            gfx.setDitherPattern(0.6, gfx.image.kDitherTypeBayer8x8)
+            gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+            gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
             gfx.drawCircleAtPoint(drawX, drawY, asteroid.radius)
             gfx.drawLine(drawX - asteroid.radius * 0.6, drawY, drawX + asteroid.radius * 0.6, drawY - asteroid.radius * 0.2)
         end
