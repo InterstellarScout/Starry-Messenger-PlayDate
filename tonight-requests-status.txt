@@ -77,6 +77,7 @@
 | In the asteroid game view, double the asteroid sizes, make missiles much larger and strong enough to obliterate any asteroid caught in the blast, prune off-screen small asteroids when entity counts get too high, and add layered stationary/parallax star fields that can pass in front of the ship, asteroids, and weapon fire. | Done |
 | In the asteroid game view, make the new asteroid sizing 25% smaller than the last pass and double the number of generated asteroids. | Done |
 | Instead of starting with the player-count question, add a `Multiplayer` title item with `Two Beings` onward as mode choices, and make the post-warm splash wait on a `Press A to continue` start screen before entering the title menu. | Done |
+| In Multiplayer's title preview, increase the Warp Speed motion from 1 to 2. | Done |
 | In Review Life, fully retire the old CSV migration and playback path so review mode only loads binary `.slif` recordings. | Done |
 | Fully remove Ant Farm for now so it no longer exists in Starry Messenger or appears on the title screen. | Done |
 | Remove the retired player-count scene from the packaged app and add a safer Playdate install step that waits for the device drive and retries deployment. | Done |
