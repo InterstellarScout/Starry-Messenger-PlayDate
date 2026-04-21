@@ -852,7 +852,7 @@ function GameOfLife:loadReviewPlaybackBinary(entry)
     while true do
         local offset = file:tell()
         local tag = file:read(4)
-        if tag == nil then
+        if tag == nil or #tag == 0 then
             break
         end
         if #tag ~= 4 or tag ~= LIFE_RECORDING_FRAME_TAG then

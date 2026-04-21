@@ -83,6 +83,7 @@
 | In Space Miner `Turn 360`, automatically stop the ship once it slows below a low speed threshold, starting with a gentle braking setup. | Done |
 | In Space Miner `Turn 360`, make missile blasts break asteroids down by one tier instead of fully vaporizing larger rocks, and draw asteroid interiors as solid gray fills. | Done |
 | Double how long Lava Lamp bubbles can linger before cycling away. | Done |
+| Fix Review Life binary indexing so clean end-of-file reads do not get reported as corrupt frame tags on device. | Done |
 | When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
 | Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
 | Please make a sound folder for each view in Starry Messenger on the play date that will play each contained mp3 on loop. | Done |
