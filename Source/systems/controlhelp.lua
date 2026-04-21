@@ -92,6 +92,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         return buildSpec("Space Miner Controls", {
             "Crank: turn the ship. Turn 360 maps crank 1:1, while Turn 180 and Turn 90 compress a full ship rotation into a smaller crank window.",
             "D-pad Up/Down: thrust forward or reverse. Momentum carries until you counter it with opposite thrust.",
+            "Turn 360 now lightly brakes on its own and snaps to a stop once your drift falls under a low speed threshold.",
             "Hold Left: fire the laser drill straight ahead to mine asteroids or burn enemy ships.",
             "Press Right: launch a missile. Press Right again while one is active to detonate it early, like Orbital Defense.",
             "Asteroids split into two smaller chunks three times, so mining escalates into denser debris fields.",

@@ -20,6 +20,8 @@ local PLAYER_RADIUS <const> = 8
 local DECOR_WRAP_RADIUS <const> = 720
 local PLAYER_THRUST <const> = 0.08
 local PLAYER_REVERSE_THRUST <const> = 0.05
+local PLAYER_FULL_MODE_IDLE_DRAG <const> = 0.982
+local PLAYER_FULL_MODE_AUTO_STOP_SPEED <const> = 0.18
 local ENEMY_BASE_ACCELERATION <const> = 0.045
 local ENEMY_ESCAPER_ACCELERATION <const> = 0.055
 local ENEMY_STRIKER_ACCELERATION <const> = 0.072
@@ -482,6 +484,19 @@ function SpaceMiner:applyPlayerThrust()
 end
 
 function SpaceMiner:updatePlayerPosition()
+    if not self.preview
+        and self.modeId == SpaceMiner.MODE_FULL
+        and self.input.thrust <= 0
+        and self.input.reverse <= 0 then
+        self.player.vx = self.player.vx * PLAYER_FULL_MODE_IDLE_DRAG
+        self.player.vy = self.player.vy * PLAYER_FULL_MODE_IDLE_DRAG
+
+        if magnitude(self.player.vx, self.player.vy) <= PLAYER_FULL_MODE_AUTO_STOP_SPEED then
+            self.player.vx = 0
+            self.player.vy = 0
+        end
+    end
+
     self.player.x = self.player.x + self.player.vx
     self.player.y = self.player.y + self.player.vy
     if self.shieldFlashFrames > 0 then
