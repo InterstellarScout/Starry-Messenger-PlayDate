@@ -387,6 +387,10 @@ function buildSystemMenu(viewItems)
         refreshActiveSceneAudio()
     end)
 
+    menu:addCheckmarkMenuItem("Show Controls", ControlHelp.isOverlayEnabled(), function(value)
+        ControlHelp.setOverlayEnabled(value)
+    end)
+
     menu:addCheckmarkMenuItem("Fish Spawn Mode", FishPond.isSpawnModeEnabled(), function(value)
         FishPond.setSpawnModeEnabled(value)
     end)

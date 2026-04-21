@@ -1133,6 +1133,7 @@ end
 
 function DuckGameScene:draw()
     self:drawGameState(self:getRenderState())
+    ControlHelp.drawOverlay("duck", self.modeId)
 end
 
 function DuckGameScene:update()

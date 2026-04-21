@@ -6,13 +6,30 @@ Purpose:
 - adapts help text to the currently selected mode where needed
 - keeps input documentation separate from scene logic
 ]]
+local pd <const> = playdate
+local gfx <const> = pd.graphics
+
 ControlHelp = {}
+ControlHelp.overlayEnabled = false
+
+local OVERLAY_PADDING <const> = 10
+local OVERLAY_TITLE_Y <const> = 10
+local OVERLAY_BODY_Y <const> = 30
+local OVERLAY_LINE_HEIGHT <const> = 14
 
 local function buildSpec(title, lines)
     return {
         title = title,
         lines = lines
     }
+end
+
+function ControlHelp.isOverlayEnabled()
+    return ControlHelp.overlayEnabled == true
+end
+
+function ControlHelp.setOverlayEnabled(enabled)
+    ControlHelp.overlayEnabled = enabled == true
 end
 
 function ControlHelp.getEntrySpec(viewId, modeId)
@@ -135,7 +152,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "D-pad Up/Down: move the turret around the defense shield.",
             "Hold A: fire the laser.",
             "B: launch a missile, then press B again to detonate the current missile.",
-            "Use the Home menu for Title Menu, Warp Speed, or Star Fall exits mid-run.",
+            "Use the Home menu Title Menu entry to exit mid-run.",
             "Single-player uses one NPC wingmate; multiplayer uses pdportal host/client play with exactly the chosen 2-4 turrets."
         })
     elseif viewId == "fishpond" then
@@ -229,4 +246,33 @@ function ControlHelp.getEntrySpec(viewId, modeId)
     return buildSpec("Controls", {
         "B: return to title."
     })
+end
+
+function ControlHelp.drawOverlay(viewId, modeId)
+    if not ControlHelp.isOverlayEnabled() then
+        return
+    end
+
+    local spec = ControlHelp.getEntrySpec(viewId, modeId)
+    if spec == nil then
+        return
+    end
+
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(0.7, gfx.image.kDitherTypeBayer8x8)
+    gfx.fillRect(0, 0, 400, 240)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned(spec.title or "Controls", 200, OVERLAY_TITLE_Y, kTextAlignment.center)
+
+    local y = OVERLAY_BODY_Y
+    for _, line in ipairs(spec.lines or {}) do
+        gfx.drawTextInRect(line, OVERLAY_PADDING, y, 400 - (OVERLAY_PADDING * 2), OVERLAY_LINE_HEIGHT, nil, nil, kTextAlignment.left)
+        y = y + OVERLAY_LINE_HEIGHT
+        if y > 224 then
+            break
+        end
+    end
+
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end

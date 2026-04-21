@@ -444,6 +444,7 @@ function ViewScene:update()
         self.effect:update()
     end
     self.effect:draw()
+    ControlHelp.drawOverlay(self.viewId, self.modeId)
 end
 
 function ViewScene:activate()

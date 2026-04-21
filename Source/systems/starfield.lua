@@ -91,6 +91,10 @@ local function distanceSquaredToSegment(px, py, x1, y1, x2, y2)
 end
 
 local STAR_FALL_BOUNDARY_RADIUS <const> = 467
+local STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES <const> = 300
+local STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES <const> = 1800
+local STAR_FALL_LARGE_STAR_MIN_RADIUS <const> = 10
+local STAR_FALL_LARGE_STAR_MAX_RADIUS <const> = 16
 local WARP_SPAWN_RADIUS <const> = 467
 local WARP_VISIBLE_RADIUS <const> = 234
 local WARP_OFFSCREEN_RADIUS <const> = WARP_VISIBLE_RADIUS + 40
@@ -102,6 +106,10 @@ local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = 2
 local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = 5
 local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = 0.08
 local WARP_INWARD_DESPAWN_GROWTH_MAX <const> = 0.22
+
+local function randomLargeStarDelayFrames()
+    return math.random(STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES, STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES)
+end
 
 function Starfield.getModeLabel(modeId, kind)
     if kind == "fall" then
@@ -139,6 +147,8 @@ function Starfield.newStarFall(width, height, count, options)
     self.screenSin = 0
     self.speed = 1.0
     self.stars = {}
+    self.largeFallStar = nil
+    self.largeFallStarTimer = randomLargeStarDelayFrames()
 
     for i = 1, count do
         self.stars[i] = {
@@ -355,6 +365,40 @@ function Starfield:spawnFallStar(star, randomizeInsideScreen)
     star.py = worldY
 end
 
+function Starfield:spawnLargeFallStar(randomizeInsideScreen)
+    local star = self.largeFallStar or {}
+    star.size = math.random(STAR_FALL_LARGE_STAR_MIN_RADIUS, STAR_FALL_LARGE_STAR_MAX_RADIUS)
+    star.speed = 0.18 + (math.random() * 0.35)
+
+    if randomizeInsideScreen then
+        local angle = math.random() * (math.pi * 2)
+        local radius = math.sqrt(math.random()) * STAR_FALL_BOUNDARY_RADIUS
+        local screenX = self.centerX + (math.cos(angle) * radius)
+        local screenY = self.centerY + (math.sin(angle) * radius)
+        local worldX, worldY = self:screenToWorld(screenX, screenY)
+        star.x = worldX
+        star.y = worldY
+        star.px = worldX
+        star.py = worldY
+        self.largeFallStar = star
+        return
+    end
+
+    local dx, dy = vectorFromAngle(self.directionAngle)
+    local speedSign = self.speed < 0 and -1 or 1
+    local screenDx, screenDy = rotatePointWithTrig(dx * speedSign, dy * speedSign, self.screenCos, self.screenSin)
+    local baseAngle = math.atan(screenDy, screenDx) + math.pi
+    local angle = baseAngle - (math.pi / 2) + (math.random() * math.pi)
+    local screenX = self.centerX + (math.cos(angle) * STAR_FALL_BOUNDARY_RADIUS)
+    local screenY = self.centerY + (math.sin(angle) * STAR_FALL_BOUNDARY_RADIUS)
+    local worldX, worldY = self:screenToWorld(screenX, screenY)
+    star.x = worldX
+    star.y = worldY
+    star.px = worldX
+    star.py = worldY
+    self.largeFallStar = star
+end
+
 function Starfield:spawnWarpStar(star, spawnAtEdge)
     self:assignWarpStarVisuals(star)
     star.despawnGrowth = WARP_INWARD_DESPAWN_GROWTH_MIN + (math.random() * (WARP_INWARD_DESPAWN_GROWTH_MAX - WARP_INWARD_DESPAWN_GROWTH_MIN))
@@ -545,12 +589,48 @@ function Starfield:updateStarFall()
             self:spawnFallStar(star, false)
         end
     end
+
+    if self.largeFallStar ~= nil then
+        local star = self.largeFallStar
+        star.px = star.x
+        star.py = star.y
+        star.x = star.x + (dx * scale * star.speed)
+        star.y = star.y + (dy * scale * star.speed)
+
+        local rx, ry = rotatePointWithTrig(star.x - self.playerCenterX, star.y - self.playerCenterY, screenCos, screenSin)
+        local screenX = self.playerCenterX + rx
+        local screenY = self.playerCenterY + ry
+        local offsetX = screenX - self.playerCenterX
+        local offsetY = screenY - self.playerCenterY
+        local radiusSquared = (offsetX * offsetX) + (offsetY * offsetY)
+        local forwardProjection = (offsetX * screenDx) + (offsetY * screenDy)
+        local largeBoundary = (STAR_FALL_BOUNDARY_RADIUS + 48)
+        local largeBoundarySquared = largeBoundary * largeBoundary
+
+        if (radiusSquared >= boundarySquared and forwardProjection > 0) or radiusSquared >= largeBoundarySquared then
+            self.largeFallStar = nil
+            self.largeFallStarTimer = randomLargeStarDelayFrames()
+        end
+    else
+        self.largeFallStarTimer = self.largeFallStarTimer - 1
+        if self.largeFallStarTimer <= 0 then
+            self:spawnLargeFallStar(false)
+        end
+    end
 end
 
 function Starfield:drawStarFall()
     gfx.setColor(self:getForegroundColor())
     local screenCos = self.screenCos
     local screenSin = self.screenSin
+
+    if self.largeFallStar ~= nil then
+        local star = self.largeFallStar
+        local xr, yr = rotatePointWithTrig(star.x - self.playerCenterX, star.y - self.playerCenterY, screenCos, screenSin)
+        local x2 = self.playerCenterX + xr
+        local y2 = self.playerCenterY + yr
+        gfx.fillCircleAtPoint(x2, y2, star.size)
+    end
 
     for _, star in ipairs(self.stars) do
         local pxr, pyr = rotatePointWithTrig(star.px - self.playerCenterX, star.py - self.playerCenterY, screenCos, screenSin)

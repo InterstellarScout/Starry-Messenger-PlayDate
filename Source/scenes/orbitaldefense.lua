@@ -722,6 +722,7 @@ function OrbitalDefenseScene:drawGameState(state)
     self:drawBackground(state.frame or 0)
     self:drawWorld(state)
     self:drawHud(state)
+    ControlHelp.drawOverlay("orbital", nil)
 end
 
 function OrbitalDefenseScene:draw()

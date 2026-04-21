@@ -4,7 +4,7 @@
 | Request | Status |
 | --- | --- |
 | Please change the up, down, left, and right buttons to move the stars and screen up and down the same way trippy mode does when the in Starry Messenger - Processing Example does in the Personal Examples folder. When Trippy Mode is on, the arrow keys make the stars turn a certain way. | Done |
-| While the user is in trippy mode and the user presses A, make that motion's velocity continue. Retain the curving from the last origin of it plus the rotation so they all bend and twist by itself. | In Progress |
+| While the user is in trippy mode and the user presses A, make that motion's velocity continue. Retain the curving from the last origin of it plus the rotation so they all bend and twist by itself. | Done |
 | How can we make warp speed more efficient? Specifically in Warp speed, the game starts to slow down in frame rate. | Done |
 | Make the rotational spinning continue when the A button is pressed, remove the direct manual-rotation crank mode, and let the player jump back and forth between spin control and star speed. | Done |
 | In Warp Speed, make newly spawned on-screen stars fade in, halve the live star count, optimize center-zone checks, and add a no-rotation fast path so the view runs more efficiently. | Done |
@@ -16,7 +16,7 @@
 | --- | --- |
 | Please add more stars to the falling stars view as well. And assign left and right buttons to rotate the screen. | Done |
 | Please make the star fall stars a few pixels bigger per level, and add a new and double pixel in the background. | Done |
-| Please also add a single large circular star that spawns between every 2-20 seconds. | Not Started |
+| Please also add a single large circular star that spawns between every 10-60 seconds. | Done |
 | When auto rotate is on in both star fall and warp speed, allow the crank to turn up and down the speed at the same variable speed rate as the crank when adjusting the star speed. When the crank stops, the speed holds. | Done |
 | In Star Fall, when the speed is negative, make the stars and despawn run opposite as well while still respecting rotating-screen behavior. Also make the A-button rotation modes match Warp Speed: direct crank rotation first, then persistent crank-set rotation speed on the next press. | Done |
 | Make the rotational spinning continue when the A button is pressed, remove the direct manual-rotation crank mode, and let the player jump back and forth between spin control and star speed. | Done |
@@ -49,7 +49,7 @@
 | Please make the random fireworks spawn between every 3-10 seconds. Also please make the left and right buttons on the D pad move the player left and right, plus allow the user to change firework type with the up and down arrows. | Done |
 | Please ensure the fireworks fire freely like the bubbles when the player holds down A. | Done |
 | In both Fireworks and in the fish game for the controllable bubble blower, please let the player move out off the screen and respawn on the other side of the screen. It would loop continuous. | Done |
-| For each game, when selected, provide a menu showing the mapping of the keys line by line. Ensure they are adjusted as we change. Ensure the D pad buttons, A, B, and the crank describe each, and also ensure that if it's a button with different modes like Fish tank, list those. | In Progress |
+| For each game, when selected, provide a menu showing the mapping of the keys line by line. Ensure they are adjusted as we change. Ensure the D pad buttons, A, B, and the crank describe each, and also ensure that if it's a button with different modes like Fish tank, list those. | Done |
 
 ##### RC Arena
 | Request | Status |
@@ -95,12 +95,13 @@
 | Fix Review Life binary indexing so clean end-of-file reads do not get reported as corrupt frame tags on device. | Done |
 | Default Star Fall and Warp Speed audio to off and add a Home menu `Sound` checkmark toggle to turn view audio on or off. | Done |
 | Remove the `Warp Speed` and `Star Fall` Home menu shortcuts so the system menu shows the checkbox settings instead. | Done |
+| Add a `Show Controls` Home menu checkbox that overlays the control/help text across gameplay scenes. | Done |
 | When going back to the main menu, start where the user just left. So if I were playing Game of Life, for example, I would return to the menu where I left off. Controls from the game would no longer interact with the game. | Done |
 | Is there a way to have you auto push the app to play date through the simulator? Is there an API, perhaps? The SDK? But that would take a while to reach the device. | See Answer |
 | Please make a sound folder for each view in Starry Messenger on the play date that will play each contained mp3 on loop. | Done |
 | When A is pressed after rotation move, please adjust the warp speed star turning behavior to be like trippy mode and Starry Messenger example in Processing. This leaves the center centered while the stars are worked around and maintain the speed and direction of those stars movements until the user uses the arrow keys to adjust the speed and velocity in the direction. | Done |
 | Do not limit the Warp Speed auto-rotate speed. | Done |
-| Is there a way to keep the screen on when this app is open only? | Not Started |
+| Is there a way to keep the screen on when this app is open only? | Answered |
 | Please limit sparks to a limit of 200. And if a firework pops, ensure sparks randomly in all other bursts of fireworks should despawn to make space. If all the other fireworks dissipated eventually to accommodate the burst that the player's making, that's okay. | Done |
 | Also please do not limit fireworks. Let's find where it breaks. | Done |
 | For all views, please simply let the view continue running unless the player presses B again at the main menu. | Superseded |
@@ -160,7 +161,6 @@
 | Request | Status |
 | --- | --- |
 | When uploading Orbital Defense to the Playdate, the install failed with Windows cloud file provider errors copying from OneDrive-backed files. | Answered |
-| In the Orbital Defense game, move the orbital ring into a circular shape around the Earth. Player 1 is on the top left, and player 2 is on the top right of the Earth. Then they can shoot up and over to the incoming enemies. | Not Started |
 
 ##### Ant Farm
 | Request | Status |
