@@ -975,10 +975,8 @@ function FishPond:drawHud()
     elseif self.idleMode then
         gfx.drawText(string.format("Currency %d", FishPond.getIdleCurrency()), 10, 24)
         gfx.drawText(string.format("Fish %d  Bubbles %d", #self.fishes, #self.bubbles), 10, 40)
-    else
+    elseif FishPond.isSpawnModeEnabled() then
         gfx.drawText(string.format("Fish %d  Bubbles %d", #self.fishes, #self.bubbles), 10, 24)
-        local spawnModeLabel = FishPond.isSpawnModeEnabled() and "Spawn Mode On" or "Spawn Mode Off"
-        gfx.drawText(spawnModeLabel, 10, 40)
     end
 
     gfx.setImageDrawMode(gfx.kDrawModeCopy)

@@ -27,6 +27,9 @@ local CRANK_IDLE_FRAMES <const> = 7
 local REVERSE_GRAVITY_SCALE <const> = 2.6
 local GRAVITY_BOOST_DECAY <const> = 0.08
 local FALLING_SURPRISE_SPEED <const> = 1.35
+local HAT_GROUND_DRAG <const> = 0.988
+local HAT_GROUND_ROLL_DRAG <const> = 0.982
+local HAT_BOUNCE <const> = 0.16
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -94,6 +97,15 @@ function WackyInflatable.new(width, height, options)
     self.lastCrankDirection = 1
     self.collapseMode = false
     self.isFalling = false
+    self.hat = {
+        attached = true,
+        x = self.baseX,
+        y = self.baseY - BODY_LENGTH,
+        prevX = self.baseX,
+        prevY = self.baseY - BODY_LENGTH,
+        rotation = 0,
+        angularVelocity = 0
+    }
     self.bodyPoints = {}
     self.arms = {
         makeArm(-1),
@@ -136,12 +148,28 @@ function WackyInflatable:resetBodyPose(fullyExtended)
             prevY = y
         }
     end
+
+    local topPoint = self.bodyPoints[#self.bodyPoints]
+    local headCenterX = topPoint.x
+    local headCenterY = topPoint.y - 10
+    self.hat.attached = true
+    self.hat.x = headCenterX
+    self.hat.y = headCenterY - 23
+    self.hat.prevX = self.hat.x
+    self.hat.prevY = self.hat.y
+    self.hat.rotation = 0
+    self.hat.angularVelocity = 0
 end
 
 function WackyInflatable:applyCrank(change, acceleratedChange)
     local strength = math.abs(acceleratedChange or 0) + (math.abs(change or 0) * 0.8)
     if strength <= 0.01 then
         return
+    end
+
+    if not self.hat.attached then
+        self.hat.attached = true
+        self.hat.angularVelocity = 0
     end
 
     local direction = sign((acceleratedChange ~= 0 and acceleratedChange) or change)
@@ -169,6 +197,53 @@ function WackyInflatable:applyCrank(change, acceleratedChange)
         local verticalDirection = direction < 0 and -0.65 or 1
         point.prevY = point.prevY + (impulse * CRANK_FLAIL_VERTICAL_SCALE * heightFactor * verticalDirection)
         point.prevX = point.prevX - (direction * pairDirection * impulse * CRANK_FLAIL_HORIZONTAL_SCALE * heightFactor)
+    end
+end
+
+function WackyInflatable:updateHat(topPoint)
+    local headCenterX = topPoint.x
+    local headCenterY = topPoint.y - 10
+    local headVelocityX = topPoint.x - topPoint.prevX
+    local headVelocityY = topPoint.y - topPoint.prevY
+    local hatAnchorY = headCenterY - 23
+    local headBottomY = headCenterY + HEAD_RADIUS
+
+    if self.hat.attached then
+        self.hat.prevX = self.hat.x
+        self.hat.prevY = self.hat.y
+        self.hat.x = headCenterX
+        self.hat.y = hatAnchorY
+        self.hat.rotation = clamp(headVelocityX * 0.08, -0.35, 0.35)
+
+        if headBottomY >= (self.baseY - 2) and headVelocityY > 0.6 then
+            self.hat.attached = false
+            self.hat.prevX = self.hat.x - headVelocityX
+            self.hat.prevY = self.hat.y - headVelocityY
+            self.hat.angularVelocity = clamp(headVelocityX * 0.025, -0.22, 0.22)
+        end
+        return
+    end
+
+    local velocityX = (self.hat.x - self.hat.prevX) * HAT_GROUND_DRAG
+    local velocityY = (self.hat.y - self.hat.prevY) * HAT_GROUND_DRAG
+    self.hat.prevX = self.hat.x
+    self.hat.prevY = self.hat.y
+    self.hat.x = self.hat.x + velocityX
+    self.hat.y = self.hat.y + velocityY + BODY_GRAVITY
+    self.hat.angularVelocity = self.hat.angularVelocity * 0.992
+    self.hat.rotation = self.hat.rotation + self.hat.angularVelocity
+
+    if self.hat.y > (self.baseY - 3) then
+        self.hat.y = self.baseY - 3
+        self.hat.prevY = self.hat.y + (velocityY * HAT_BOUNCE)
+        self.hat.prevX = self.hat.x - (velocityX * HAT_GROUND_ROLL_DRAG)
+        self.hat.angularVelocity = self.hat.angularVelocity + (velocityX * 0.01)
+    end
+
+    self.hat.x = clamp(self.hat.x, 10, self.width - 10)
+    if self.hat.x <= 10 or self.hat.x >= (self.width - 10) then
+        self.hat.prevX = self.hat.x + (velocityX * HAT_BOUNCE)
+        self.hat.angularVelocity = -self.hat.angularVelocity * 0.7
     end
 end
 
@@ -379,13 +454,38 @@ function WackyInflatable:drawArm(shoulderX, shoulderY, bodyAngle, arm)
     gfx.fillCircleAtPoint(handX, handY, 3)
 end
 
+function WackyInflatable:drawHat()
+    local brimHalfWidth = 10
+    local brimHalfHeight = 1.5
+    local crownHalfWidth = 6
+    local crownHeight = 14
+    local cosine = math.cos(self.hat.rotation)
+    local sine = math.sin(self.hat.rotation)
+
+    local function rotateOffset(offsetX, offsetY)
+        return self.hat.x + ((offsetX * cosine) - (offsetY * sine)), self.hat.y + ((offsetX * sine) + (offsetY * cosine))
+    end
+
+    local brimLeftX, brimLeftY = rotateOffset(-brimHalfWidth, 0)
+    local brimRightX, brimRightY = rotateOffset(brimHalfWidth, 0)
+    local brimBottomLeftX, brimBottomLeftY = rotateOffset(-brimHalfWidth, brimHalfHeight)
+    local brimBottomRightX, brimBottomRightY = rotateOffset(brimHalfWidth, brimHalfHeight)
+    local crownTopLeftX, crownTopLeftY = rotateOffset(-crownHalfWidth, -crownHeight)
+    local crownTopRightX, crownTopRightY = rotateOffset(crownHalfWidth, -crownHeight)
+    local crownBottomLeftX, crownBottomLeftY = rotateOffset(-crownHalfWidth, 0)
+    local crownBottomRightX, crownBottomRightY = rotateOffset(crownHalfWidth, 0)
+
+    gfx.drawLine(brimLeftX, brimLeftY, brimRightX, brimRightY)
+    gfx.drawLine(brimBottomLeftX, brimBottomLeftY, brimBottomRightX, brimBottomRightY)
+    gfx.drawLine(crownTopLeftX, crownTopLeftY, crownTopRightX, crownTopRightY)
+    gfx.drawLine(crownTopLeftX, crownTopLeftY, crownBottomLeftX, crownBottomLeftY)
+    gfx.drawLine(crownTopRightX, crownTopRightY, crownBottomRightX, crownBottomRightY)
+    gfx.drawLine(crownBottomLeftX, crownBottomLeftY, crownBottomRightX, crownBottomRightY)
+end
+
 function WackyInflatable:drawHead(topPoint)
     local headCenterX = topPoint.x
     local headCenterY = topPoint.y - 10
-
-    gfx.fillRect(headCenterX - 10, headCenterY - 28, 20, 3)
-    gfx.fillRect(headCenterX - 6, headCenterY - 42, 12, 14)
-    gfx.drawRect(headCenterX - 6, headCenterY - 42, 12, 14)
 
     gfx.drawCircleAtPoint(headCenterX, headCenterY, HEAD_RADIUS)
     gfx.fillCircleAtPoint(headCenterX - 5, headCenterY - 3, 2)
@@ -407,6 +507,7 @@ function WackyInflatable:update()
     self.frame = self.frame + 1
     self:updateBodyPhysics()
     self:updateArmPhysics()
+    self:updateHat(self.bodyPoints[#self.bodyPoints])
 end
 
 function WackyInflatable:draw()
@@ -423,5 +524,6 @@ function WackyInflatable:draw()
     self:drawTube(points)
     self:drawArm(shoulderPoint.x, shoulderPoint.y, shoulderPoint.angle - 1.2, self.arms[1])
     self:drawArm(shoulderPoint.x, shoulderPoint.y, shoulderPoint.angle + 1.2, self.arms[2])
+    self:drawHat()
     self:drawHead(topPoint)
 end
