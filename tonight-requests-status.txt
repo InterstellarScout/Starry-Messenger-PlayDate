@@ -124,6 +124,7 @@
 | Remove the black borders and on-screen text from Wacky so the scene stays full-screen. | Done |
 | Give the Wacky guy a top hat. | Done |
 | Add more stars to the Fireworks background. | Done |
+| Keep source GIF media under `assets/source_gifs/originals/` while converted Playdate frame sets remain under `Source/gifs/`, and have the adapter save originals there. | Done |
 
 ##### Additional Tonight Requests
 | Request | Status |

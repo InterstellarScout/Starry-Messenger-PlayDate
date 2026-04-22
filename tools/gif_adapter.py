@@ -20,19 +20,18 @@ from PIL import Image, ImageOps, ImageSequence
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = PROJECT_ROOT / "Source"
 GIF_DIR = SOURCE_DIR / "gifs"
+SOURCE_GIF_DIR = PROJECT_ROOT / "assets" / "source_gifs" / "originals"
 DATA_DIR = SOURCE_DIR / "data"
 CATALOG_PATH = DATA_DIR / "gifs.lua"
 SCREEN_SIZE = (400, 240)
 USER_AGENT = "StarryMessengerGifAdapter/1.0"
-SEED_ENTRIES = [
-    {
-        "label": "Spinning Duck",
-        "path": "spinning-duck",
-        "width": 240,
-        "height": 240,
-        "frameCount": 38
-    }
-]
+GIF_LENGTH_FOLDERS = (
+    (16, "xs"),
+    (32, "sm"),
+    (64, "md"),
+    (96, "lg"),
+)
+SEED_ENTRIES = []
 
 
 def parse_args() -> argparse.Namespace:
@@ -244,19 +243,29 @@ def sample_frames(image: Image.Image, max_frames: int) -> list[Image.Image]:
     return sampled
 
 
+def choose_folder_for_frame_count(frame_count: int) -> str:
+    for limit, folder in GIF_LENGTH_FOLDERS:
+        if frame_count <= limit:
+            return folder
+    return "xl"
+
+
 def clear_existing_frames(prefix: str) -> None:
-    for path in GIF_DIR.glob(f"{prefix}-table-*.png"):
+    for path in GIF_DIR.rglob(f"{prefix}-table-*.png"):
         path.unlink()
 
 
-def write_frames(prefix: str, frames: Iterable[Image.Image], rotate_to_landscape: bool = False) -> tuple[int, int, int]:
-    clear_existing_frames(prefix)
+def write_frames(relative_prefix: str, frames: Iterable[Image.Image], rotate_to_landscape: bool = False) -> tuple[int, int, int]:
+    prefix_name = Path(relative_prefix).name
+    clear_existing_frames(prefix_name)
+    output_prefix = GIF_DIR / relative_prefix
+    output_prefix.parent.mkdir(parents=True, exist_ok=True)
     width = 0
     height = 0
     count = 0
     for count, frame in enumerate(frames, start=1):
         bitmap, width, height = convert_frame(frame, rotate_to_landscape=rotate_to_landscape)
-        bitmap.save(GIF_DIR / f"{prefix}-table-{count}.png")
+        bitmap.save(output_prefix.parent / f"{output_prefix.name}-table-{count}.png")
     return width, height, count
 
 
@@ -274,10 +283,18 @@ def write_catalog(entries: list[dict[str, int | str]]) -> None:
     CATALOG_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def write_source_media(prefix: str, media_url: str, payload: bytes) -> None:
+    parsed = urlparse(media_url)
+    suffix = Path(parsed.path).suffix or ".gif"
+    SOURCE_GIF_DIR.mkdir(parents=True, exist_ok=True)
+    (SOURCE_GIF_DIR / f"{prefix}{suffix.lower()}").write_bytes(payload)
+
+
 def main() -> int:
     args = parse_args()
     urls = read_urls(Path(args.urls_file))
     GIF_DIR.mkdir(parents=True, exist_ok=True)
+    SOURCE_GIF_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     session = requests.Session()
@@ -310,22 +327,27 @@ def main() -> int:
             suffix += 1
         used_paths.add(prefix)
 
+        write_source_media(prefix, media_url, payload)
+
         try:
             image = Image.open(io.BytesIO(payload))
             frames = sample_frames(image, args.max_frames)
-            width, height, frame_count = write_frames(prefix, frames, rotate_to_landscape=rotate_to_landscape)
+            frame_count_hint = len(frames)
+            folder = choose_folder_for_frame_count(frame_count_hint)
+            relative_prefix = f"{folder}/{prefix}"
+            width, height, frame_count = write_frames(relative_prefix, frames, rotate_to_landscape=rotate_to_landscape)
         except Exception as exc:
             print(f"FAILED convert {url}: {exc}", file=sys.stderr)
             continue
 
         entries.append({
             "label": clean_title(title).replace('"', "'"),
-            "path": prefix,
+            "path": relative_prefix,
             "width": width,
             "height": height,
             "frameCount": frame_count
         })
-        print(f"OK {title} -> {prefix} ({frame_count} frames)")
+        print(f"OK {title} -> {relative_prefix} ({frame_count} frames)")
 
     entries.sort(key=lambda item: str(item["label"]).lower())
     write_catalog(entries)
