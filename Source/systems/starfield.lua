@@ -853,7 +853,7 @@ function Starfield:drawWarpSpeed()
         local dx = star.sx2 - star.sx1
         local dy = star.sy2 - star.sy1
         local lengthSquared = (dx * dx) + (dy * dy)
-        if self.speed < 0 and lengthSquared > 4 and not self.warpStyleStarFall then
+        if lengthSquared > 4 and not self.warpStyleStarFall then
             gfx.drawLine(star.sx1, star.sy1, star.sx2, star.sy2)
         end
         if self.warpStyleStarTrail or self.warpStyleTaper then
