@@ -702,6 +702,55 @@ function Starfield:drawWarpHead(star)
     gfx.fillRect(star.sx2, star.sy2, star.size, star.size)
 end
 
+function Starfield:drawWarpHeadScaled(star, scale)
+    local visibleSize = math.max(1, math.floor((star.size * scale) + 0.5))
+    local offset = math.floor(visibleSize * 0.5)
+
+    if self.warpStyleStarFall then
+        self:drawMotionStarShape(star.sx1, star.sy1, star.sx2, star.sy2, visibleSize)
+        return
+    end
+
+    if self.warpStyleTaper then
+        gfx.fillCircleAtPoint(star.sx2, star.sy2, math.max(1, math.floor(visibleSize * 0.5)))
+        return
+    end
+
+    gfx.fillRect(star.sx2 - offset, star.sy2 - offset, visibleSize, visibleSize)
+end
+
+function Starfield:drawWarpStreak(x1, y1, x2, y2)
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local horizontalBias = math.abs(dx) >= math.abs(dy)
+    local streakThickness = 2
+
+    if math.abs(self.speed or 0) >= 12 then
+        streakThickness = 3
+    end
+
+    if streakThickness == 2 then
+        if horizontalBias then
+            gfx.drawLine(x1, y1, x2, y2)
+            gfx.drawLine(x1, y1 + 1, x2, y2 + 1)
+        else
+            gfx.drawLine(x1, y1, x2, y2)
+            gfx.drawLine(x1 + 1, y1, x2 + 1, y2)
+        end
+        return
+    end
+
+    if horizontalBias then
+        gfx.drawLine(x1, y1 - 1, x2, y2 - 1)
+        gfx.drawLine(x1, y1, x2, y2)
+        gfx.drawLine(x1, y1 + 1, x2, y2 + 1)
+    else
+        gfx.drawLine(x1 - 1, y1, x2 - 1, y2)
+        gfx.drawLine(x1, y1, x2, y2)
+        gfx.drawLine(x1 + 1, y1, x2 + 1, y2)
+    end
+end
+
 function Starfield:updateStarFall()
     local dx, dy = vectorFromAngle(self.directionAngle)
     local scale = self.speed * 1.3
@@ -837,7 +886,6 @@ end
 
 function Starfield:drawWarpSpeed()
     gfx.setColor(self:getForegroundColor())
-    gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
     local activeFadeCount = 0
     local unexpectedFadeCount = 0
     for _, star in ipairs(self.stars) do
@@ -847,14 +895,12 @@ function Starfield:drawWarpSpeed()
             if not (star.spawnFadeFrames and star.spawnFadeFrames > 0) then
                 unexpectedFadeCount = unexpectedFadeCount + 1
             end
-            local fadeBucket = math.floor((fade * 4) + 0.5) / 4
-            gfx.setDitherPattern(fadeBucket, gfx.image.kDitherTypeBayer8x8)
         end
         local dx = star.sx2 - star.sx1
         local dy = star.sy2 - star.sy1
         local lengthSquared = (dx * dx) + (dy * dy)
-        if lengthSquared > 4 and not self.warpStyleStarFall then
-            gfx.drawLine(star.sx1, star.sy1, star.sx2, star.sy2)
+        if fade >= 0.35 and lengthSquared > 4 and not self.warpStyleStarFall then
+            self:drawWarpStreak(star.sx1, star.sy1, star.sx2, star.sy2)
         end
         if self.warpStyleStarTrail or self.warpStyleTaper then
             local length = math.sqrt(lengthSquared)
@@ -869,12 +915,8 @@ function Starfield:drawWarpSpeed()
                 end
             end
         end
-        self:drawWarpHead(star)
-        if fade < 1 then
-            gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
-        end
+        self:drawWarpHeadScaled(star, math.max(0.35, fade))
     end
-    gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
 
     self.debugFadeFrameCounter = self.debugFadeFrameCounter + 1
     if self.debugFadeFrameCounter >= WARP_FADE_DEBUG_INTERVAL_FRAMES then

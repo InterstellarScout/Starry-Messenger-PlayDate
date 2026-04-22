@@ -76,8 +76,8 @@ GameConfig = GameConfig or {
         manualBarMaxExtraHeight = 20
     },
     tiltBalls = {
-        minRadius = 7,
-        maxRadius = 16,
+        minRadius = 21,
+        maxRadius = 48,
         maxBalls = 18,
         gravityStrength = 0.55,
         wallBounce = 0.84,
@@ -86,7 +86,7 @@ GameConfig = GameConfig or {
         maxSlowdown = 0.995,
         defaultSlowdown = 0.972,
         crankSlowdownStep = 0.0025,
-        previewSpawnCount = 4
+        previewSpawnCount = 1
     },
     wacky = {
         segmentCount = 10,
