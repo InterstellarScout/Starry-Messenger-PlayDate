@@ -602,7 +602,7 @@ function TitleScene:spawnTitleFireworkBurst(originX, originY)
     local sparks = {}
     local sparkCount = math.random(10, 14)
     for index = 1, sparkCount do
-        local angle = ((index - 1) / sparkCount) * (math.pi * 2)
+        local angle = (-math.pi * 0.92) + (((index - 1) / math.max(1, sparkCount - 1)) * (math.pi * 0.84))
         local speed = 1.2 + (math.random() * 1.6)
         sparks[index] = {
             x = originX,
@@ -622,7 +622,7 @@ end
 function TitleScene:updateTitleFireworks()
     self.titleFireworkTimer = self.titleFireworkTimer - 1
     if self.titleFireworkTimer <= 0 then
-        local groundY = 232
+        local groundY = 220
         self:spawnTitleFireworkBurst(100, groundY)
         self:spawnTitleFireworkBurst(300, groundY)
         self.titleFireworkTimer = randomTitleFireworkDelay()

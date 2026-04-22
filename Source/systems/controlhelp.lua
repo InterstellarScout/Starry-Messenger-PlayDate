@@ -148,7 +148,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         end
         return buildSpec("Duck Game Controls", {
             "Normal mode: D-pad sets the lead duck's travel direction, and the crank drives the duck forward in that chosen direction.",
-            "Duck Turn Mode in the Home menu: the crank turns the duck, while Up and Down move it forward and backward.",
+            "Press A in game, or use Duck Turn Mode in the Home menu: the crank turns the duck, while Up and Down move it forward and backward.",
             deliveryLine,
             modeLine,
             winLine,

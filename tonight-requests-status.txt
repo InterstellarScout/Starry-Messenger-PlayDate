@@ -23,6 +23,7 @@
 | In Fishy modes, remove the spawn-mode text and hide the on-screen metrics unless they are needed. | Done |
 | Continue wiring each game view into the root config manager so live and preview tunables come from one shared config file. | Done |
 | Fold Duck Game and Orbital Defense into the root config manager and share core multiplayer player-count helpers across games to avoid duplicate multiplayer setup logic. | Done |
+| Restore Duck Game's in-game A-button turn-mode toggle and fix title-menu fireworks so they launch onscreen instead of generating offscreen. | Done |
 
 ##### In Falling Stars
 | Request | Status |

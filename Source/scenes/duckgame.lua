@@ -1145,6 +1145,10 @@ function DuckGameScene:update()
         return
     end
 
+    if not self.networked and pd.buttonJustPressed(pd.kButtonA) then
+        DuckGameScene.setTurnModeEnabled(not DuckGameScene.isTurnModeEnabled())
+    end
+
     if pd.buttonJustPressed(pd.kButtonB) then
         if self.onReturnToTitle then
             self.onReturnToTitle("duck")
