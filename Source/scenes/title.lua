@@ -19,6 +19,10 @@ local TITLE_FIREWORK_MIN_DELAY_FRAMES <const> = 30
 local TITLE_FIREWORK_MAX_DELAY_FRAMES <const> = 120
 local TITLE_FIREWORK_GRAVITY <const> = 0.07
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
+local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
+local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
+local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
+local LAVA_CONFIG <const> = GameConfig and GameConfig.lavaLamp or {}
 
 local function roundNearest(value)
     if value >= 0 then
@@ -55,7 +59,7 @@ local function getDefaultSelectedIndex(viewItems)
 end
 
 local function makeWarpPreview(speed)
-    local preview = Starfield.newWarpSpeed(400, 240, GameConfig.warp.previewStarCount or 320)
+    local preview = Starfield.newWarpSpeed(400, 240, WARP_CONFIG.previewStarCount or 320)
     preview.speed = speed or 1
     return preview
 end
@@ -336,13 +340,13 @@ function TitleScene:setPreview(forceFresh)
     stepPreviewGarbageCollector()
     local ok, nextPreview = pcall(function()
         if selectedView.id == "fall" then
-            return Starfield.newStarFall(400, 240, 360, {
+            return Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.previewStarCount or 360, {
                 modeId = selectedView.modeId
             })
         elseif selectedView.id == "multiplayer" then
             return makeWarpPreview(TITLE_CONFIG.multiplayerPreviewSpeed or 2)
         elseif selectedView.id == "life" then
-            return GameOfLife.new(400, 240, 6, 0.3, {
+            return GameOfLife.new(400, 240, LIFE_CONFIG.previewCellSize or 6, LIFE_CONFIG.previewSeedChance or 0.3, {
                 modeId = selectedView.modeId,
                 preview = true,
                 forceFresh = forceFresh == true
@@ -396,12 +400,12 @@ function TitleScene:setPreview(forceFresh)
                 preview = true
             })
         elseif selectedView.id == "lava" then
-            return LavaLamp.new(400, 240, 36, {
+            return LavaLamp.new(400, 240, LAVA_CONFIG.previewBubbleCount or 36, {
                 modeId = selectedView.modeId
             })
         end
 
-        local preview = Starfield.newWarpSpeed(400, 240, GameConfig.warp.previewStarCount or 320, {
+        local preview = Starfield.newWarpSpeed(400, 240, WARP_CONFIG.previewStarCount or 320, {
             modeId = selectedView.modeId
         })
         preview.speed = TITLE_CONFIG.warpPreviewSpeed or 1
@@ -447,7 +451,7 @@ function TitleScene:processPendingPreview()
     stepPreviewGarbageCollector()
 
     local ok, nextPreview = pcall(function()
-        return GameOfLife.new(400, 240, 6, 0.3, {
+        return GameOfLife.new(400, 240, LIFE_CONFIG.previewCellSize or 6, LIFE_CONFIG.previewSeedChance or 0.3, {
             modeId = request.modeId,
             preview = true,
             forceFresh = request.forceFresh

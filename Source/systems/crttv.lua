@@ -1,23 +1,26 @@
+import "gameconfig"
+
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local CRTTV_CONFIG <const> = GameConfig and GameConfig.crttv or {}
 
 CRTTVEffect = {}
 CRTTVEffect.__index = CRTTVEffect
 
-local STATIC_NOISE_STEP_X <const> = 4
-local STATIC_NOISE_STEP_Y <const> = 2
-local STATIC_FRAME_COUNT <const> = 8
+local STATIC_NOISE_STEP_X <const> = CRTTV_CONFIG.staticNoiseStepX or 4
+local STATIC_NOISE_STEP_Y <const> = CRTTV_CONFIG.staticNoiseStepY or 2
+local STATIC_FRAME_COUNT <const> = CRTTV_CONFIG.staticFrameCount or 8
 local BAR_PATTERN_LARGE <const> = { 0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88 }
 local BAR_PATTERN_SMALL <const> = { 0x88, 0xcc, 0x66, 0x33, 0x11, 0x33, 0x66, 0xcc }
-local CRANK_RELEASE_ANGLE_TOLERANCE <const> = 3
-local CRANK_RELEASE_IDLE_FRAMES <const> = 60
-local LARGE_BAR_BASE_SPEED <const> = 0.9
-local LARGE_BAR_HEIGHT <const> = 40
-local SMALL_BAR_HEIGHT <const> = 12
-local STATIC_FRAME_PHASE_STEP <const> = 7.25
-local MANUAL_BAR_SPEED_SCALE <const> = 0.45
-local MANUAL_BAR_IDLE_FALL_SPEED <const> = 1.4
-local MANUAL_BAR_MAX_EXTRA_HEIGHT <const> = 20
+local CRANK_RELEASE_ANGLE_TOLERANCE <const> = CRTTV_CONFIG.crankReleaseAngleTolerance or 3
+local CRANK_RELEASE_IDLE_FRAMES <const> = CRTTV_CONFIG.crankReleaseIdleFrames or 60
+local LARGE_BAR_BASE_SPEED <const> = CRTTV_CONFIG.largeBarBaseSpeed or 0.9
+local LARGE_BAR_HEIGHT <const> = CRTTV_CONFIG.largeBarHeight or 40
+local SMALL_BAR_HEIGHT <const> = CRTTV_CONFIG.smallBarHeight or 12
+local STATIC_FRAME_PHASE_STEP <const> = CRTTV_CONFIG.staticFramePhaseStep or 7.25
+local MANUAL_BAR_SPEED_SCALE <const> = CRTTV_CONFIG.manualBarSpeedScale or 0.45
+local MANUAL_BAR_IDLE_FALL_SPEED <const> = CRTTV_CONFIG.manualBarIdleFallSpeed or 1.4
+local MANUAL_BAR_MAX_EXTRA_HEIGHT <const> = CRTTV_CONFIG.manualBarMaxExtraHeight or 20
 
 CRTTVEffect._noiseFrames = nil
 

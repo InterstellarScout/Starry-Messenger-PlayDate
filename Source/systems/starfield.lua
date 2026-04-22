@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Warp Speed and Star Fall background effect system.
 
@@ -7,6 +9,8 @@ Purpose:
 - exposes speed, steering, and rotation controls for previews and live views
 ]]
 local gfx <const> = playdate.graphics
+local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
+local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
 
 Starfield = {}
 Starfield.__index = Starfield
@@ -90,25 +94,25 @@ local function distanceSquaredToSegment(px, py, x1, y1, x2, y2)
     return (offsetX * offsetX) + (offsetY * offsetY)
 end
 
-local STAR_FALL_BOUNDARY_RADIUS <const> = 467
-local STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES <const> = 300
-local STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES <const> = 1800
-local STAR_FALL_LARGE_STAR_MIN_RADIUS <const> = 10
-local STAR_FALL_LARGE_STAR_MAX_RADIUS <const> = 16
-local WARP_SPAWN_RADIUS <const> = 467
-local WARP_VISIBLE_RADIUS <const> = 234
+local STAR_FALL_BOUNDARY_RADIUS <const> = STAR_FALL_CONFIG.boundaryRadius or 467
+local STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES <const> = STAR_FALL_CONFIG.largeStarMinDelayFrames or 300
+local STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES <const> = STAR_FALL_CONFIG.largeStarMaxDelayFrames or 1800
+local STAR_FALL_LARGE_STAR_MIN_RADIUS <const> = STAR_FALL_CONFIG.largeStarMinRadius or 10
+local STAR_FALL_LARGE_STAR_MAX_RADIUS <const> = STAR_FALL_CONFIG.largeStarMaxRadius or 16
+local WARP_SPAWN_RADIUS <const> = WARP_CONFIG.spawnRadius or 467
+local WARP_VISIBLE_RADIUS <const> = WARP_CONFIG.visibleRadius or 234
 local WARP_OFFSCREEN_RADIUS <const> = WARP_VISIBLE_RADIUS + 40
 local WARP_OFFSCREEN_RADIUS_SQUARED <const> = WARP_OFFSCREEN_RADIUS * WARP_OFFSCREEN_RADIUS
-local WARP_CENTER_DESPAWN_RADIUS <const> = 10
-local WARP_SPAWN_FADE_IN_FRAMES <const> = 8
-local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = 2
-local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = 5
-local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = 0.08
-local WARP_INWARD_DESPAWN_GROWTH_MAX <const> = 0.22
-local WARP_FADE_DEBUG_INTERVAL_FRAMES <const> = 45
-local WARP_TRAIL_DOT_MAX_STEPS <const> = 5
-local WARP_TAPER_HIDE_SPEED_START <const> = 1.2
-local WARP_TAPER_HIDE_SPEED_END <const> = 3.2
+local WARP_CENTER_DESPAWN_RADIUS <const> = WARP_CONFIG.centerDespawnRadius or 10
+local WARP_SPAWN_FADE_IN_FRAMES <const> = WARP_CONFIG.spawnFadeFrames or 8
+local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = WARP_CONFIG.inwardDespawnStartRadiusMin or 2
+local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = WARP_CONFIG.inwardDespawnStartRadiusMax or 5
+local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = WARP_CONFIG.inwardDespawnGrowthMin or 0.08
+local WARP_INWARD_DESPAWN_GROWTH_MAX <const> = WARP_CONFIG.inwardDespawnGrowthMax or 0.22
+local WARP_FADE_DEBUG_INTERVAL_FRAMES <const> = WARP_CONFIG.fadeDebugIntervalFrames or 45
+local WARP_TRAIL_DOT_MAX_STEPS <const> = WARP_CONFIG.trailDotMaxSteps or 5
+local WARP_TAPER_HIDE_SPEED_START <const> = WARP_CONFIG.taperHideSpeedStart or 1.2
+local WARP_TAPER_HIDE_SPEED_END <const> = WARP_CONFIG.taperHideSpeedEnd or 3.2
 
 local function randomLargeStarDelayFrames()
     return math.random(STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES, STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES)

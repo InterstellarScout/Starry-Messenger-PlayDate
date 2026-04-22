@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Game of Life simulation, recorder, and playback system.
 
@@ -8,6 +10,7 @@ Purpose:
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
 
 GameOfLife = {}
 GameOfLife.__index = GameOfLife
@@ -17,9 +20,9 @@ GameOfLife.MODE_ENDLESS = "endless"
 GameOfLife.MODE_RECORD = "record"
 GameOfLife.MODE_REVIEW = "review"
 
-local PREVIEW_FRAME_COUNT <const> = 10
-local WARM_FRAME_COUNT <const> = 50
-local ENDLESS_MAX_LIVE_CELL_RATIO <const> = 0.34
+local PREVIEW_FRAME_COUNT <const> = LIFE_CONFIG.previewFrameCount or 10
+local WARM_FRAME_COUNT <const> = LIFE_CONFIG.warmFrameCount or 50
+local ENDLESS_MAX_LIVE_CELL_RATIO <const> = LIFE_CONFIG.endlessMaxLiveCellRatio or 0.34
 
 local LIFE_RECORDINGS_DIR <const> = "exports/life-recordings"
 local LIFE_RECORDING_EXTENSION <const> = ".slif"

@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Fishy Pond gameplay and ambient pond simulation.
 
@@ -8,6 +10,7 @@ Purpose:
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local FISHPOND_CONFIG <const> = GameConfig and GameConfig.fishpond or {}
 
 FishPond = {}
 FishPond.__index = FishPond
@@ -92,29 +95,29 @@ local function wrapHorizontal(value, width, margin)
     return value
 end
 
-local WATER_TOP <const> = 18
-local FLOOR_HEIGHT <const> = 26
-local BUBBLE_MAKER_Y_OFFSET <const> = 12
-local MAX_SCHOOL_FISH <const> = 14
-local TANK_FISH_COUNT <const> = 20
-local TANK_PANIC_DURATION <const> = 1.0
-local TANK_SHAKE_THRESHOLD <const> = 0.55
-local PLAYER_FISH_SIZE <const> = 9
-local TANK_CURRENT_IMPULSE_SCALE <const> = 0.06
-local BUBBLE_HOLD_REPEAT_FRAMES <const> = 5
-local BUBBLE_MAKER_IDLE_DELAY <const> = 0.85
-local BUBBLE_MAKER_HUNT_WINDOW <const> = 1.35
-local NEW_FISH_SCHOOL_DELAY <const> = 3.5
-local IDLE_BUBBLE_REWARD <const> = 1
-local BUBBLE_VENT_RISE_TIME <const> = 0.18
-local BUBBLE_VENT_POP_TIME <const> = 0.08
-local RANDOM_MUD_BUBBLE_MIN_DELAY <const> = 1.9
-local RANDOM_MUD_BUBBLE_MAX_DELAY <const> = 3.4
-local PLAYER_FISH_CHASE_SPEED <const> = 92
-local PLAYER_FISH_CHASE_MIN_SPEED <const> = 34
-local PLAYER_FISH_CHASE_LEAD_TIME <const> = 0.16
-local PLAYER_FISH_FREE_SWIM_SPEED_X <const> = 72
-local PLAYER_FISH_FREE_SWIM_SPEED_Y <const> = 60
+local WATER_TOP <const> = FISHPOND_CONFIG.waterTop or 18
+local FLOOR_HEIGHT <const> = FISHPOND_CONFIG.floorHeight or 26
+local BUBBLE_MAKER_Y_OFFSET <const> = FISHPOND_CONFIG.bubbleMakerYOffset or 12
+local MAX_SCHOOL_FISH <const> = FISHPOND_CONFIG.maxSchoolFish or 14
+local TANK_FISH_COUNT <const> = FISHPOND_CONFIG.tankFishCount or 20
+local TANK_PANIC_DURATION <const> = FISHPOND_CONFIG.tankPanicDuration or 1.0
+local TANK_SHAKE_THRESHOLD <const> = FISHPOND_CONFIG.tankShakeThreshold or 0.55
+local PLAYER_FISH_SIZE <const> = FISHPOND_CONFIG.playerFishSize or 9
+local TANK_CURRENT_IMPULSE_SCALE <const> = FISHPOND_CONFIG.tankCurrentImpulseScale or 0.06
+local BUBBLE_HOLD_REPEAT_FRAMES <const> = FISHPOND_CONFIG.bubbleHoldRepeatFrames or 5
+local BUBBLE_MAKER_IDLE_DELAY <const> = FISHPOND_CONFIG.bubbleMakerIdleDelay or 0.85
+local BUBBLE_MAKER_HUNT_WINDOW <const> = FISHPOND_CONFIG.bubbleMakerHuntWindow or 1.35
+local NEW_FISH_SCHOOL_DELAY <const> = FISHPOND_CONFIG.newFishSchoolDelay or 3.5
+local IDLE_BUBBLE_REWARD <const> = FISHPOND_CONFIG.idleBubbleReward or 1
+local BUBBLE_VENT_RISE_TIME <const> = FISHPOND_CONFIG.bubbleVentRiseTime or 0.18
+local BUBBLE_VENT_POP_TIME <const> = FISHPOND_CONFIG.bubbleVentPopTime or 0.08
+local RANDOM_MUD_BUBBLE_MIN_DELAY <const> = FISHPOND_CONFIG.randomMudBubbleMinDelay or 1.9
+local RANDOM_MUD_BUBBLE_MAX_DELAY <const> = FISHPOND_CONFIG.randomMudBubbleMaxDelay or 3.4
+local PLAYER_FISH_CHASE_SPEED <const> = FISHPOND_CONFIG.playerFishChaseSpeed or 92
+local PLAYER_FISH_CHASE_MIN_SPEED <const> = FISHPOND_CONFIG.playerFishChaseMinSpeed or 34
+local PLAYER_FISH_CHASE_LEAD_TIME <const> = FISHPOND_CONFIG.playerFishChaseLeadTime or 0.16
+local PLAYER_FISH_FREE_SWIM_SPEED_X <const> = FISHPOND_CONFIG.playerFishFreeSwimSpeedX or 72
+local PLAYER_FISH_FREE_SWIM_SPEED_Y <const> = FISHPOND_CONFIG.playerFishFreeSwimSpeedY or 60
 
 local function loadIdleProgress()
     if FishPond.idleProgressLoaded then

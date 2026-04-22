@@ -1,35 +1,38 @@
+import "gameconfig"
+
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local WACKY_CONFIG <const> = GameConfig and GameConfig.wacky or {}
 
 WackyInflatable = {}
 WackyInflatable.__index = WackyInflatable
 
-local SEGMENT_COUNT <const> = 10
-local BODY_LENGTH <const> = 116
-local TUBE_WIDTH <const> = 22
-local HEAD_RADIUS <const> = 17
-local ARM_LENGTH <const> = 34
-local PREVIEW_EXTENDED_FRAMES <const> = 30
-local PREVIEW_SETTLE_INFLATION <const> = 0.12
-local MAX_CRANK_BOOST <const> = 1.3
-local BODY_GRAVITY <const> = 0.52
-local BODY_DRAG <const> = 0.992
-local BODY_LIFT_SCALE <const> = 0.62
-local BODY_SWAY_SCALE <const> = 0.16
-local BODY_CONSTRAINT_PASSES <const> = 8
-local BODY_SELF_AVOID_RADIUS <const> = 18
-local BODY_GROUND_BOUNCE <const> = 0.18
-local COLLAPSE_GROUND_BOUNCE <const> = 0.05
-local CRANK_FLAIL_VERTICAL_SCALE <const> = 1.85
-local CRANK_FLAIL_HORIZONTAL_SCALE <const> = 1.25
-local BODY_SWEEP_LIMIT <const> = 170
-local CRANK_IDLE_FRAMES <const> = 7
-local REVERSE_GRAVITY_SCALE <const> = 2.6
-local GRAVITY_BOOST_DECAY <const> = 0.08
-local FALLING_SURPRISE_SPEED <const> = 1.35
-local HAT_GROUND_DRAG <const> = 0.988
-local HAT_GROUND_ROLL_DRAG <const> = 0.982
-local HAT_BOUNCE <const> = 0.16
+local SEGMENT_COUNT <const> = WACKY_CONFIG.segmentCount or 10
+local BODY_LENGTH <const> = WACKY_CONFIG.bodyLength or 116
+local TUBE_WIDTH <const> = WACKY_CONFIG.tubeWidth or 22
+local HEAD_RADIUS <const> = WACKY_CONFIG.headRadius or 17
+local ARM_LENGTH <const> = WACKY_CONFIG.armLength or 34
+local PREVIEW_EXTENDED_FRAMES <const> = WACKY_CONFIG.previewExtendedFrames or 30
+local PREVIEW_SETTLE_INFLATION <const> = WACKY_CONFIG.previewSettleInflation or 0.12
+local MAX_CRANK_BOOST <const> = WACKY_CONFIG.maxCrankBoost or 1.3
+local BODY_GRAVITY <const> = WACKY_CONFIG.bodyGravity or 0.52
+local BODY_DRAG <const> = WACKY_CONFIG.bodyDrag or 0.992
+local BODY_LIFT_SCALE <const> = WACKY_CONFIG.bodyLiftScale or 0.62
+local BODY_SWAY_SCALE <const> = WACKY_CONFIG.bodySwayScale or 0.16
+local BODY_CONSTRAINT_PASSES <const> = WACKY_CONFIG.bodyConstraintPasses or 8
+local BODY_SELF_AVOID_RADIUS <const> = WACKY_CONFIG.bodySelfAvoidRadius or 18
+local BODY_GROUND_BOUNCE <const> = WACKY_CONFIG.bodyGroundBounce or 0.18
+local COLLAPSE_GROUND_BOUNCE <const> = WACKY_CONFIG.collapseGroundBounce or 0.05
+local CRANK_FLAIL_VERTICAL_SCALE <const> = WACKY_CONFIG.crankFlailVerticalScale or 1.85
+local CRANK_FLAIL_HORIZONTAL_SCALE <const> = WACKY_CONFIG.crankFlailHorizontalScale or 1.25
+local BODY_SWEEP_LIMIT <const> = WACKY_CONFIG.bodySweepLimit or 170
+local CRANK_IDLE_FRAMES <const> = WACKY_CONFIG.crankIdleFrames or 7
+local REVERSE_GRAVITY_SCALE <const> = WACKY_CONFIG.reverseGravityScale or 2.6
+local GRAVITY_BOOST_DECAY <const> = WACKY_CONFIG.gravityBoostDecay or 0.08
+local FALLING_SURPRISE_SPEED <const> = WACKY_CONFIG.fallingSurpriseSpeed or 1.35
+local HAT_GROUND_DRAG <const> = WACKY_CONFIG.hatGroundDrag or 0.988
+local HAT_GROUND_ROLL_DRAG <const> = WACKY_CONFIG.hatGroundRollDrag or 0.982
+local HAT_BOUNCE <const> = WACKY_CONFIG.hatBounce or 0.16
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then

@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Fireworks show system.
 
@@ -7,22 +9,23 @@ Purpose:
 - provides the compact fireworks toy used by the title and gameplay scenes
 ]]
 local gfx <const> = playdate.graphics
+local FIREWORKS_CONFIG <const> = GameConfig and GameConfig.fireworks or {}
 
 FireworksShow = {}
 FireworksShow.__index = FireworksShow
 
 -- Development tuning limits. Raise carefully on hardware.
-local MAX_ACTIVE_SPARKS <const> = 200
-local MAX_SPARKS_PER_FIREWORK <const> = 56
-local SPARK_LIFESPAN_MIN <const> = 18
-local SPARK_LIFESPAN_MAX <const> = 34
-local AUTO_LAUNCH_INTERVAL_MIN <const> = 3
-local AUTO_LAUNCH_INTERVAL_MAX <const> = 10
-local MAX_EXPLOSION_HEIGHT_PERCENT <const> = 0.95
-local MIN_EXPLOSION_HEIGHT_PERCENT <const> = 0.58
-local BACKGROUND_STAR_COUNT <const> = 20
+local MAX_ACTIVE_SPARKS <const> = FIREWORKS_CONFIG.maxActiveSparks or 200
+local MAX_SPARKS_PER_FIREWORK <const> = FIREWORKS_CONFIG.maxSparksPerFirework or 56
+local SPARK_LIFESPAN_MIN <const> = FIREWORKS_CONFIG.sparkLifespanMin or 18
+local SPARK_LIFESPAN_MAX <const> = FIREWORKS_CONFIG.sparkLifespanMax or 34
+local AUTO_LAUNCH_INTERVAL_MIN <const> = FIREWORKS_CONFIG.autoLaunchIntervalMin or 3
+local AUTO_LAUNCH_INTERVAL_MAX <const> = FIREWORKS_CONFIG.autoLaunchIntervalMax or 10
+local MAX_EXPLOSION_HEIGHT_PERCENT <const> = FIREWORKS_CONFIG.maxExplosionHeightPercent or 0.95
+local MIN_EXPLOSION_HEIGHT_PERCENT <const> = FIREWORKS_CONFIG.minExplosionHeightPercent or 0.58
+local BACKGROUND_STAR_COUNT <const> = FIREWORKS_CONFIG.backgroundStarCount or 20
 
-local GRAVITY <const> = 0.16
+local GRAVITY <const> = FIREWORKS_CONFIG.gravity or 0.16
 local TAU <const> = math.pi * 2
 
 local function clamp(value, minValue, maxValue)

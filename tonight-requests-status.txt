@@ -21,6 +21,7 @@
 | In the title menu, ensure GIF Player sits behind the same full-screen gray transparent overlay, with its own stronger muted cover over the preview. | Done |
 | In Wacky, pull the top hat down onto the head, detach it when the head hits the ground so it falls and rolls away, and reattach it on the next crank movement. | Done |
 | In Fishy modes, remove the spawn-mode text and hide the on-screen metrics unless they are needed. | Done |
+| Continue wiring each game view into the root config manager so live and preview tunables come from one shared config file. | Done |
 
 ##### In Falling Stars
 | Request | Status |

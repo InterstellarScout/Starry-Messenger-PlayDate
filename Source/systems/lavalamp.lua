@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Lava Lamp particle system.
 
@@ -8,6 +10,7 @@ Purpose:
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local LAVA_CONFIG <const> = GameConfig and GameConfig.lavaLamp or {}
 
 LavaLamp = {}
 LavaLamp.__index = LavaLamp
@@ -15,45 +18,45 @@ LavaLamp.__index = LavaLamp
 LavaLamp.MODE_STANDARD = "standard"
 LavaLamp.MODE_INVERSE = "inverse"
 
-local BOTTOM_LINGER_FRAMES <const> = 330
-local TOP_LINGER_VALUE_MIN <const> = 6
-local TOP_LINGER_VALUE_MAX <const> = 20
-local TOP_LINGER_UNIT_FRAMES <const> = 12
-local FLOW_SMOOTHING <const> = 0.06
-local ORIENTATION_RETARGET_DOT_THRESHOLD <const> = 0.972
-local ACTIVE_DRAG <const> = 0.9
-local ACTIVE_MAX_ACCELERATION <const> = 0.09
-local ACTIVE_COLLISION_DISTANCE_SCALE <const> = 0.9
-local ACTIVE_COLLISION_SQUEEZE_SCALE <const> = 0.2
-local ACTIVE_COLLISION_BOUNCE_SCALE <const> = 0.34
-local ACTIVE_COLLISION_DAMPING <const> = 0.92
-local ACTIVE_COLLISION_SLIDE_DAMPING <const> = 0.18
-local ACTIVE_MAX_SPEED_PADDING <const> = 0.95
-local WALL_SETTLE_FRAMES <const> = 18
-local SETTLING_COLLISION_DISTANCE_SCALE <const> = 0.9
-local SETTLING_COLLISION_SQUEEZE_SCALE <const> = 0.08
-local SETTLING_COLLISION_SLIDE_SCALE <const> = 0.12
-local INITIAL_SPAWN_PADDING <const> = 4
-local INITIAL_SPAWN_ATTEMPTS <const> = 80
-local ANCHOR_ATTACH_SPEED_SCALE <const> = 0.32
-local ANCHOR_SLIDE_SPEED_SCALE <const> = 0.58
-local ANCHOR_SPREAD_MARGIN <const> = 10
-local EDGE_MARGIN <const> = 1
-local BUBBLE_TRAVEL_SPEED_MIN <const> = 0.38
-local BUBBLE_TRAVEL_SPEED_MAX <const> = 0.72
-local TRAVEL_TIME_MULTIPLIER_MIN <const> = 1
-local TRAVEL_TIME_MULTIPLIER_MAX <const> = 3
-local OPPOSING_CONTACT_DISTANCE_SCALE <const> = 0.18
-local ORBIT_DURATION_MIN_FRAMES <const> = 30
-local ORBIT_DURATION_MAX_FRAMES <const> = 60
-local ORBIT_RADIUS_SQUEEZE_SCALE <const> = 0.12
-local ORBIT_CENTER_DRIFT_SCALE <const> = 0.78
-local TIMER_SYNC_WINDOW_FRAMES <const> = 60
-local TIMER_RESHUFFLE_MIN_CLUSTER <const> = 4
-local TIMER_RESHUFFLE_COOLDOWN_FRAMES <const> = 45
-local WALL_FLIP_DOT_THRESHOLD <const> = -0.94
-local WALL_FLIP_COOLDOWN_FRAMES <const> = 18
-local CONTACT_FILL_DISTANCE_SCALE <const> = 0.8
+local BOTTOM_LINGER_FRAMES <const> = LAVA_CONFIG.bottomLingerFrames or 330
+local TOP_LINGER_VALUE_MIN <const> = LAVA_CONFIG.topLingerValueMin or 6
+local TOP_LINGER_VALUE_MAX <const> = LAVA_CONFIG.topLingerValueMax or 20
+local TOP_LINGER_UNIT_FRAMES <const> = LAVA_CONFIG.topLingerUnitFrames or 12
+local FLOW_SMOOTHING <const> = LAVA_CONFIG.flowSmoothing or 0.06
+local ORIENTATION_RETARGET_DOT_THRESHOLD <const> = LAVA_CONFIG.orientationRetargetDotThreshold or 0.972
+local ACTIVE_DRAG <const> = LAVA_CONFIG.activeDrag or 0.9
+local ACTIVE_MAX_ACCELERATION <const> = LAVA_CONFIG.activeMaxAcceleration or 0.09
+local ACTIVE_COLLISION_DISTANCE_SCALE <const> = LAVA_CONFIG.activeCollisionDistanceScale or 0.9
+local ACTIVE_COLLISION_SQUEEZE_SCALE <const> = LAVA_CONFIG.activeCollisionSqueezeScale or 0.2
+local ACTIVE_COLLISION_BOUNCE_SCALE <const> = LAVA_CONFIG.activeCollisionBounceScale or 0.34
+local ACTIVE_COLLISION_DAMPING <const> = LAVA_CONFIG.activeCollisionDamping or 0.92
+local ACTIVE_COLLISION_SLIDE_DAMPING <const> = LAVA_CONFIG.activeCollisionSlideDamping or 0.18
+local ACTIVE_MAX_SPEED_PADDING <const> = LAVA_CONFIG.activeMaxSpeedPadding or 0.95
+local WALL_SETTLE_FRAMES <const> = LAVA_CONFIG.wallSettleFrames or 18
+local SETTLING_COLLISION_DISTANCE_SCALE <const> = LAVA_CONFIG.settlingCollisionDistanceScale or 0.9
+local SETTLING_COLLISION_SQUEEZE_SCALE <const> = LAVA_CONFIG.settlingCollisionSqueezeScale or 0.08
+local SETTLING_COLLISION_SLIDE_SCALE <const> = LAVA_CONFIG.settlingCollisionSlideScale or 0.12
+local INITIAL_SPAWN_PADDING <const> = LAVA_CONFIG.initialSpawnPadding or 4
+local INITIAL_SPAWN_ATTEMPTS <const> = LAVA_CONFIG.initialSpawnAttempts or 80
+local ANCHOR_ATTACH_SPEED_SCALE <const> = LAVA_CONFIG.anchorAttachSpeedScale or 0.32
+local ANCHOR_SLIDE_SPEED_SCALE <const> = LAVA_CONFIG.anchorSlideSpeedScale or 0.58
+local ANCHOR_SPREAD_MARGIN <const> = LAVA_CONFIG.anchorSpreadMargin or 10
+local EDGE_MARGIN <const> = LAVA_CONFIG.edgeMargin or 1
+local BUBBLE_TRAVEL_SPEED_MIN <const> = LAVA_CONFIG.bubbleTravelSpeedMin or 0.38
+local BUBBLE_TRAVEL_SPEED_MAX <const> = LAVA_CONFIG.bubbleTravelSpeedMax or 0.72
+local TRAVEL_TIME_MULTIPLIER_MIN <const> = LAVA_CONFIG.travelTimeMultiplierMin or 1
+local TRAVEL_TIME_MULTIPLIER_MAX <const> = LAVA_CONFIG.travelTimeMultiplierMax or 3
+local OPPOSING_CONTACT_DISTANCE_SCALE <const> = LAVA_CONFIG.opposingContactDistanceScale or 0.18
+local ORBIT_DURATION_MIN_FRAMES <const> = LAVA_CONFIG.orbitDurationMinFrames or 30
+local ORBIT_DURATION_MAX_FRAMES <const> = LAVA_CONFIG.orbitDurationMaxFrames or 60
+local ORBIT_RADIUS_SQUEEZE_SCALE <const> = LAVA_CONFIG.orbitRadiusSqueezeScale or 0.12
+local ORBIT_CENTER_DRIFT_SCALE <const> = LAVA_CONFIG.orbitCenterDriftScale or 0.78
+local TIMER_SYNC_WINDOW_FRAMES <const> = LAVA_CONFIG.timerSyncWindowFrames or 60
+local TIMER_RESHUFFLE_MIN_CLUSTER <const> = LAVA_CONFIG.timerReshuffleMinCluster or 4
+local TIMER_RESHUFFLE_COOLDOWN_FRAMES <const> = LAVA_CONFIG.timerReshuffleCooldownFrames or 45
+local WALL_FLIP_DOT_THRESHOLD <const> = LAVA_CONFIG.wallFlipDotThreshold or -0.94
+local WALL_FLIP_COOLDOWN_FRAMES <const> = LAVA_CONFIG.wallFlipCooldownFrames or 18
+local CONTACT_FILL_DISTANCE_SCALE <const> = LAVA_CONFIG.contactFillDistanceScale or 0.8
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then

@@ -1,9 +1,11 @@
 import "CoreLibs/graphics"
 import "data/gifs"
+import "gameconfig"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local snd <const> = pd.sound
+local GIF_PLAYER_CONFIG <const> = GameConfig and GameConfig.gifPlayer or {}
 
 GifPlayerEffect = {}
 GifPlayerEffect.__index = GifPlayerEffect
@@ -13,15 +15,15 @@ GifPlayerEffect.GIF_STATE_NORMAL = "normal"
 GifPlayerEffect.GIF_STATE_INVERT = "invert"
 GifPlayerEffect.GIF_STATE_SPIN = "spin"
 
-local GIF_DEFAULT_SPIN_SPEED <const> = 0.45
+local GIF_DEFAULT_SPIN_SPEED <const> = GIF_PLAYER_CONFIG.defaultSpinSpeed or 0.45
 local GIF_AUDIO_ROOT <const> = "audio/gifplayer"
-local GIF_DEFAULT_SOURCE_FPS <const> = 25
-local GIF_AUDIO_SEEK_TOLERANCE <const> = 0.05
-local CATEGORY_CRANK_STEP <const> = 18
-local CATEGORY_TEXT_MAX_WIDTH <const> = 360
-local CATEGORY_TEXT_MAX_HEIGHT <const> = 34
-local CATEGORY_CENTER_SCALE <const> = 1.5
-local CATEGORY_SIDE_SCALE <const> = 0.75
+local GIF_DEFAULT_SOURCE_FPS <const> = GIF_PLAYER_CONFIG.defaultSourceFps or 25
+local GIF_AUDIO_SEEK_TOLERANCE <const> = GIF_PLAYER_CONFIG.audioSeekTolerance or 0.05
+local CATEGORY_CRANK_STEP <const> = GIF_PLAYER_CONFIG.categoryCrankStep or 18
+local CATEGORY_TEXT_MAX_WIDTH <const> = GIF_PLAYER_CONFIG.categoryTextMaxWidth or 360
+local CATEGORY_TEXT_MAX_HEIGHT <const> = GIF_PLAYER_CONFIG.categoryTextMaxHeight or 34
+local CATEGORY_CENTER_SCALE <const> = GIF_PLAYER_CONFIG.categoryCenterScale or 1.5
+local CATEGORY_SIDE_SCALE <const> = GIF_PLAYER_CONFIG.categorySideScale or 0.75
 local GIF_AUDIO_EXTENSIONS <const> = {
     ".mp3",
     ".wav",

@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Generic single-view gameplay scene.
 
@@ -13,6 +15,10 @@ local WARP_MENU_X <const> = 218
 local WARP_MENU_Y <const> = 10
 local WARP_MENU_WIDTH <const> = 172
 local WARP_MENU_ROW_HEIGHT <const> = 20
+local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
+local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
+local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
+local LAVA_CONFIG <const> = GameConfig and GameConfig.lavaLamp or {}
 
 ViewScene = {}
 ViewScene.__index = ViewScene
@@ -44,11 +50,11 @@ function ViewScene.new(config)
     if config.effect then
         self.effect = config.effect
     elseif self.viewId == "fall" then
-        self.effect = Starfield.newStarFall(400, 240, 420, {
+        self.effect = Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.liveStarCount or 420, {
             modeId = self.modeId
         })
     elseif self.viewId == "life" then
-        self.effect = GameOfLife.new(400, 240, 5, 0.28, {
+        self.effect = GameOfLife.new(400, 240, LIFE_CONFIG.liveCellSize or 5, LIFE_CONFIG.liveSeedChance or 0.28, {
             modeId = self.modeId
         })
     elseif self.viewId == "fireworks" then
@@ -74,11 +80,11 @@ function ViewScene.new(config)
             playerCount = config.session and config.session.playerCount or 2
         })
     elseif self.viewId == "lava" then
-        self.effect = LavaLamp.new(400, 240, 60, {
+        self.effect = LavaLamp.new(400, 240, LAVA_CONFIG.liveBubbleCount or 60, {
             modeId = self.modeId
         })
     else
-        self.effect = Starfield.newWarpSpeed(400, 240, 180, {
+        self.effect = Starfield.newWarpSpeed(400, 240, WARP_CONFIG.liveStarCount or 180, {
             modeId = self.modeId
         })
     end

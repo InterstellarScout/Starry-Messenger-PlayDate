@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 RC Arena gameplay system.
 
@@ -8,6 +10,7 @@ Purpose:
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local RC_ARENA_CONFIG <const> = GameConfig and GameConfig.rcArena or {}
 
 RCCarArena = {}
 RCCarArena.__index = RCCarArena
@@ -17,27 +20,27 @@ RCCarArena.MODE_VERSUS = "versus"
 RCCarArena.MODE_HOCKEY = "hockey"
 RCCarArena.autoBrakeEnabled = false
 
-local CAR_LENGTH <const> = 18
-local CAR_WIDTH <const> = 10
-local CAR_SPEED_RESPONSE <const> = 0.2
-local CAR_BRAKE_RESPONSE <const> = 0.28
-local CAR_BUTTON_SPEED_STEP <const> = 0.18
-local CAR_BUTTON_TURN_STEP <const> = 0.08
-local CAR_AI_TURN_STEP <const> = 0.06
-local CAR_CRANK_ROTATE_SCALE <const> = math.pi / 160
-local CAR_CRANK_SPEED_SCALE <const> = 0.12
-local CAR_DEFAULT_MAX_SPEED <const> = 7
-local CAR_PREVIEW_SPEED_MIN <const> = 1.8
-local CAR_PREVIEW_SPEED_VARIATION <const> = 2.1
-local CAR_BUMP_RECOIL <const> = 0.28
+local CAR_LENGTH <const> = RC_ARENA_CONFIG.carLength or 18
+local CAR_WIDTH <const> = RC_ARENA_CONFIG.carWidth or 10
+local CAR_SPEED_RESPONSE <const> = RC_ARENA_CONFIG.carSpeedResponse or 0.2
+local CAR_BRAKE_RESPONSE <const> = RC_ARENA_CONFIG.carBrakeResponse or 0.28
+local CAR_BUTTON_SPEED_STEP <const> = RC_ARENA_CONFIG.carButtonSpeedStep or 0.18
+local CAR_BUTTON_TURN_STEP <const> = RC_ARENA_CONFIG.carButtonTurnStep or 0.08
+local CAR_AI_TURN_STEP <const> = RC_ARENA_CONFIG.carAiTurnStep or 0.06
+local CAR_CRANK_ROTATE_SCALE <const> = RC_ARENA_CONFIG.carCrankRotateScale or (math.pi / 160)
+local CAR_CRANK_SPEED_SCALE <const> = RC_ARENA_CONFIG.carCrankSpeedScale or 0.12
+local CAR_DEFAULT_MAX_SPEED <const> = RC_ARENA_CONFIG.carDefaultMaxSpeed or 7
+local CAR_PREVIEW_SPEED_MIN <const> = RC_ARENA_CONFIG.carPreviewSpeedMin or 1.8
+local CAR_PREVIEW_SPEED_VARIATION <const> = RC_ARENA_CONFIG.carPreviewSpeedVariation or 2.1
+local CAR_BUMP_RECOIL <const> = RC_ARENA_CONFIG.carBumpRecoil or 0.28
 local CAR_WRAP_MARGIN <const> = CAR_LENGTH
-local BLOCK_COUNT <const> = 6
-local BLOCK_SIZE <const> = 10
-local BLOCK_SLIDE_FRICTION <const> = 0.965
-local BLOCK_PUSH_IMPULSE <const> = 0.42
-local BLOCK_RESPAWN_FRAMES <const> = 12
-local HOCKEY_PUCK_COUNT <const> = 5
-local HOCKEY_NET_HALF_HEIGHT <const> = 28
+local BLOCK_COUNT <const> = RC_ARENA_CONFIG.blockCount or 6
+local BLOCK_SIZE <const> = RC_ARENA_CONFIG.blockSize or 10
+local BLOCK_SLIDE_FRICTION <const> = RC_ARENA_CONFIG.blockSlideFriction or 0.965
+local BLOCK_PUSH_IMPULSE <const> = RC_ARENA_CONFIG.blockPushImpulse or 0.42
+local BLOCK_RESPAWN_FRAMES <const> = RC_ARENA_CONFIG.blockRespawnFrames or 12
+local HOCKEY_PUCK_COUNT <const> = RC_ARENA_CONFIG.hockeyPuckCount or 5
+local HOCKEY_NET_HALF_HEIGHT <const> = RC_ARENA_CONFIG.hockeyNetHalfHeight or 28
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then

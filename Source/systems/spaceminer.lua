@@ -1,7 +1,10 @@
+import "gameconfig"
+
 import "CoreLibs/graphics"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local SPACE_MINER_CONFIG <const> = GameConfig and GameConfig.spaceMiner or {}
 
 SpaceMiner = {}
 SpaceMiner.__index = SpaceMiner
@@ -15,38 +18,38 @@ local SCREEN_WIDTH <const> = 400
 local SCREEN_HEIGHT <const> = 240
 local CENTER_X <const> = SCREEN_WIDTH * 0.5
 local CENTER_Y <const> = SCREEN_HEIGHT * 0.5
-local WORLD_WRAP_RADIUS <const> = 620
-local ASTEROID_SAFE_RADIUS <const> = 140
-local PLAYER_RADIUS <const> = 8
-local DECOR_WRAP_RADIUS <const> = 720
-local PLAYER_THRUST <const> = 0.08
-local PLAYER_REVERSE_THRUST <const> = 0.05
-local PLAYER_FULL_MODE_IDLE_DRAG <const> = 0.982
-local PLAYER_FULL_MODE_AUTO_STOP_SPEED <const> = 0.18
-local ENEMY_BASE_ACCELERATION <const> = 0.045
-local ENEMY_ESCAPER_ACCELERATION <const> = 0.055
-local ENEMY_STRIKER_ACCELERATION <const> = 0.072
-local PLAYER_MAX_SPEED <const> = 3.8
-local ENEMY_MAX_SPEED <const> = 3.2
-local LASER_RANGE <const> = 170
+local WORLD_WRAP_RADIUS <const> = SPACE_MINER_CONFIG.worldWrapRadius or 620
+local ASTEROID_SAFE_RADIUS <const> = SPACE_MINER_CONFIG.asteroidSafeRadius or 140
+local PLAYER_RADIUS <const> = SPACE_MINER_CONFIG.playerRadius or 8
+local DECOR_WRAP_RADIUS <const> = SPACE_MINER_CONFIG.decorWrapRadius or 720
+local PLAYER_THRUST <const> = SPACE_MINER_CONFIG.playerThrust or 0.08
+local PLAYER_REVERSE_THRUST <const> = SPACE_MINER_CONFIG.playerReverseThrust or 0.05
+local PLAYER_FULL_MODE_IDLE_DRAG <const> = SPACE_MINER_CONFIG.playerFullModeIdleDrag or 0.982
+local PLAYER_FULL_MODE_AUTO_STOP_SPEED <const> = SPACE_MINER_CONFIG.playerFullModeAutoStopSpeed or 0.18
+local ENEMY_BASE_ACCELERATION <const> = SPACE_MINER_CONFIG.enemyBaseAcceleration or 0.045
+local ENEMY_ESCAPER_ACCELERATION <const> = SPACE_MINER_CONFIG.enemyEscaperAcceleration or 0.055
+local ENEMY_STRIKER_ACCELERATION <const> = SPACE_MINER_CONFIG.enemyStrikerAcceleration or 0.072
+local PLAYER_MAX_SPEED <const> = SPACE_MINER_CONFIG.playerMaxSpeed or 3.8
+local ENEMY_MAX_SPEED <const> = SPACE_MINER_CONFIG.enemyMaxSpeed or 3.2
+local LASER_RANGE <const> = SPACE_MINER_CONFIG.laserRange or 170
 local LASER_WIDTH <const> = 4
-local LASER_DAMAGE <const> = 0.34
-local MISSILE_SPEED <const> = 4.4
-local MISSILE_DAMAGE <const> = 99
-local MISSILE_BLAST_RADIUS <const> = 34
-local MISSILE_LIFE_FRAMES <const> = 110
-local PLAYER_MISSILE_DRAW_RADIUS <const> = 5
-local PLAYER_MISSILE_DRAW_LENGTH <const> = 10
-local MAX_ACTIVE_ENTITIES <const> = 54
-local TARGET_ASTEROID_COUNT <const> = 24
-local PREVIEW_ASTEROID_COUNT <const> = 16
-local DECOR_ITEM_COUNT <const> = 120
-local SHIELD_HITS <const> = 2
-local HULL_HITS <const> = 2
-local SHIELD_FLASH_FRAMES <const> = 18
-local FIRST_MINING_STAGE_FRAMES <const> = 30 * 120
-local INTERMISSION_STAGE_FRAMES <const> = 30 * 120
-local STRIKER_MISSILE_COOLDOWN <const> = 70
+local LASER_DAMAGE <const> = SPACE_MINER_CONFIG.laserDamage or 0.34
+local MISSILE_SPEED <const> = SPACE_MINER_CONFIG.missileSpeed or 4.4
+local MISSILE_DAMAGE <const> = SPACE_MINER_CONFIG.missileDamage or 99
+local MISSILE_BLAST_RADIUS <const> = SPACE_MINER_CONFIG.missileBlastRadius or 34
+local MISSILE_LIFE_FRAMES <const> = SPACE_MINER_CONFIG.missileLifeFrames or 110
+local PLAYER_MISSILE_DRAW_RADIUS <const> = SPACE_MINER_CONFIG.playerMissileDrawRadius or 5
+local PLAYER_MISSILE_DRAW_LENGTH <const> = SPACE_MINER_CONFIG.playerMissileDrawLength or 10
+local MAX_ACTIVE_ENTITIES <const> = SPACE_MINER_CONFIG.maxActiveEntities or 54
+local TARGET_ASTEROID_COUNT <const> = SPACE_MINER_CONFIG.targetAsteroidCount or 24
+local PREVIEW_ASTEROID_COUNT <const> = SPACE_MINER_CONFIG.previewAsteroidCount or 16
+local DECOR_ITEM_COUNT <const> = SPACE_MINER_CONFIG.decorItemCount or 120
+local SHIELD_HITS <const> = SPACE_MINER_CONFIG.shieldHits or 2
+local HULL_HITS <const> = SPACE_MINER_CONFIG.hullHits or 2
+local SHIELD_FLASH_FRAMES <const> = SPACE_MINER_CONFIG.shieldFlashFrames or 18
+local FIRST_MINING_STAGE_FRAMES <const> = SPACE_MINER_CONFIG.firstMiningStageFrames or (30 * 120)
+local INTERMISSION_STAGE_FRAMES <const> = SPACE_MINER_CONFIG.intermissionStageFrames or (30 * 120)
+local STRIKER_MISSILE_COOLDOWN <const> = SPACE_MINER_CONFIG.strikerMissileCooldown or 70
 
 local ASTEROID_STAGE_CONFIG <const> = {
     [0] = { radius = 30, hp = 7, speed = 0.28, fragments = 2, score = 20 },
