@@ -750,18 +750,17 @@ function Starfield:drawWarpSpeed()
         end
     end
 
-    if #self.stars <= 180 then
-        self.debugFadeFrameCounter = self.debugFadeFrameCounter + 1
-        if self.debugFadeFrameCounter >= WARP_FADE_DEBUG_INTERVAL_FRAMES then
-            self.debugFadeFrameCounter = 0
-            StarryLog.forceDebug(
-                "warp fade debug speed=%.2f active=%d unexpected=%d spawnOnly=%s",
-                self.speed or 0,
-                activeFadeCount,
-                unexpectedFadeCount,
-                tostring(unexpectedFadeCount == 0)
-            )
-        end
+    self.debugFadeFrameCounter = self.debugFadeFrameCounter + 1
+    if self.debugFadeFrameCounter >= WARP_FADE_DEBUG_INTERVAL_FRAMES then
+        self.debugFadeFrameCounter = 0
+        StarryLog.forceDebug(
+            "warp fade debug stars=%d speed=%.2f active=%d unexpected=%d spawnOnly=%s",
+            #self.stars,
+            self.speed or 0,
+            activeFadeCount,
+            unexpectedFadeCount,
+            tostring(unexpectedFadeCount == 0)
+        )
     end
 end
 
