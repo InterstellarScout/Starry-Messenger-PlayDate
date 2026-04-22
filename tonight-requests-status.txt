@@ -198,3 +198,5 @@
 | Please make an image to pixel adapter that will map each gif’s image to the Playdate’s pixels. Convert proportionately the source gif’s size, shrink it to the play date’s size, then convert the shrink image to a bit map that will be stored in a new app called “gif player”. When loaded up, the user can make the choice of what gif to play. The crank is then used to move the gif forward and back, then b is used to go back. Allow A to invert the color of the pixels. | Done |
 | Restore Warp Speed's streak trail effect to the behavior from just before the trails were removed. | Done |
 | Fix Warp Speed star visibility on device, thicken its streak lines, and make Bouncy Balls start with one much larger ball. | Done |
+| Turn Warp Speed's A-button test menu into a settings menu with live speed/rotation readouts and a star-size slider. | Done |
+| Revert only Space Miner's gameplay layering to the earlier front-layer-over-gameplay arrangement. | Done |

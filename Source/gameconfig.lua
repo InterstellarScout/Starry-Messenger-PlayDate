@@ -29,7 +29,10 @@ GameConfig = GameConfig or {
         fadeDebugIntervalFrames = 45,
         trailDotMaxSteps = 5,
         taperHideSpeedStart = 1.2,
-        taperHideSpeedEnd = 3.2
+        taperHideSpeedEnd = 3.2,
+        starSizePercentMin = -80,
+        starSizePercentMax = 200,
+        starSizePercentStep = 10
     },
     starFall = {
         liveStarCount = 420,

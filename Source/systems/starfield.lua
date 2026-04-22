@@ -113,6 +113,9 @@ local WARP_FADE_DEBUG_INTERVAL_FRAMES <const> = WARP_CONFIG.fadeDebugIntervalFra
 local WARP_TRAIL_DOT_MAX_STEPS <const> = WARP_CONFIG.trailDotMaxSteps or 5
 local WARP_TAPER_HIDE_SPEED_START <const> = WARP_CONFIG.taperHideSpeedStart or 1.2
 local WARP_TAPER_HIDE_SPEED_END <const> = WARP_CONFIG.taperHideSpeedEnd or 3.2
+local WARP_STAR_SIZE_PERCENT_MIN <const> = WARP_CONFIG.starSizePercentMin or -80
+local WARP_STAR_SIZE_PERCENT_MAX <const> = WARP_CONFIG.starSizePercentMax or 200
+local WARP_STAR_SIZE_PERCENT_STEP <const> = WARP_CONFIG.starSizePercentStep or 10
 
 local function randomLargeStarDelayFrames()
     return math.random(STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES, STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES)
@@ -194,6 +197,7 @@ function Starfield.newWarpSpeed(width, height, count, options)
     self.lastSpeed = self.speed
     self.stars = {}
     self.debugFadeFrameCounter = 0
+    self.starSizePercent = options and options.starSizePercent or 0
 
     for i = 1, count do
         self.stars[i] = {
@@ -253,10 +257,46 @@ function Starfield:toggleWarpStyle(optionId)
     self:setWarpStyleEnabled(optionId, not self:isWarpStyleEnabled(optionId))
 end
 
+function Starfield:getWarpStarSizePercent()
+    return self.starSizePercent or 0
+end
+
+function Starfield:getWarpDisplayedSize(baseSize)
+    local scale = 1 + ((self:getWarpStarSizePercent()) / 100)
+    return math.max(1, math.floor((baseSize * scale) + 0.5))
+end
+
+function Starfield:refreshWarpStarSizes()
+    if self.kind ~= "warp" then
+        return
+    end
+
+    for _, star in ipairs(self.stars) do
+        local baseSize = star.baseSize or star.size or 1
+        star.baseSize = baseSize
+        star.size = self:getWarpDisplayedSize(baseSize)
+    end
+end
+
+function Starfield:stepWarpStarSizePercent(direction)
+    if self.kind ~= "warp" or direction == 0 then
+        return
+    end
+
+    self.starSizePercent = clamp(
+        (self.starSizePercent or 0) + (direction * WARP_STAR_SIZE_PERCENT_STEP),
+        WARP_STAR_SIZE_PERCENT_MIN,
+        WARP_STAR_SIZE_PERCENT_MAX
+    )
+    self:refreshWarpStarSizes()
+    StarryLog.info("warp star size percent changed: %d", self.starSizePercent)
+end
+
 function Starfield:assignWarpStarVisuals(star)
     star.speed = 0.25 + (math.random() * 1.15)
     local normalizedSpeed = clamp((star.speed - 0.25) / 1.15, 0, 1)
-    star.size = 1 + math.floor(normalizedSpeed * 3.2)
+    star.baseSize = 1 + math.floor(normalizedSpeed * 3.2)
+    star.size = self:getWarpDisplayedSize(star.baseSize)
 end
 
 function Starfield:stepSpeed(direction)

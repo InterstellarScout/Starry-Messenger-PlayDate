@@ -15,6 +15,8 @@ local WARP_MENU_X <const> = 218
 local WARP_MENU_Y <const> = 10
 local WARP_MENU_WIDTH <const> = 172
 local WARP_MENU_ROW_HEIGHT <const> = 20
+local WARP_STATUS_X <const> = 10
+local WARP_STATUS_Y <const> = 10
 local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
 local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
 local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
@@ -125,30 +127,49 @@ function ViewScene:getWarpMenuItems()
         {
             id = "spinControl",
             label = "Persistent Spin",
-            checked = self.crankMode == "spin"
+            checked = self.crankMode == "spin",
+            kind = "toggle"
+        },
+        {
+            id = "starSize",
+            label = "Star Size",
+            value = self.effect and self.effect.getWarpStarSizePercent and self.effect:getWarpStarSizePercent() or 0,
+            minValue = WARP_CONFIG.starSizePercentMin or -80,
+            maxValue = WARP_CONFIG.starSizePercentMax or 200,
+            kind = "slider"
         },
         {
             id = "trailDots",
             label = "Trailing Stars",
-            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("trailDots")
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("trailDots"),
+            kind = "toggle"
         },
         {
             id = "triangleTaper",
             label = "Triangle Taper",
-            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("triangleTaper")
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("triangleTaper"),
+            kind = "toggle"
         },
         {
             id = "starFallStyle",
             label = "Star Fall Style",
-            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("starFallStyle")
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("starFallStyle"),
+            kind = "toggle"
         }
     }
 end
 
-function ViewScene:toggleWarpMenuSelection()
+function ViewScene:toggleWarpMenuSelection(direction)
     local items = self:getWarpMenuItems()
     local item = items[self.warpMenuIndex]
     if item == nil then
+        return
+    end
+
+    if item.kind == "slider" then
+        if direction ~= nil and direction ~= 0 and self.effect and self.effect.stepWarpStarSizePercent then
+            self.effect:stepWarpStarSizePercent(direction)
+        end
         return
     end
 
@@ -182,9 +203,51 @@ function ViewScene:updateWarpMenu()
         end
     end
 
-    if pd.buttonJustPressed(pd.kButtonLeft) or pd.buttonJustPressed(pd.kButtonRight) or pd.buttonJustPressed(pd.kButtonA) then
-        self:toggleWarpMenuSelection()
+    local selectedItem = items[self.warpMenuIndex]
+    if selectedItem and selectedItem.kind == "slider" then
+        if pd.buttonJustPressed(pd.kButtonLeft) then
+            self:toggleWarpMenuSelection(-1)
+        elseif pd.buttonJustPressed(pd.kButtonRight) then
+            self:toggleWarpMenuSelection(1)
+        elseif pd.buttonJustPressed(pd.kButtonA) then
+            self:toggleWarpMenuSelection(1)
+        end
+    elseif pd.buttonJustPressed(pd.kButtonLeft) or pd.buttonJustPressed(pd.kButtonRight) or pd.buttonJustPressed(pd.kButtonA) then
+        self:toggleWarpMenuSelection(0)
     end
+end
+
+function ViewScene:drawWarpMenuStatus()
+    local gfx <const> = pd.graphics
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawText(string.format("Star Speed %.1f", self.effect and self.effect.speed or 0), WARP_STATUS_X, WARP_STATUS_Y)
+    gfx.drawText(string.format("Rotation %.2f", self.rotateVelocity or 0), WARP_STATUS_X, WARP_STATUS_Y + 16)
+end
+
+function ViewScene:drawWarpMenuSlider(item, x, y, width, selected)
+    local gfx <const> = pd.graphics
+    local percent = item.value or 0
+    local minValue = item.minValue or -80
+    local maxValue = item.maxValue or 200
+    local lineY = y + 12
+    local lineStartX = x + 86
+    local lineEndX = x + width - 22
+    local ratio = 0.5
+
+    if maxValue > minValue then
+        ratio = (percent - minValue) / (maxValue - minValue)
+    end
+
+    ratio = math.max(0, math.min(1, ratio))
+    local dotX = math.floor(lineStartX + ((lineEndX - lineStartX) * ratio) + 0.5)
+    gfx.drawText(item.label, x, y)
+    gfx.drawLine(lineStartX, lineY, lineEndX, lineY)
+    if selected then
+        gfx.fillCircleAtPoint(dotX, lineY, 3)
+    else
+        gfx.drawCircleAtPoint(dotX, lineY, 3)
+    end
+    gfx.drawText(string.format("%+d%%", percent), x + width - 54, y)
 end
 
 function ViewScene:drawWarpMenu()
@@ -202,7 +265,8 @@ function ViewScene:drawWarpMenu()
     gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
     gfx.setColor(gfx.kColorWhite)
     gfx.drawRoundRect(WARP_MENU_X, WARP_MENU_Y, WARP_MENU_WIDTH, height, 8)
-    gfx.drawText("Warp Test Menu", WARP_MENU_X + 10, WARP_MENU_Y + 6)
+    self:drawWarpMenuStatus()
+    gfx.drawText("Warp Settings", WARP_MENU_X + 10, WARP_MENU_Y + 6)
 
     for index, item in ipairs(items) do
         local rowY = WARP_MENU_Y + 24 + ((index - 1) * WARP_MENU_ROW_HEIGHT)
@@ -215,8 +279,12 @@ function ViewScene:drawWarpMenu()
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
         end
 
-        local marker = item.checked and "[x]" or "[ ]"
-        gfx.drawText(marker .. " " .. item.label, WARP_MENU_X + 12, rowY + 2)
+        if item.kind == "slider" then
+            self:drawWarpMenuSlider(item, WARP_MENU_X + 12, rowY + 2, WARP_MENU_WIDTH - 24, index == self.warpMenuIndex)
+        else
+            local marker = item.checked and "[x]" or "[ ]"
+            gfx.drawText(marker .. " " .. item.label, WARP_MENU_X + 12, rowY + 2)
+        end
     end
 
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
