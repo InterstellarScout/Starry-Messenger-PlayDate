@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Opening splash scene.
 
@@ -10,10 +12,11 @@ local pd <const> = playdate
 local gfx <const> = pd.graphics
 
 local PREWARM_BUDGET_MS <const> = 4
+local SPLASH_CONFIG <const> = GameConfig and GameConfig.splash or {}
 
 local function drawMutedTitleOverlay()
     gfx.setColor(gfx.kColorBlack)
-    gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
+    gfx.setDitherPattern(SPLASH_CONFIG.overlayDither or 0.5, gfx.image.kDitherTypeBayer8x8)
     gfx.fillRect(0, 0, 400, 240)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 end
@@ -25,8 +28,8 @@ function SplashScene.new(config)
     local self = setmetatable({}, SplashScene)
     StarryLog.info("SplashScene.new start")
     self.onContinue = config.onContinue
-    self.preview = Starfield.newWarpSpeed(400, 240, 320)
-    self.preview.speed = 1
+    self.preview = Starfield.newWarpSpeed(400, 240, GameConfig.warp.previewStarCount or 320)
+    self.preview.speed = SPLASH_CONFIG.warpPreviewSpeed or 1
     for _, star in ipairs(self.preview.stars) do
         star.size = star.size * 2
         if star.px ~= nil and star.py ~= nil then

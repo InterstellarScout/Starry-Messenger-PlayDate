@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Title carousel scene.
 
@@ -16,6 +18,7 @@ local PREVIEW_RESUME_DELAY_FRAMES <const> = 15
 local TITLE_FIREWORK_MIN_DELAY_FRAMES <const> = 30
 local TITLE_FIREWORK_MAX_DELAY_FRAMES <const> = 120
 local TITLE_FIREWORK_GRAVITY <const> = 0.07
+local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 local function roundNearest(value)
     if value >= 0 then
@@ -34,9 +37,9 @@ local function stepPreviewGarbageCollector()
     end)
 end
 
-local function drawMutedTitleOverlay()
+local function drawMutedTitleOverlay(ditherAmount)
     gfx.setColor(gfx.kColorBlack)
-    gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
+    gfx.setDitherPattern(ditherAmount or 0.5, gfx.image.kDitherTypeBayer8x8)
     gfx.fillRect(0, 0, 400, 240)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 end
@@ -52,7 +55,7 @@ local function getDefaultSelectedIndex(viewItems)
 end
 
 local function makeWarpPreview(speed)
-    local preview = Starfield.newWarpSpeed(400, 240, 320)
+    local preview = Starfield.newWarpSpeed(400, 240, GameConfig.warp.previewStarCount or 320)
     preview.speed = speed or 1
     return preview
 end
@@ -337,7 +340,7 @@ function TitleScene:setPreview(forceFresh)
                 modeId = selectedView.modeId
             })
         elseif selectedView.id == "multiplayer" then
-            return makeWarpPreview(2)
+            return makeWarpPreview(TITLE_CONFIG.multiplayerPreviewSpeed or 2)
         elseif selectedView.id == "life" then
             return GameOfLife.new(400, 240, 6, 0.3, {
                 modeId = selectedView.modeId,
@@ -398,10 +401,10 @@ function TitleScene:setPreview(forceFresh)
             })
         end
 
-        local preview = Starfield.newWarpSpeed(400, 240, 320, {
+        local preview = Starfield.newWarpSpeed(400, 240, GameConfig.warp.previewStarCount or 320, {
             modeId = selectedView.modeId
         })
-        preview.speed = 1
+        preview.speed = TITLE_CONFIG.warpPreviewSpeed or 1
         return preview
     end)
 
@@ -709,12 +712,16 @@ end
 
 function TitleScene:drawMenu()
     gfx.setFont(self.smallFont)
-    drawMutedTitleOverlay()
+    local selectedView = self:getSelectedView()
+    local overlayDither = TITLE_CONFIG.overlayDither or 0.5
+    if selectedView and selectedView.id == "gifplayer" then
+        overlayDither = TITLE_CONFIG.gifPlayerOverlayDither or overlayDither
+    end
+    drawMutedTitleOverlay(overlayDither)
     gfx.setImageDrawMode(self:getTextDrawMode())
     gfx.drawTextAligned(self.headerTitle, 200, 20, kTextAlignment.center)
     gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
 
-    local selectedView = self:getSelectedView()
     local hasModes = selectedView and selectedView.modes ~= nil
     local centerY = 146
     local spacing = 56

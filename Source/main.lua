@@ -8,6 +8,7 @@ Purpose:
 ]]
 import "CoreLibs/graphics"
 import "CoreLibs/sprites"
+import "gameconfig"
 import "systems/log"
 import "systems/starfield"
 import "systems/gameoflife"

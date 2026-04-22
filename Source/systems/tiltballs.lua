@@ -1,3 +1,5 @@
+import "gameconfig"
+
 --[[
 Tilt-driven bouncy ball playground.
 
@@ -8,21 +10,22 @@ Purpose:
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local TILT_BALLS_CONFIG <const> = GameConfig and GameConfig.tiltBalls or {}
 
 TiltBalls = {}
 TiltBalls.__index = TiltBalls
 
 local SCREEN_PADDING <const> = 4
-local MIN_RADIUS <const> = 7
-local MAX_RADIUS <const> = 16
-local MAX_BALLS <const> = 18
-local GRAVITY_STRENGTH <const> = 0.55
-local WALL_BOUNCE <const> = 0.84
-local BALL_BOUNCE <const> = 0.92
-local MIN_SLOWDOWN <const> = 0.90
-local MAX_SLOWDOWN <const> = 0.995
-local CRANK_SLOWDOWN_STEP <const> = 0.0025
-local PREVIEW_SPAWN_COUNT <const> = 4
+local MIN_RADIUS <const> = TILT_BALLS_CONFIG.minRadius or 7
+local MAX_RADIUS <const> = TILT_BALLS_CONFIG.maxRadius or 16
+local MAX_BALLS <const> = TILT_BALLS_CONFIG.maxBalls or 18
+local GRAVITY_STRENGTH <const> = TILT_BALLS_CONFIG.gravityStrength or 0.55
+local WALL_BOUNCE <const> = TILT_BALLS_CONFIG.wallBounce or 0.84
+local BALL_BOUNCE <const> = TILT_BALLS_CONFIG.ballBounce or 0.92
+local MIN_SLOWDOWN <const> = TILT_BALLS_CONFIG.minSlowdown or 0.90
+local MAX_SLOWDOWN <const> = TILT_BALLS_CONFIG.maxSlowdown or 0.995
+local CRANK_SLOWDOWN_STEP <const> = TILT_BALLS_CONFIG.crankSlowdownStep or 0.0025
+local PREVIEW_SPAWN_COUNT <const> = TILT_BALLS_CONFIG.previewSpawnCount or 4
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -58,7 +61,7 @@ function TiltBalls.new(width, height, options)
     self.preview = options.preview == true
     self.balls = {}
     self.frame = 0
-    self.slowdown = options.slowdown or 0.972
+    self.slowdown = options.slowdown or TILT_BALLS_CONFIG.defaultSlowdown or 0.972
     self.previewAngle = 0
     self.previewPulse = 0
 
