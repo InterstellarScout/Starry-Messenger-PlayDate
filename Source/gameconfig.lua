@@ -6,6 +6,7 @@ GameConfig = GameConfig or {
         multiplayerPreviewSpeed = 2.0,
         freeSpinTriggerDegrees = 3600,
         freeSpinWindowFrames = 219,
+        freeSpinImmediateChange = 56,
         freeSpinAccelerationScale = 0.0042,
         freeSpinDecay = 0.94,
         freeSpinStopVelocity = 0.018

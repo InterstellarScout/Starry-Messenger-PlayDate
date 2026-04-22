@@ -25,6 +25,7 @@
 | Fold Duck Game and Orbital Defense into the root config manager and share core multiplayer player-count helpers across games to avoid duplicate multiplayer setup logic. | Done |
 | Restore Duck Game's in-game A-button turn-mode toggle and fix title-menu fireworks so they launch onscreen instead of generating offscreen. | Done |
 | When the title crank is spun rapidly enough, suspend preview generation and let the title spin freely until it slows, then restore the selected preview. | Done |
+| Make fast title spinning dump previews immediately so free-spin starts without waiting through view loading. | Done |
 
 ##### In Falling Stars
 | Request | Status |

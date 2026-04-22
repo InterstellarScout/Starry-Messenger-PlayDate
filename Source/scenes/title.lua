@@ -21,6 +21,7 @@ local TITLE_FIREWORK_GRAVITY <const> = 0.07
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 local TITLE_FREE_SPIN_TRIGGER_DEGREES <const> = TITLE_CONFIG.freeSpinTriggerDegrees or 3600
 local TITLE_FREE_SPIN_WINDOW_FRAMES <const> = TITLE_CONFIG.freeSpinWindowFrames or 219
+local TITLE_FREE_SPIN_IMMEDIATE_CHANGE <const> = TITLE_CONFIG.freeSpinImmediateChange or 56
 local TITLE_FREE_SPIN_ACCELERATION_SCALE <const> = TITLE_CONFIG.freeSpinAccelerationScale or 0.0042
 local TITLE_FREE_SPIN_DECAY <const> = TITLE_CONFIG.freeSpinDecay or 0.94
 local TITLE_FREE_SPIN_STOP_VELOCITY <const> = TITLE_CONFIG.freeSpinStopVelocity or 0.018
@@ -619,6 +620,13 @@ function TitleScene:recordCrankBurst(acceleratedChange)
 end
 
 function TitleScene:activateFreeSpin(acceleratedChange)
+    if self.preview and self.preview.shutdown then
+        self.preview:shutdown()
+    end
+    self.preview = nil
+    self.pendingPreviewRequest = nil
+    self.previewLoading = false
+    stepPreviewGarbageCollector()
     self.freeSpinActive = true
     self.freeSpinVelocity = self.freeSpinVelocity + ((acceleratedChange or 0) * TITLE_FREE_SPIN_ACCELERATION_SCALE)
     self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
@@ -631,7 +639,7 @@ function TitleScene:finishFreeSpin()
     self.freeSpinVelocity = 0
     self:updateSelectedIndexFromDisplayPosition()
     self:syncModeDisplayPosition(true)
-    if not self:shouldPersistLockedPreview(self:getSelectedView()) then
+    if self.preview == nil or not self:shouldPersistLockedPreview(self:getSelectedView()) then
         self:setPreview()
     end
     StarryLog.info("title free spin settled index=%d label=%s", self.selected, self.viewItems[self.selected].label)
@@ -680,7 +688,8 @@ function TitleScene:updateCrank(acceleratedChange)
         self.previewPauseFrames = self.previewPauseFrames - 1
     end
 
-    if self.crankBurstDegrees >= TITLE_FREE_SPIN_TRIGGER_DEGREES then
+    if math.abs(acceleratedChange or 0) >= TITLE_FREE_SPIN_IMMEDIATE_CHANGE
+        or self.crankBurstDegrees >= TITLE_FREE_SPIN_TRIGGER_DEGREES then
         self:activateFreeSpin(acceleratedChange)
         return
     end
@@ -861,7 +870,7 @@ function TitleScene:update()
     self:updateCrank(acceleratedChange)
     self:updateDisplayPosition()
     self:updateModeDisplayPosition()
-    if not self.freeSpinActive then
+    if not self.freeSpinActive and self.preview ~= nil then
         self:updateTitleFireworks()
         local ok, previewError = pcall(function()
             if self.previewPauseFrames <= 0 then
@@ -913,7 +922,9 @@ function TitleScene:update()
         self:drawTitleFireworks()
     end
     self:drawMenu()
-    self:processPendingPreview()
+    if not self.freeSpinActive then
+        self:processPendingPreview()
+    end
 end
 
 function TitleScene:activate()
