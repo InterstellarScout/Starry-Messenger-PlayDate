@@ -9,6 +9,10 @@ Purpose:
 local pd <const> = playdate
 local FIREWORK_HOLD_REPEAT_FRAMES <const> = 5
 local LIFE_CRANK_RELEASE_ANGLE_TOLERANCE <const> = 3
+local WARP_MENU_X <const> = 218
+local WARP_MENU_Y <const> = 10
+local WARP_MENU_WIDTH <const> = 172
+local WARP_MENU_ROW_HEIGHT <const> = 20
 
 ViewScene = {}
 ViewScene.__index = ViewScene
@@ -34,6 +38,8 @@ function ViewScene.new(config)
     self.lifeScrubResumeDelay = 30
     self.lifeScrubIdleFrames = self.lifeScrubResumeDelay
     self.fireworkHoldFrames = 0
+    self.warpMenuOpen = false
+    self.warpMenuIndex = 1
 
     if config.effect then
         self.effect = config.effect
@@ -104,6 +110,108 @@ end
 
 function ViewScene:usesPersistentSpinControl()
     return self.viewId == "warp" or self.viewId == "fall"
+end
+
+function ViewScene:getWarpMenuItems()
+    return {
+        {
+            id = "spinControl",
+            label = "Persistent Spin",
+            checked = self.crankMode == "spin"
+        },
+        {
+            id = "trailDots",
+            label = "Trailing Stars",
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("trailDots")
+        },
+        {
+            id = "triangleTaper",
+            label = "Triangle Taper",
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("triangleTaper")
+        },
+        {
+            id = "starFallStyle",
+            label = "Star Fall Style",
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("starFallStyle")
+        }
+    }
+end
+
+function ViewScene:toggleWarpMenuSelection()
+    local items = self:getWarpMenuItems()
+    local item = items[self.warpMenuIndex]
+    if item == nil then
+        return
+    end
+
+    if item.id == "spinControl" then
+        self.crankMode = self.crankMode == "speed" and "spin" or "speed"
+        self.crankAccumulator = 0
+        self.rotationAccumulator = 0
+        StarryLog.info("crank mode changed: %s", self.crankMode)
+        return
+    end
+
+    if self.effect and self.effect.toggleWarpStyle then
+        self.effect:toggleWarpStyle(item.id)
+        StarryLog.info("warp test option changed: %s=%s", item.id, tostring(self.effect:isWarpStyleEnabled(item.id)))
+    end
+end
+
+function ViewScene:updateWarpMenu()
+    local items = self:getWarpMenuItems()
+    local itemCount = #items
+
+    if pd.buttonJustPressed(pd.kButtonUp) then
+        self.warpMenuIndex = self.warpMenuIndex - 1
+        if self.warpMenuIndex < 1 then
+            self.warpMenuIndex = itemCount
+        end
+    elseif pd.buttonJustPressed(pd.kButtonDown) then
+        self.warpMenuIndex = self.warpMenuIndex + 1
+        if self.warpMenuIndex > itemCount then
+            self.warpMenuIndex = 1
+        end
+    end
+
+    if pd.buttonJustPressed(pd.kButtonLeft) or pd.buttonJustPressed(pd.kButtonRight) or pd.buttonJustPressed(pd.kButtonA) then
+        self:toggleWarpMenuSelection()
+    end
+end
+
+function ViewScene:drawWarpMenu()
+    if not self.warpMenuOpen or self.viewId ~= "warp" then
+        return
+    end
+
+    local gfx <const> = pd.graphics
+    local items = self:getWarpMenuItems()
+    local height = 22 + (#items * WARP_MENU_ROW_HEIGHT) + 8
+
+    gfx.setColor(gfx.kColorWhite)
+    gfx.setDitherPattern(0.15, gfx.image.kDitherTypeBayer8x8)
+    gfx.fillRoundRect(WARP_MENU_X, WARP_MENU_Y, WARP_MENU_WIDTH, height, 8)
+    gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawRoundRect(WARP_MENU_X, WARP_MENU_Y, WARP_MENU_WIDTH, height, 8)
+    gfx.drawText("Warp Test Menu", WARP_MENU_X + 10, WARP_MENU_Y + 6)
+
+    for index, item in ipairs(items) do
+        local rowY = WARP_MENU_Y + 24 + ((index - 1) * WARP_MENU_ROW_HEIGHT)
+        if index == self.warpMenuIndex then
+            gfx.setColor(gfx.kColorBlack)
+            gfx.fillRect(WARP_MENU_X + 6, rowY - 1, WARP_MENU_WIDTH - 12, WARP_MENU_ROW_HEIGHT - 2)
+            gfx.setColor(gfx.kColorWhite)
+            gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+        else
+            gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        end
+
+        local marker = item.checked and "[x]" or "[ ]"
+        gfx.drawText(marker .. " " .. item.label, WARP_MENU_X + 12, rowY + 2)
+    end
+
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
 function ViewScene:applySpeedStep(direction)
@@ -226,6 +334,10 @@ end
 
 function ViewScene:update()
     if pd.buttonJustPressed(pd.kButtonB) then
+        if self.warpMenuOpen then
+            self.warpMenuOpen = false
+            return
+        end
         if self:isLifeReviewMode() and self.effect:handleReviewBack() then
             return
         end
@@ -245,7 +357,18 @@ function ViewScene:update()
 
     local change, acceleratedChange = pd.getCrankChange()
 
-    if pd.buttonJustPressed(pd.kButtonA) then
+    if self.viewId == "warp" and pd.buttonJustPressed(pd.kButtonA) then
+        if self.warpMenuOpen then
+            self:toggleWarpMenuSelection()
+        else
+            self.warpMenuOpen = true
+        end
+        self.effect:update()
+        self.effect:draw()
+        self:drawWarpMenu()
+        ControlHelp.drawOverlay(self.viewId, self.modeId)
+        return
+    elseif pd.buttonJustPressed(pd.kButtonA) then
         if self.viewId == "life" then
             if self:isLifeReviewMode() then
                 self.effect:handleReviewPrimaryAction()
@@ -274,6 +397,15 @@ function ViewScene:update()
             self.rotationAccumulator = 0
             StarryLog.info("crank mode changed: %s", self.crankMode)
         end
+    end
+
+    if self.warpMenuOpen then
+        self:updateWarpMenu()
+        self.effect:update()
+        self.effect:draw()
+        self:drawWarpMenu()
+        ControlHelp.drawOverlay(self.viewId, self.modeId)
+        return
     end
 
     if self.viewId == "fireworks" then
@@ -444,6 +576,7 @@ function ViewScene:update()
         self.effect:update()
     end
     self.effect:draw()
+    self:drawWarpMenu()
     ControlHelp.drawOverlay(self.viewId, self.modeId)
 end
 

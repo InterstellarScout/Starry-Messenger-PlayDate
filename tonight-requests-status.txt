@@ -12,6 +12,8 @@
 | In Warp Speed, remove the visible streak lines behind outward-moving stars around the default speed. | Done |
 | Add targeted Warp fade diagnostics so on-device logs can confirm whether any post-spawn fade is still happening. | Done |
 | Expand Warp fade diagnostics so they also log for 320-star splash/title previews in simulator. | Done |
+| Add a Warp Speed A-button test menu with toggles for trailing stars, triangular taper, and Star Fall-style star rendering. | Done |
+| Remove the apparent second Warp fade after spawn fade-in so stars no longer look like they fade again later in flight. | Done |
 
 ##### In Falling Stars
 | Request | Status |

@@ -100,13 +100,15 @@ local WARP_VISIBLE_RADIUS <const> = 234
 local WARP_OFFSCREEN_RADIUS <const> = WARP_VISIBLE_RADIUS + 40
 local WARP_OFFSCREEN_RADIUS_SQUARED <const> = WARP_OFFSCREEN_RADIUS * WARP_OFFSCREEN_RADIUS
 local WARP_CENTER_DESPAWN_RADIUS <const> = 10
-local WARP_CENTER_FADE_MARGIN <const> = 18
 local WARP_SPAWN_FADE_IN_FRAMES <const> = 8
 local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = 2
 local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = 5
 local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = 0.08
 local WARP_INWARD_DESPAWN_GROWTH_MAX <const> = 0.22
 local WARP_FADE_DEBUG_INTERVAL_FRAMES <const> = 45
+local WARP_TRAIL_DOT_MAX_STEPS <const> = 5
+local WARP_TAPER_HIDE_SPEED_START <const> = 1.2
+local WARP_TAPER_HIDE_SPEED_END <const> = 3.2
 
 local function randomLargeStarDelayFrames()
     return math.random(STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES, STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES)
@@ -129,6 +131,9 @@ end
 local function applyOptions(self, options)
     self.modeId = options and options.modeId or Starfield.MODE_STANDARD
     self.inverse = self.modeId == Starfield.MODE_INVERSE
+    self.warpStyleStarTrail = options and options.warpStyleStarTrail == true or false
+    self.warpStyleTaper = options and options.warpStyleTaper == true or false
+    self.warpStyleStarFall = options and options.warpStyleStarFall == true or false
 end
 
 function Starfield.newStarFall(width, height, count, options)
@@ -216,6 +221,32 @@ function Starfield:getForegroundColor()
         return gfx.kColorBlack
     end
     return gfx.kColorWhite
+end
+
+function Starfield:isWarpStyleEnabled(optionId)
+    if optionId == "trailDots" then
+        return self.warpStyleStarTrail == true
+    elseif optionId == "triangleTaper" then
+        return self.warpStyleTaper == true
+    elseif optionId == "starFallStyle" then
+        return self.warpStyleStarFall == true
+    end
+    return false
+end
+
+function Starfield:setWarpStyleEnabled(optionId, enabled)
+    local value = enabled == true
+    if optionId == "trailDots" then
+        self.warpStyleStarTrail = value
+    elseif optionId == "triangleTaper" then
+        self.warpStyleTaper = value
+    elseif optionId == "starFallStyle" then
+        self.warpStyleStarFall = value
+    end
+end
+
+function Starfield:toggleWarpStyle(optionId)
+    self:setWarpStyleEnabled(optionId, not self:isWarpStyleEnabled(optionId))
 end
 
 function Starfield:assignWarpStarVisuals(star)
@@ -560,6 +591,113 @@ function Starfield:getWarpStarFade(star)
     return 1
 end
 
+function Starfield:drawMotionStarShape(x1, y1, x2, y2, size)
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local absDx = math.abs(dx)
+    local absDy = math.abs(dy)
+    local lengthApprox = absDx + absDy
+    local isHorizontal = absDx >= absDy
+
+    if lengthApprox <= size then
+        gfx.fillRect(x2 - math.floor(size / 2), y2 - math.floor(size / 2), size, size)
+    elseif size <= 1 then
+        gfx.drawLine(x1, y1, x2, y2)
+        gfx.fillRect(x2, y2, 1, 1)
+    elseif size == 2 then
+        if isHorizontal then
+            gfx.drawLine(x1, y1, x2, y2)
+            gfx.drawLine(x1, y1 + 1, x2, y2 + 1)
+        else
+            gfx.drawLine(x1, y1, x2, y2)
+            gfx.drawLine(x1 + 1, y1, x2 + 1, y2)
+        end
+        gfx.fillRect(x2 - 1, y2 - 1, 2, 2)
+    else
+        if isHorizontal then
+            gfx.drawLine(x1, y1 - 1, x2, y2 - 1)
+            gfx.drawLine(x1, y1, x2, y2)
+            gfx.drawLine(x1, y1 + 1, x2, y2 + 1)
+        else
+            gfx.drawLine(x1 - 1, y1, x2 - 1, y2)
+            gfx.drawLine(x1, y1, x2, y2)
+            gfx.drawLine(x1 + 1, y1, x2 + 1, y2)
+        end
+        gfx.fillRect(x2 - 1, y2 - 1, 3, 3)
+    end
+end
+
+function Starfield:drawWarpTrailDots(star, unitX, unitY, length)
+    if length <= 0.5 then
+        return
+    end
+
+    local speedFactor = clamp((math.abs(self.speed or 0) - 1) / 4, 0, 1)
+    if speedFactor <= 0 then
+        return
+    end
+
+    local steps = math.max(1, math.min(WARP_TRAIL_DOT_MAX_STEPS, math.floor((length / 4) + (speedFactor * 3))))
+    local stepDistance = math.max(2, (length / steps))
+
+    for i = 1, steps do
+        local trailScale = 1 - (i / (steps + 1))
+        local dotSize = math.max(1, math.floor((star.size * trailScale) + 0.5))
+        local trailDistance = stepDistance * i
+        local x = star.sx2 - (unitX * trailDistance)
+        local y = star.sy2 - (unitY * trailDistance)
+        gfx.fillRect(
+            math.floor(x - (dotSize / 2)),
+            math.floor(y - (dotSize / 2)),
+            dotSize,
+            dotSize
+        )
+    end
+end
+
+function Starfield:drawWarpTriangleTaper(star, unitX, unitY, length)
+    if length <= 0.5 then
+        return
+    end
+
+    local absSpeed = math.abs(self.speed or 0)
+    local visibility = 1
+    if absSpeed > WARP_TAPER_HIDE_SPEED_START then
+        visibility = 1 - ((absSpeed - WARP_TAPER_HIDE_SPEED_START) / (WARP_TAPER_HIDE_SPEED_END - WARP_TAPER_HIDE_SPEED_START))
+    end
+    visibility = clamp(visibility, 0, 1)
+    if visibility <= 0 then
+        return
+    end
+
+    local taperLength = math.max(2, length * (0.55 + visibility))
+    local tailX = star.sx2 - (unitX * (taperLength + star.size))
+    local tailY = star.sy2 - (unitY * (taperLength + star.size))
+    local normalX = -unitY
+    local normalY = unitX
+    local baseHalfWidth = math.max(1, (star.size * 0.5) + (2 * visibility))
+    local leftX = star.sx2 + (normalX * baseHalfWidth)
+    local leftY = star.sy2 + (normalY * baseHalfWidth)
+    local rightX = star.sx2 - (normalX * baseHalfWidth)
+    local rightY = star.sy2 - (normalY * baseHalfWidth)
+
+    gfx.fillTriangle(leftX, leftY, rightX, rightY, tailX, tailY)
+end
+
+function Starfield:drawWarpHead(star)
+    if self.warpStyleStarFall then
+        self:drawMotionStarShape(star.sx1, star.sy1, star.sx2, star.sy2, star.size)
+        return
+    end
+
+    if self.warpStyleTaper then
+        gfx.fillCircleAtPoint(star.sx2, star.sy2, math.max(1, math.floor(star.size * 0.5)))
+        return
+    end
+
+    gfx.fillRect(star.sx2, star.sy2, star.size, star.size)
+end
+
 function Starfield:updateStarFall()
     local dx, dy = vectorFromAngle(self.directionAngle)
     local scale = self.speed * 1.3
@@ -641,39 +779,7 @@ function Starfield:drawStarFall()
         local y1 = self.playerCenterY + pyr
         local x2 = self.playerCenterX + xr
         local y2 = self.playerCenterY + yr
-        local dx = x2 - x1
-        local dy = y2 - y1
-        local absDx = math.abs(dx)
-        local absDy = math.abs(dy)
-        local lengthApprox = absDx + absDy
-        local isHorizontal = absDx >= absDy
-
-        if lengthApprox <= star.size then
-            gfx.fillRect(x2 - math.floor(star.size / 2), y2 - math.floor(star.size / 2), star.size, star.size)
-        elseif star.size <= 1 then
-            gfx.drawLine(x1, y1, x2, y2)
-            gfx.fillRect(x2, y2, 1, 1)
-        elseif star.size == 2 then
-            if isHorizontal then
-                gfx.drawLine(x1, y1, x2, y2)
-                gfx.drawLine(x1, y1 + 1, x2, y2 + 1)
-            else
-                gfx.drawLine(x1, y1, x2, y2)
-                gfx.drawLine(x1 + 1, y1, x2 + 1, y2)
-            end
-            gfx.fillRect(x2 - 1, y2 - 1, 2, 2)
-        else
-            if isHorizontal then
-                gfx.drawLine(x1, y1 - 1, x2, y2 - 1)
-                gfx.drawLine(x1, y1, x2, y2)
-                gfx.drawLine(x1, y1 + 1, x2, y2 + 1)
-            else
-                gfx.drawLine(x1 - 1, y1, x2 - 1, y2)
-                gfx.drawLine(x1, y1, x2, y2)
-                gfx.drawLine(x1 + 1, y1, x2 + 1, y2)
-            end
-            gfx.fillRect(x2 - 1, y2 - 1, 3, 3)
-        end
+        self:drawMotionStarShape(x1, y1, x2, y2, star.size)
     end
 end
 
@@ -727,6 +833,7 @@ end
 
 function Starfield:drawWarpSpeed()
     gfx.setColor(self:getForegroundColor())
+    gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
     local activeFadeCount = 0
     local unexpectedFadeCount = 0
     for _, star in ipairs(self.stars) do
@@ -741,14 +848,29 @@ function Starfield:drawWarpSpeed()
         end
         local dx = star.sx2 - star.sx1
         local dy = star.sy2 - star.sy1
-        if self.speed < 0 and ((dx * dx) + (dy * dy)) > 4 then
+        local lengthSquared = (dx * dx) + (dy * dy)
+        if self.speed < 0 and lengthSquared > 4 and not self.warpStyleStarFall then
             gfx.drawLine(star.sx1, star.sy1, star.sx2, star.sy2)
         end
-        gfx.fillRect(star.sx2, star.sy2, star.size, star.size)
+        if self.warpStyleStarTrail or self.warpStyleTaper then
+            local length = math.sqrt(lengthSquared)
+            if length > 0.01 then
+                local unitX = dx / length
+                local unitY = dy / length
+                if self.warpStyleStarTrail then
+                    self:drawWarpTrailDots(star, unitX, unitY, length)
+                end
+                if self.warpStyleTaper then
+                    self:drawWarpTriangleTaper(star, unitX, unitY, length)
+                end
+            end
+        end
+        self:drawWarpHead(star)
         if fade < 1 then
-            gfx.setColor(self:getForegroundColor())
+            gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
         end
     end
+    gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
 
     self.debugFadeFrameCounter = self.debugFadeFrameCounter + 1
     if self.debugFadeFrameCounter >= WARP_FADE_DEBUG_INTERVAL_FRAMES then

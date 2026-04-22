@@ -38,10 +38,10 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Crank: change star speed.",
             "D-pad: steer the starfield direction.",
             "Left/Right on the title wheel: switch between Warp Speed and Inverse Warp.",
-            "A: start. In game, toggle between speed control and spin control.",
+            "A: open the Warp test menu. Toggle persistent spin, trailing stars, triangle taper, and Star Fall style there.",
             "Spin control: the crank sets a persistent rotation speed that keeps going.",
             "Speed control: the crank changes star speed while spin keeps running.",
-            "B: return to title. Warp speed resets to 9 on exit."
+            "B: close the Warp test menu first, then return to title. Warp speed resets to 9 on exit."
         })
     elseif viewId == "fall" then
         return buildSpec("Star Fall Controls", {
