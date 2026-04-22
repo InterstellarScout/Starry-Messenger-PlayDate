@@ -11,10 +11,10 @@ local gfx <const> = pd.graphics
 
 local PREWARM_BUDGET_MS <const> = 4
 
-local function drawVisibilityBand(topY, height)
+local function drawMutedTitleOverlay()
     gfx.setColor(gfx.kColorBlack)
     gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
-    gfx.fillRect(0, topY, 400, height)
+    gfx.fillRect(0, 0, 400, 240)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 end
 
@@ -26,7 +26,7 @@ function SplashScene.new(config)
     StarryLog.info("SplashScene.new start")
     self.onContinue = config.onContinue
     self.preview = Starfield.newWarpSpeed(400, 240, 320)
-    self.preview.speed = 8
+    self.preview.speed = 1
     for _, star in ipairs(self.preview.stars) do
         star.size = star.size * 2
         if star.px ~= nil and star.py ~= nil then
@@ -75,7 +75,7 @@ function SplashScene:update()
         self.prewarmComplete = true
     end
 
-    drawVisibilityBand(0, 240)
+    drawMutedTitleOverlay()
 
     gfx.setFont(self.titleFont or self.smallFont)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)

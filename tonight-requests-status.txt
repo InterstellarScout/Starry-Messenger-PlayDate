@@ -14,6 +14,8 @@
 | Expand Warp fade diagnostics so they also log for 320-star splash/title previews in simulator. | Done |
 | Add a Warp Speed A-button test menu with toggles for trailing stars, triangular taper, and Star Fall-style star rendering. | Done |
 | Remove the apparent second Warp fade after spawn fade-in so stars no longer look like they fade again later in flight. | Done |
+| In Space Miner, remove the upper decorative layer that blacks out the ship and control plane. | Done |
+| Replace the title gray bars with a full-screen muted transparency overlay behind titles, and slow the splash/warp title preview to speed 1.0. | Done |
 
 ##### In Falling Stars
 | Request | Status |

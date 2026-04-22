@@ -4,12 +4,10 @@ Title carousel scene.
 Purpose:
 - displays the current game catalog over a live animated preview
 - handles view selection, per-view mode rotation, and preview handoff
-- draws the shared title banners and bottom instruction band
+- draws the shared title overlay and bottom instruction band
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
-local TITLE_BAND_TOP <const> = 127
-local TITLE_BAND_HEIGHT <const> = 52
 local TITLE_TEXT_MAX_WIDTH <const> = 360
 local TITLE_TEXT_MAX_HEIGHT <const> = 34
 local TITLE_CENTER_SCALE <const> = 1.5
@@ -36,10 +34,10 @@ local function stepPreviewGarbageCollector()
     end)
 end
 
-local function drawVisibilityBand(topY, height)
+local function drawMutedTitleOverlay()
     gfx.setColor(gfx.kColorBlack)
     gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
-    gfx.fillRect(0, topY, 400, height)
+    gfx.fillRect(0, 0, 400, 240)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 end
 
@@ -707,17 +705,16 @@ end
 
 function TitleScene:drawMenu()
     gfx.setFont(self.smallFont)
+    drawMutedTitleOverlay()
     gfx.setImageDrawMode(self:getTextDrawMode())
     gfx.drawTextAligned(self.headerTitle, 200, 20, kTextAlignment.center)
     gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
 
     local selectedView = self:getSelectedView()
     local hasModes = selectedView and selectedView.modes ~= nil
-    local centerY = TITLE_BAND_TOP + math.floor(TITLE_BAND_HEIGHT * 0.5) - 1
+    local centerY = 146
     local spacing = 56
     local visibilityRange = 1.35
-
-    drawVisibilityBand(TITLE_BAND_TOP, TITLE_BAND_HEIGHT)
 
     for index, item in ipairs(self.viewItems) do
         local offset = self:getWrappedOffset(index)
