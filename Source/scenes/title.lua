@@ -19,6 +19,11 @@ local TITLE_FIREWORK_MIN_DELAY_FRAMES <const> = 30
 local TITLE_FIREWORK_MAX_DELAY_FRAMES <const> = 120
 local TITLE_FIREWORK_GRAVITY <const> = 0.07
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
+local TITLE_FREE_SPIN_TRIGGER_DEGREES <const> = TITLE_CONFIG.freeSpinTriggerDegrees or 3600
+local TITLE_FREE_SPIN_WINDOW_FRAMES <const> = TITLE_CONFIG.freeSpinWindowFrames or 219
+local TITLE_FREE_SPIN_ACCELERATION_SCALE <const> = TITLE_CONFIG.freeSpinAccelerationScale or 0.0042
+local TITLE_FREE_SPIN_DECAY <const> = TITLE_CONFIG.freeSpinDecay or 0.94
+local TITLE_FREE_SPIN_STOP_VELOCITY <const> = TITLE_CONFIG.freeSpinStopVelocity or 0.018
 local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
 local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
 local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
@@ -99,6 +104,11 @@ function TitleScene.new(config)
     self.textImageCache = {}
     self.titleFireworkBursts = {}
     self.titleFireworkTimer = randomTitleFireworkDelay()
+    self.frame = 0
+    self.freeSpinActive = false
+    self.freeSpinVelocity = 0
+    self.crankBurstSamples = {}
+    self.crankBurstDegrees = 0
     if not self.preview then
         self:setPreview()
     end
@@ -138,6 +148,18 @@ end
 
 function TitleScene:usesInvertedText()
     return false
+end
+
+function TitleScene:updateSelectedIndexFromDisplayPosition()
+    local count = #self.viewItems
+    local roundedIndex = roundNearest(self.displayPosition)
+    while roundedIndex < 1 do
+        roundedIndex = roundedIndex + count
+    end
+    while roundedIndex > count do
+        roundedIndex = roundedIndex - count
+    end
+    self.selected = roundedIndex
 end
 
 function TitleScene:getTextColor()
@@ -578,11 +600,89 @@ function TitleScene:updateModeDisplayPosition()
     end
 end
 
+function TitleScene:recordCrankBurst(acceleratedChange)
+    local amount = math.abs(acceleratedChange or 0)
+    self.crankBurstSamples[#self.crankBurstSamples + 1] = {
+        frame = self.frame,
+        amount = amount
+    }
+    self.crankBurstDegrees = self.crankBurstDegrees + amount
+
+    while #self.crankBurstSamples > 0 do
+        local sample = self.crankBurstSamples[1]
+        if (self.frame - sample.frame) <= TITLE_FREE_SPIN_WINDOW_FRAMES then
+            break
+        end
+        self.crankBurstDegrees = self.crankBurstDegrees - sample.amount
+        table.remove(self.crankBurstSamples, 1)
+    end
+end
+
+function TitleScene:activateFreeSpin(acceleratedChange)
+    self.freeSpinActive = true
+    self.freeSpinVelocity = self.freeSpinVelocity + ((acceleratedChange or 0) * TITLE_FREE_SPIN_ACCELERATION_SCALE)
+    self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
+    self.crankAccumulator = 0
+    StarryLog.info("title free spin activated velocity=%.3f", self.freeSpinVelocity)
+end
+
+function TitleScene:finishFreeSpin()
+    self.freeSpinActive = false
+    self.freeSpinVelocity = 0
+    self:updateSelectedIndexFromDisplayPosition()
+    self:syncModeDisplayPosition(true)
+    if not self:shouldPersistLockedPreview(self:getSelectedView()) then
+        self:setPreview()
+    end
+    StarryLog.info("title free spin settled index=%d label=%s", self.selected, self.viewItems[self.selected].label)
+end
+
+function TitleScene:updateFreeSpin(acceleratedChange)
+    local count = #self.viewItems
+    if math.abs(acceleratedChange or 0) > 0.01 then
+        self.freeSpinVelocity = self.freeSpinVelocity + ((acceleratedChange or 0) * TITLE_FREE_SPIN_ACCELERATION_SCALE)
+        self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
+    else
+        self.freeSpinVelocity = self.freeSpinVelocity * TITLE_FREE_SPIN_DECAY
+    end
+
+    self.displayPosition = self.displayPosition + self.freeSpinVelocity
+    while self.displayPosition < 1 do
+        self.displayPosition = self.displayPosition + count
+    end
+    while self.displayPosition > count do
+        self.displayPosition = self.displayPosition - count
+    end
+
+    self:updateSelectedIndexFromDisplayPosition()
+    self:syncModeDisplayPosition(true)
+
+    if self.previewPauseFrames > 0 then
+        self.previewPauseFrames = self.previewPauseFrames - 1
+    end
+
+    if math.abs(self.freeSpinVelocity) <= TITLE_FREE_SPIN_STOP_VELOCITY and math.abs(acceleratedChange or 0) <= 0.01 then
+        self:finishFreeSpin()
+    end
+end
+
 function TitleScene:updateCrank(acceleratedChange)
+    self:recordCrankBurst(acceleratedChange)
+
+    if self.freeSpinActive then
+        self:updateFreeSpin(acceleratedChange)
+        return
+    end
+
     if math.abs(acceleratedChange or 0) > 0.01 then
         self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
     elseif self.previewPauseFrames > 0 then
         self.previewPauseFrames = self.previewPauseFrames - 1
+    end
+
+    if self.crankBurstDegrees >= TITLE_FREE_SPIN_TRIGGER_DEGREES then
+        self:activateFreeSpin(acceleratedChange)
+        return
     end
 
     self.crankAccumulator = self.crankAccumulator + acceleratedChange
@@ -756,23 +856,26 @@ function TitleScene:drawMenu()
 end
 
 function TitleScene:update()
+    self.frame = self.frame + 1
     local _, acceleratedChange = pd.getCrankChange()
     self:updateCrank(acceleratedChange)
     self:updateDisplayPosition()
     self:updateModeDisplayPosition()
-    self:updateTitleFireworks()
-    local ok, previewError = pcall(function()
-        if self.previewPauseFrames <= 0 then
-            self.preview:update()
+    if not self.freeSpinActive then
+        self:updateTitleFireworks()
+        local ok, previewError = pcall(function()
+            if self.previewPauseFrames <= 0 then
+                self.preview:update()
+            end
+            self.preview:draw()
+        end)
+        if not ok then
+            self:replacePreviewWithFallback("preview.updateDraw", previewError)
+            if self.previewPauseFrames <= 0 then
+                self.preview:update()
+            end
+            self.preview:draw()
         end
-        self.preview:draw()
-    end)
-    if not ok then
-        self:replacePreviewWithFallback("preview.updateDraw", previewError)
-        if self.previewPauseFrames <= 0 then
-            self.preview:update()
-        end
-        self.preview:draw()
     end
 
     if pd.buttonJustPressed(pd.kButtonUp) then
@@ -806,7 +909,9 @@ function TitleScene:update()
         self.onSelectView(selectedView.id, effect, selectedModeId)
     end
 
-    self:drawTitleFireworks()
+    if not self.freeSpinActive then
+        self:drawTitleFireworks()
+    end
     self:drawMenu()
     self:processPendingPreview()
 end

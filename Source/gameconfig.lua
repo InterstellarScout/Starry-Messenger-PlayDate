@@ -3,7 +3,12 @@ GameConfig = GameConfig or {
         overlayDither = 0.5,
         gifPlayerOverlayDither = 0.65,
         warpPreviewSpeed = 1.0,
-        multiplayerPreviewSpeed = 2.0
+        multiplayerPreviewSpeed = 2.0,
+        freeSpinTriggerDegrees = 3600,
+        freeSpinWindowFrames = 219,
+        freeSpinAccelerationScale = 0.0042,
+        freeSpinDecay = 0.94,
+        freeSpinStopVelocity = 0.018
     },
     splash = {
         overlayDither = 0.5,
