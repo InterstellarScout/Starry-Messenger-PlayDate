@@ -26,6 +26,7 @@
 | Restore Duck Game's in-game A-button turn-mode toggle and fix title-menu fireworks so they launch onscreen instead of generating offscreen. | Done |
 | When the title crank is spun rapidly enough, suspend preview generation and let the title spin freely until it slows, then restore the selected preview. | Done |
 | Make fast title spinning dump previews immediately so free-spin starts without waiting through view loading. | Done |
+| Set the title menu background star speed to 1. | Done |
 
 ##### In Falling Stars
 | Request | Status |
