@@ -106,6 +106,7 @@ local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = 2
 local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = 5
 local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = 0.08
 local WARP_INWARD_DESPAWN_GROWTH_MAX <const> = 0.22
+local WARP_FADE_DEBUG_INTERVAL_FRAMES <const> = 45
 
 local function randomLargeStarDelayFrames()
     return math.random(STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES, STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES)
@@ -183,6 +184,7 @@ function Starfield.newWarpSpeed(width, height, count, options)
     self.speed = 1.0
     self.lastSpeed = self.speed
     self.stars = {}
+    self.debugFadeFrameCounter = 0
 
     for i = 1, count do
         self.stars[i] = {
@@ -725,9 +727,15 @@ end
 
 function Starfield:drawWarpSpeed()
     gfx.setColor(self:getForegroundColor())
+    local activeFadeCount = 0
+    local unexpectedFadeCount = 0
     for _, star in ipairs(self.stars) do
         local fade = self:getWarpStarFade(star)
         if fade < 1 then
+            activeFadeCount = activeFadeCount + 1
+            if not (star.spawnFadeFrames and star.spawnFadeFrames > 0) then
+                unexpectedFadeCount = unexpectedFadeCount + 1
+            end
             local fadeBucket = math.floor((fade * 4) + 0.5) / 4
             gfx.setDitherPattern(fadeBucket, gfx.image.kDitherTypeBayer8x8)
         end
@@ -739,6 +747,20 @@ function Starfield:drawWarpSpeed()
         gfx.fillRect(star.sx2, star.sy2, star.size, star.size)
         if fade < 1 then
             gfx.setColor(self:getForegroundColor())
+        end
+    end
+
+    if #self.stars <= 180 then
+        self.debugFadeFrameCounter = self.debugFadeFrameCounter + 1
+        if self.debugFadeFrameCounter >= WARP_FADE_DEBUG_INTERVAL_FRAMES then
+            self.debugFadeFrameCounter = 0
+            StarryLog.forceDebug(
+                "warp fade debug speed=%.2f active=%d unexpected=%d spawnOnly=%s",
+                self.speed or 0,
+                activeFadeCount,
+                unexpectedFadeCount,
+                tostring(unexpectedFadeCount == 0)
+            )
         end
     end
 end
