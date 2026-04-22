@@ -352,6 +352,10 @@ function TitleScene:setPreview(forceFresh)
             return CRTTVEffect.new(400, 240, {
                 preview = true
             })
+        elseif selectedView.id == "tiltballs" then
+            return TiltBalls.new(400, 240, {
+                preview = true
+            })
         elseif selectedView.id == "wacky" then
             return WackyInflatable.new(400, 240, {
                 preview = true

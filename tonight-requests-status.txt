@@ -16,6 +16,7 @@
 | Remove the apparent second Warp fade after spawn fade-in so stars no longer look like they fade again later in flight. | Done |
 | In Space Miner, remove the upper decorative layer that blacks out the ship and control plane. | Done |
 | Replace the title gray bars with a full-screen muted transparency overlay behind titles, and slow the splash/warp title preview to speed 1.0. | Done |
+| Add a new Bouncy Balls view where device tilt rolls and bounces balls, A adds another ball, and the crank adjusts slowdown. | Done |
 
 ##### In Falling Stars
 | Request | Status |

@@ -19,6 +19,7 @@ import "systems/crttv"
 import "systems/wacky"
 import "systems/spaceminer"
 import "systems/rccararena"
+import "systems/tiltballs"
 import "systems/controlhelp"
 import "systems/sessionstate"
 import "systems/starryportal"
@@ -97,6 +98,7 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     { id = "fireworks", label = "Fireworks" },
     { id = "crttv", label = "CRT TV" },
+    { id = "tiltballs", label = "Bouncy Balls" },
     { id = "wacky", label = "Wacky" },
     {
         id = "spaceminer",

@@ -97,6 +97,14 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "The title preview now uses cached CRT playback frames that pre-render during startup.",
             "B: return to title."
         })
+    elseif viewId == "tiltballs" then
+        return buildSpec("Bouncy Balls Controls", {
+            "Tilt the Playdate to roll the balls and bounce them off each other and the walls.",
+            "A: add another ball to the playfield.",
+            "Crank: raise or lower the slowdown rate so the balls carry momentum longer or settle faster.",
+            "The slowdown readout appears in the scene while you play.",
+            "B: return to title."
+        })
     elseif viewId == "wacky" then
         return buildSpec("Wacky Controls", {
             "Crank forward to fling the tube figure upward. Crank backward to help gravity yank it back down faster.",

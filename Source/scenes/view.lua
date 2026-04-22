@@ -55,6 +55,8 @@ function ViewScene.new(config)
         self.effect = FireworksShow.new(400, 240)
     elseif self.viewId == "crttv" then
         self.effect = CRTTVEffect.new(400, 240)
+    elseif self.viewId == "tiltballs" then
+        self.effect = TiltBalls.new(400, 240)
     elseif self.viewId == "wacky" then
         self.effect = WackyInflatable.new(400, 240)
     elseif self.viewId == "spaceminer" then
@@ -380,6 +382,8 @@ function ViewScene:update()
             self.effect:launchFromLauncher()
         elseif self.viewId == "crttv" then
             self.effect:handlePrimaryAction()
+        elseif self.viewId == "tiltballs" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "wacky" then
@@ -427,6 +431,9 @@ function ViewScene:update()
         end
     elseif self.viewId == "crttv" then
         self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
+    elseif self.viewId == "tiltballs" then
+        self.effect:applyCrank(change)
         self.crankAccumulator = 0
     elseif self.viewId == "wacky" then
         self.effect:applyCrank(change, acceleratedChange)
@@ -545,7 +552,7 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self:applySpeedStep(-1)
         end
-    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "wacky" or self.viewId == "spaceminer" then
+    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "spaceminer" then
     elseif self.viewId ~= "lava" then
         if self.effect and self.effect.steerDirectionToward then
             self:updateStarfieldDirection()
