@@ -22,6 +22,7 @@ import "systems/spaceminer"
 import "systems/rccararena"
 import "systems/tiltballs"
 import "systems/controlhelp"
+import "systems/multiplayer"
 import "systems/sessionstate"
 import "systems/starryportal"
 import "systems/viewaudio"
@@ -42,16 +43,6 @@ local app = {
 }
 local buildGameTitleScene
 local buildSplashScene
-
-local function getBeingCountLabel(playerCount)
-    local count = math.max(2, math.floor(playerCount or 2))
-    if count == 2 then
-        return "Two Beings"
-    elseif count == 3 then
-        return "Three Beings"
-    end
-    return "Four Beings"
-end
 
 local SINGLE_VIEW_ITEMS <const> = {
     {
@@ -83,7 +74,7 @@ local SINGLE_VIEW_ITEMS <const> = {
         label = "Multiplayer",
         modes = { 2, 3, 4 },
         modeId = 2,
-        getModeLabel = getBeingCountLabel
+        getModeLabel = MultiplayerConfig.getBeingCountLabel
     },
     {
         id = "life",

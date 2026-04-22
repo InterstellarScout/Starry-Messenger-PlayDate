@@ -1,3 +1,6 @@
+import "gameconfig"
+import "systems/multiplayer"
+
 --[[
 Duck Game scene.
 
@@ -8,22 +11,23 @@ Purpose:
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local DUCK_CONFIG <const> = GameConfig and GameConfig.duck or {}
 
-local DUCK_SPEED <const> = 82
-local BOT_DUCK_SPEED <const> = 74
-local CRANK_DRIVE_THRESHOLD <const> = 0.01
-local COLLECT_RADIUS <const> = 12
-local STEAL_RADIUS <const> = 11
-local NEST_RADIUS <const> = 16
-local TRAIL_HISTORY_STEP <const> = 5
-local TRAIL_HISTORY_GAP <const> = 3
-local WRAP_MARGIN <const> = 8
-local DELIVERY_CHICK_SPEED <const> = 92
-local TARGET_FREE_CHICKS <const> = 18
-local MIN_FREE_CHICKS <const> = 12
-local SNAPSHOT_INTERVAL_FRAMES <const> = 2
-local WIN_SCORE <const> = 50
-local TURN_MODE_CRANK_DEGREES <const> = 0.04
+local DUCK_SPEED <const> = DUCK_CONFIG.duckSpeed or 82
+local BOT_DUCK_SPEED <const> = DUCK_CONFIG.botDuckSpeed or 74
+local CRANK_DRIVE_THRESHOLD <const> = DUCK_CONFIG.crankDriveThreshold or 0.01
+local COLLECT_RADIUS <const> = DUCK_CONFIG.collectRadius or 12
+local STEAL_RADIUS <const> = DUCK_CONFIG.stealRadius or 11
+local NEST_RADIUS <const> = DUCK_CONFIG.nestRadius or 16
+local TRAIL_HISTORY_STEP <const> = DUCK_CONFIG.trailHistoryStep or 5
+local TRAIL_HISTORY_GAP <const> = DUCK_CONFIG.trailHistoryGap or 3
+local WRAP_MARGIN <const> = DUCK_CONFIG.wrapMargin or 8
+local DELIVERY_CHICK_SPEED <const> = DUCK_CONFIG.deliveryChickSpeed or 92
+local TARGET_FREE_CHICKS <const> = DUCK_CONFIG.targetFreeChicks or 18
+local MIN_FREE_CHICKS <const> = DUCK_CONFIG.minFreeChicks or 12
+local SNAPSHOT_INTERVAL_FRAMES <const> = DUCK_CONFIG.snapshotIntervalFrames or 2
+local WIN_SCORE <const> = DUCK_CONFIG.winScore or 50
+local TURN_MODE_CRANK_DEGREES <const> = DUCK_CONFIG.turnModeCrankDegrees or 0.04
 
 local PLAYFIELD_LEFT <const> = 16
 local PLAYFIELD_TOP <const> = 18
@@ -191,7 +195,7 @@ function DuckGameScene.new(config)
     self.portalService = config.portalService
     self.networked = self.multiplayer and self.portalService ~= nil
     self.playerCount = self.multiplayer
-        and clamp(config.playerCount or 2, 2, 4)
+        and MultiplayerConfig.clampPlayerCount(config.playerCount, 2, 4, 2)
         or DuckGameScene.getSoloDuckCount(self.modeId)
     self.localSlot = 1
     self.mode = self.networked and "lobby" or "game"

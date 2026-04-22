@@ -1,3 +1,6 @@
+import "gameconfig"
+import "systems/multiplayer"
+
 --[[
 Orbital Defense scene.
 
@@ -8,29 +11,30 @@ Purpose:
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local ORBITAL_CONFIG <const> = GameConfig and GameConfig.orbitalDefense or {}
 
-local SCREEN_WIDTH <const> = 400
-local PLANET_X <const> = 200
-local PLANET_Y <const> = 186
-local PLANET_RADIUS <const> = 38
-local RING_RADIUS <const> = 84
-local MIN_DISTANCE <const> = 92
-local MAX_DISTANCE <const> = 130
-local DEFAULT_DISTANCE <const> = 106
-local PLAYER_AIM_SPEED <const> = 3.4
-local PLAYER_ORBIT_SPEED <const> = 1.6
-local AI_AIM_SPEED <const> = 2.8
-local LASER_RANGE <const> = 190
-local LASER_WIDTH <const> = 4
-local LASER_DAMAGE <const> = 0.34
-local MISSILE_SPEED <const> = 3.8
-local MISSILE_DAMAGE <const> = 6
-local MISSILE_BLAST_RADIUS <const> = 18
-local MISSILE_LIFE_FRAMES <const> = 90
-local ENEMY_BASE_SPEED <const> = 0.58
-local ENEMY_SPAWN_FRAMES <const> = 16
-local MATCH_DURATION_FRAMES <const> = 30 * 90
-local SNAPSHOT_INTERVAL_FRAMES <const> = 3
+local SCREEN_WIDTH <const> = ORBITAL_CONFIG.screenWidth or 400
+local PLANET_X <const> = ORBITAL_CONFIG.planetX or 200
+local PLANET_Y <const> = ORBITAL_CONFIG.planetY or 186
+local PLANET_RADIUS <const> = ORBITAL_CONFIG.planetRadius or 38
+local RING_RADIUS <const> = ORBITAL_CONFIG.ringRadius or 84
+local MIN_DISTANCE <const> = ORBITAL_CONFIG.minDistance or 92
+local MAX_DISTANCE <const> = ORBITAL_CONFIG.maxDistance or 130
+local DEFAULT_DISTANCE <const> = ORBITAL_CONFIG.defaultDistance or 106
+local PLAYER_AIM_SPEED <const> = ORBITAL_CONFIG.playerAimSpeed or 3.4
+local PLAYER_ORBIT_SPEED <const> = ORBITAL_CONFIG.playerOrbitSpeed or 1.6
+local AI_AIM_SPEED <const> = ORBITAL_CONFIG.aiAimSpeed or 2.8
+local LASER_RANGE <const> = ORBITAL_CONFIG.laserRange or 190
+local LASER_WIDTH <const> = ORBITAL_CONFIG.laserWidth or 4
+local LASER_DAMAGE <const> = ORBITAL_CONFIG.laserDamage or 0.34
+local MISSILE_SPEED <const> = ORBITAL_CONFIG.missileSpeed or 3.8
+local MISSILE_DAMAGE <const> = ORBITAL_CONFIG.missileDamage or 6
+local MISSILE_BLAST_RADIUS <const> = ORBITAL_CONFIG.missileBlastRadius or 18
+local MISSILE_LIFE_FRAMES <const> = ORBITAL_CONFIG.missileLifeFrames or 90
+local ENEMY_BASE_SPEED <const> = ORBITAL_CONFIG.enemyBaseSpeed or 0.58
+local ENEMY_SPAWN_FRAMES <const> = ORBITAL_CONFIG.enemySpawnFrames or 16
+local MATCH_DURATION_FRAMES <const> = ORBITAL_CONFIG.matchDurationFrames or (30 * 90)
+local SNAPSHOT_INTERVAL_FRAMES <const> = ORBITAL_CONFIG.snapshotIntervalFrames or 3
 
 local PLAYER_ANCHORS <const> = {
     [1] = { orbitAngle = -60, defaultAngle = 18, label = "P1" },
@@ -105,7 +109,7 @@ function OrbitalDefenseScene.new(config)
     self.multiplayer = config.multiplayer == true
     self.portalService = config.portalService
     self.networked = self.multiplayer and self.portalService ~= nil
-    self.playerCount = self.multiplayer and clamp(config.playerCount or 2, 2, 4) or 1
+    self.playerCount = self.multiplayer and MultiplayerConfig.clampPlayerCount(config.playerCount, 2, 4, 2) or 1
     self.localSlot = 1
     self.players = {}
     self.enemies = {}

@@ -6,18 +6,10 @@ Purpose:
 - stores the current player count and active catalog
 - keeps scene transitions lightweight by centralizing shared menu state
 ]]
+import "systems/multiplayer"
+
 SessionState = {}
 SessionState.__index = SessionState
-
-local function clamp(value, minValue, maxValue)
-    if value < minValue then
-        return minValue
-    end
-    if value > maxValue then
-        return maxValue
-    end
-    return value
-end
 
 function SessionState.new()
     local self = setmetatable({}, SessionState)
@@ -27,7 +19,7 @@ function SessionState.new()
 end
 
 function SessionState:setPlayerCount(playerCount)
-    self.playerCount = clamp(math.floor(playerCount or 1), 1, 4)
+    self.playerCount = MultiplayerConfig.clampPlayerCount(playerCount, 1, 4, 1)
     self.catalog = self.playerCount > 1 and "multi" or "single"
 end
 
