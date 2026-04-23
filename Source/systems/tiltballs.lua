@@ -244,16 +244,20 @@ function TiltBalls:update()
 end
 
 function TiltBalls:drawBall(ball)
+    gfx.fillCircleAtPoint(ball.x, ball.y, ball.radius)
+    gfx.setColor(gfx.kColorBlack)
     gfx.drawCircleAtPoint(ball.x, ball.y, ball.radius)
-    gfx.drawCircleAtPoint(ball.x, ball.y, math.max(1, ball.radius - 2))
+    gfx.setColor(gfx.kColorWhite)
 
     local angle = math.rad(ball.spin)
     local lineRadius = math.max(2, ball.radius - 3)
     local tipX = ball.x + (math.cos(angle) * lineRadius)
     local tipY = ball.y + (math.sin(angle) * lineRadius)
+    gfx.setColor(gfx.kColorBlack)
     local tailX = ball.x - (math.cos(angle) * lineRadius * 0.55)
     local tailY = ball.y - (math.sin(angle) * lineRadius * 0.55)
     gfx.drawLine(tailX, tailY, tipX, tipY)
+    gfx.setColor(gfx.kColorWhite)
 end
 
 function TiltBalls:draw()

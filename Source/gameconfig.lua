@@ -9,7 +9,9 @@ GameConfig = GameConfig or {
         freeSpinImmediateChange = 56,
         freeSpinAccelerationScale = 0.0042,
         freeSpinDecay = 0.94,
-        freeSpinStopVelocity = 0.018
+        freeSpinStopVelocity = 0.018,
+        crankBumpThreshold = 8,
+        slowCrankScale = 1.5
     },
     splash = {
         overlayDither = 0.5,

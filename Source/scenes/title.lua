@@ -25,6 +25,8 @@ local TITLE_FREE_SPIN_IMMEDIATE_CHANGE <const> = TITLE_CONFIG.freeSpinImmediateC
 local TITLE_FREE_SPIN_ACCELERATION_SCALE <const> = TITLE_CONFIG.freeSpinAccelerationScale or 0.0042
 local TITLE_FREE_SPIN_DECAY <const> = TITLE_CONFIG.freeSpinDecay or 0.94
 local TITLE_FREE_SPIN_STOP_VELOCITY <const> = TITLE_CONFIG.freeSpinStopVelocity or 0.018
+local TITLE_CRANK_BUMP_THRESHOLD <const> = TITLE_CONFIG.crankBumpThreshold or 8
+local TITLE_SLOW_CRANK_SCALE <const> = TITLE_CONFIG.slowCrankScale or 1.5
 local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
 local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
 local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
@@ -674,7 +676,12 @@ function TitleScene:updateFreeSpin(acceleratedChange)
     end
 end
 
-function TitleScene:updateCrank(acceleratedChange)
+function TitleScene:updateCrank(change, acceleratedChange)
+    local effectiveChange = acceleratedChange
+    if math.abs(change or 0) > math.abs(effectiveChange or 0) then
+        effectiveChange = (change or 0) * TITLE_SLOW_CRANK_SCALE
+    end
+
     self:recordCrankBurst(acceleratedChange)
 
     if self.freeSpinActive then
@@ -694,16 +701,16 @@ function TitleScene:updateCrank(acceleratedChange)
         return
     end
 
-    self.crankAccumulator = self.crankAccumulator + acceleratedChange
+    self.crankAccumulator = self.crankAccumulator + effectiveChange
 
-    while self.crankAccumulator >= 14 do
+    while self.crankAccumulator >= TITLE_CRANK_BUMP_THRESHOLD do
         self:updateSelection(1)
-        self.crankAccumulator = self.crankAccumulator - 14
+        self.crankAccumulator = self.crankAccumulator - TITLE_CRANK_BUMP_THRESHOLD
     end
 
-    while self.crankAccumulator <= -14 do
+    while self.crankAccumulator <= -TITLE_CRANK_BUMP_THRESHOLD do
         self:updateSelection(-1)
-        self.crankAccumulator = self.crankAccumulator + 14
+        self.crankAccumulator = self.crankAccumulator + TITLE_CRANK_BUMP_THRESHOLD
     end
 end
 
@@ -866,8 +873,8 @@ end
 
 function TitleScene:update()
     self.frame = self.frame + 1
-    local _, acceleratedChange = pd.getCrankChange()
-    self:updateCrank(acceleratedChange)
+    local change, acceleratedChange = pd.getCrankChange()
+    self:updateCrank(change, acceleratedChange)
     self:updateDisplayPosition()
     self:updateModeDisplayPosition()
     if not self.freeSpinActive and self.preview ~= nil then
