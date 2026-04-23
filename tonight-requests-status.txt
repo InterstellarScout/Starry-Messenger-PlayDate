@@ -205,3 +205,4 @@
 | Remove the lingering planet/moon decor from Space Miner so it is no longer part of the game's layering. | Done |
 | Regenerate a new random starry splash/title screen each time the prewarm step finishes. | Done |
 | Make slow crank motion bump the title menu more reactively and make Bouncy Balls solid white. | Done |
+| Keep Warp persistent spin active while the A-menu is open and add player-speed and rotation-speed settings there. | Done |

@@ -131,11 +131,30 @@ function ViewScene:getWarpMenuItems()
             kind = "toggle"
         },
         {
+            id = "playerSpeed",
+            label = "Player Speed",
+            value = self.effect and self.effect.speed or 0,
+            minValue = WARP_CONFIG.menuSpeedMin or -20,
+            maxValue = WARP_CONFIG.menuSpeedMax or 20,
+            displayFormat = "%.1f",
+            kind = "slider"
+        },
+        {
+            id = "rotationSpeed",
+            label = "Rotation Speed",
+            value = self.rotateVelocity or 0,
+            minValue = WARP_CONFIG.menuRotationMin or -6,
+            maxValue = WARP_CONFIG.menuRotationMax or 6,
+            displayFormat = "%.2f",
+            kind = "slider"
+        },
+        {
             id = "starSize",
             label = "Star Size",
             value = self.effect and self.effect.getWarpStarSizePercent and self.effect:getWarpStarSizePercent() or 0,
             minValue = WARP_CONFIG.starSizePercentMin or -80,
             maxValue = WARP_CONFIG.starSizePercentMax or 200,
+            displayFormat = "%+d%%",
             kind = "slider"
         },
         {
@@ -167,8 +186,22 @@ function ViewScene:toggleWarpMenuSelection(direction)
     end
 
     if item.kind == "slider" then
-        if direction ~= nil and direction ~= 0 and self.effect and self.effect.stepWarpStarSizePercent then
-            self.effect:stepWarpStarSizePercent(direction)
+        if direction ~= nil and direction ~= 0 then
+            if item.id == "playerSpeed" then
+                local nextSpeed = (self.effect and self.effect.speed or 0) + (direction * (WARP_CONFIG.menuSpeedStep or 0.5))
+                nextSpeed = math.max(item.minValue, math.min(item.maxValue, nextSpeed))
+                if self.effect and self.effect.setSpeed then
+                    self.effect:setSpeed(nextSpeed)
+                elseif self.effect then
+                    self.effect.speed = nextSpeed
+                end
+            elseif item.id == "rotationSpeed" then
+                self.rotateVelocity = self.rotateVelocity + (direction * (WARP_CONFIG.menuRotationStep or 0.05))
+                self.rotateVelocity = math.max(item.minValue, math.min(item.maxValue, self.rotateVelocity))
+                StarryLog.info("warp rotation speed changed: %.2f", self.rotateVelocity)
+            elseif self.effect and self.effect.stepWarpStarSizePercent then
+                self.effect:stepWarpStarSizePercent(direction)
+            end
         end
         return
     end
@@ -247,7 +280,7 @@ function ViewScene:drawWarpMenuSlider(item, x, y, width, selected)
     else
         gfx.drawCircleAtPoint(dotX, lineY, 3)
     end
-    gfx.drawText(string.format("%+d%%", percent), x + width - 54, y)
+    gfx.drawText(string.format(item.displayFormat or "%d", percent), x + width - 54, y)
 end
 
 function ViewScene:drawWarpMenu()
@@ -439,6 +472,7 @@ function ViewScene:update()
         else
             self.warpMenuOpen = true
         end
+        self:updatePersistentSpin()
         self.effect:update()
         self.effect:draw()
         self:drawWarpMenu()
@@ -479,6 +513,7 @@ function ViewScene:update()
 
     if self.warpMenuOpen then
         self:updateWarpMenu()
+        self:updatePersistentSpin()
         self.effect:update()
         self.effect:draw()
         self:drawWarpMenu()

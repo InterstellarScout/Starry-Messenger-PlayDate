@@ -322,6 +322,11 @@ function Starfield:stepSpeed(direction)
     StarryLog.info("%s speed changed: %.2f", self.kind, self.speed)
 end
 
+function Starfield:setSpeed(value)
+    self.speed = value
+    StarryLog.info("%s speed set: %.2f", self.kind, self.speed)
+end
+
 function Starfield:adjustDirection(deltaDegrees, logChange)
     if deltaDegrees == 0 then
         return
