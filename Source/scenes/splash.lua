@@ -24,22 +24,30 @@ end
 SplashScene = {}
 SplashScene.__index = SplashScene
 
-function SplashScene.new(config)
-    local self = setmetatable({}, SplashScene)
-    StarryLog.info("SplashScene.new start")
-    self.onContinue = config.onContinue
-    self.preview = Starfield.newWarpSpeed(400, 240, GameConfig.warp.previewStarCount or 320)
-    self.preview.speed = SPLASH_CONFIG.warpPreviewSpeed or 1
-    for _, star in ipairs(self.preview.stars) do
+local function buildSplashWarpPreview()
+    local preview = Starfield.newWarpSpeed(400, 240, GameConfig.warp.previewStarCount or 320)
+    preview.speed = SPLASH_CONFIG.warpPreviewSpeed or 1
+    for _, star in ipairs(preview.stars) do
         star.size = star.size * 2
+        if star.baseSize ~= nil then
+            star.baseSize = star.size
+        end
         if star.px ~= nil and star.py ~= nil then
             star.px = star.x
             star.py = star.y
         end
-        if self.preview.updateWarpStarScreenCache then
-            self.preview:updateWarpStarScreenCache(star)
+        if preview.updateWarpStarScreenCache then
+            preview:updateWarpStarScreenCache(star)
         end
     end
+    return preview
+end
+
+function SplashScene.new(config)
+    local self = setmetatable({}, SplashScene)
+    StarryLog.info("SplashScene.new start")
+    self.onContinue = config.onContinue
+    self.preview = buildSplashWarpPreview()
     self.titleFont = gfx.font.new("/System/Fonts/Roobert-24-Medium")
     self.smallFont = gfx.getSystemFont()
     self.prewarmComplete = false
@@ -76,6 +84,8 @@ function SplashScene:update()
     local prewarmFinished = GameOfLife.updatePrewarm(PREWARM_BUDGET_MS)
     if prewarmFinished and not self.prewarmComplete then
         self.prewarmComplete = true
+        self.preview = buildSplashWarpPreview()
+        StarryLog.info("splash warp preview regenerated after prewarm")
     end
 
     drawMutedTitleOverlay()

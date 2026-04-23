@@ -203,3 +203,4 @@
 | Invert the accelerometer's up/down direction in Bouncy Balls. | Done |
 | Make Wacky's hat detach once the head comes within 5 pixels of the ground. | Done |
 | Remove the lingering planet/moon decor from Space Miner so it is no longer part of the game's layering. | Done |
+| Regenerate a new random starry splash/title screen each time the prewarm step finishes. | Done |
