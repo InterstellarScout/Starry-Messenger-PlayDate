@@ -210,6 +210,8 @@ function WackyInflatable:updateHat(topPoint)
     local headVelocityY = topPoint.y - topPoint.prevY
     local hatAnchorY = headCenterY - 23
     local headBottomY = headCenterY + HEAD_RADIUS
+    local groundContactY = self.baseY - 2
+    local headGroundDistance = groundContactY - headBottomY
 
     if self.hat.attached then
         self.hat.prevX = self.hat.x
@@ -218,7 +220,7 @@ function WackyInflatable:updateHat(topPoint)
         self.hat.y = hatAnchorY
         self.hat.rotation = clamp(headVelocityX * 0.08, -0.35, 0.35)
 
-        if headBottomY >= (self.baseY - 2) and headVelocityY > 0.6 then
+        if headGroundDistance <= 5 then
             self.hat.attached = false
             self.hat.prevX = self.hat.x - headVelocityX
             self.hat.prevY = self.hat.y - headVelocityY

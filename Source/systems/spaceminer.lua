@@ -263,10 +263,9 @@ function SpaceMiner:randomDecorKind()
         return "dot"
     elseif roll <= 0.85 then
         return "cross"
-    elseif roll <= 0.97 then
+    else
         return "square"
     end
-    return "circle"
 end
 
 function SpaceMiner:spawnDecorItem(layer)
