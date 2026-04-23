@@ -110,7 +110,6 @@ local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = WARP_CONFIG.inwardDespawnSt
 local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = WARP_CONFIG.inwardDespawnGrowthMin or 0.08
 local WARP_INWARD_DESPAWN_GROWTH_MAX <const> = WARP_CONFIG.inwardDespawnGrowthMax or 0.22
 local WARP_FADE_DEBUG_INTERVAL_FRAMES <const> = WARP_CONFIG.fadeDebugIntervalFrames or 45
-local WARP_TRAIL_DOT_MAX_STEPS <const> = WARP_CONFIG.trailDotMaxSteps or 5
 local WARP_TAPER_HIDE_SPEED_START <const> = WARP_CONFIG.taperHideSpeedStart or 1.2
 local WARP_TAPER_HIDE_SPEED_END <const> = WARP_CONFIG.taperHideSpeedEnd or 3.2
 local WARP_STAR_SIZE_PERCENT_MIN <const> = WARP_CONFIG.starSizePercentMin or -80
@@ -138,7 +137,6 @@ end
 local function applyOptions(self, options)
     self.modeId = options and options.modeId or Starfield.MODE_STANDARD
     self.inverse = self.modeId == Starfield.MODE_INVERSE
-    self.warpStyleStarTrail = options and options.warpStyleStarTrail == true or false
     self.warpStyleTaper = options and options.warpStyleTaper == true or false
     self.warpStyleStarFall = options and options.warpStyleStarFall == true or false
 end
@@ -232,9 +230,7 @@ function Starfield:getForegroundColor()
 end
 
 function Starfield:isWarpStyleEnabled(optionId)
-    if optionId == "trailDots" then
-        return self.warpStyleStarTrail == true
-    elseif optionId == "triangleTaper" then
+    if optionId == "triangleTaper" then
         return self.warpStyleTaper == true
     elseif optionId == "starFallStyle" then
         return self.warpStyleStarFall == true
@@ -244,9 +240,7 @@ end
 
 function Starfield:setWarpStyleEnabled(optionId, enabled)
     local value = enabled == true
-    if optionId == "trailDots" then
-        self.warpStyleStarTrail = value
-    elseif optionId == "triangleTaper" then
+    if optionId == "triangleTaper" then
         self.warpStyleTaper = value
     elseif optionId == "starFallStyle" then
         self.warpStyleStarFall = value
@@ -676,34 +670,6 @@ function Starfield:drawMotionStarShape(x1, y1, x2, y2, size)
     end
 end
 
-function Starfield:drawWarpTrailDots(star, unitX, unitY, length)
-    if length <= 0.5 then
-        return
-    end
-
-    local speedFactor = clamp((math.abs(self.speed or 0) - 1) / 4, 0, 1)
-    if speedFactor <= 0 then
-        return
-    end
-
-    local steps = math.max(1, math.min(WARP_TRAIL_DOT_MAX_STEPS, math.floor((length / 4) + (speedFactor * 3))))
-    local stepDistance = math.max(2, (length / steps))
-
-    for i = 1, steps do
-        local trailScale = 1 - (i / (steps + 1))
-        local dotSize = math.max(1, math.floor((star.size * trailScale) + 0.5))
-        local trailDistance = stepDistance * i
-        local x = star.sx2 - (unitX * trailDistance)
-        local y = star.sy2 - (unitY * trailDistance)
-        gfx.fillRect(
-            math.floor(x - (dotSize / 2)),
-            math.floor(y - (dotSize / 2)),
-            dotSize,
-            dotSize
-        )
-    end
-end
-
 function Starfield:drawWarpTriangleTaper(star, unitX, unitY, length)
     if length <= 0.5 then
         return
@@ -947,14 +913,11 @@ function Starfield:drawWarpSpeed()
         if fade >= 0.35 and lengthSquared > 4 and not self.warpStyleStarFall then
             self:drawWarpStreak(star.sx1, star.sy1, star.sx2, star.sy2)
         end
-        if self.warpStyleStarTrail or self.warpStyleTaper then
+        if self.warpStyleTaper then
             local length = math.sqrt(lengthSquared)
             if length > 0.01 then
                 local unitX = dx / length
                 local unitY = dy / length
-                if self.warpStyleStarTrail then
-                    self:drawWarpTrailDots(star, unitX, unitY, length)
-                end
                 if self.warpStyleTaper then
                     self:drawWarpTriangleTaper(star, unitX, unitY, length)
                 end

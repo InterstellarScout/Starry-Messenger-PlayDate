@@ -206,3 +206,4 @@
 | Regenerate a new random starry splash/title screen each time the prewarm step finishes. | Done |
 | Make slow crank motion bump the title menu more reactively and make Bouncy Balls solid white. | Done |
 | Keep Warp persistent spin active while the A-menu is open and add player-speed and rotation-speed settings there. | Done |
+| Remove the Trailing Stars setting from Warp Speed's A-menu and clean up the trail-toggle implementation. | Done |

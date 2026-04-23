@@ -158,12 +158,6 @@ function ViewScene:getWarpMenuItems()
             kind = "slider"
         },
         {
-            id = "trailDots",
-            label = "Trailing Stars",
-            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("trailDots"),
-            kind = "toggle"
-        },
-        {
             id = "triangleTaper",
             label = "Triangle Taper",
             checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("triangleTaper"),

@@ -29,7 +29,6 @@ GameConfig = GameConfig or {
         inwardDespawnGrowthMin = 0.08,
         inwardDespawnGrowthMax = 0.22,
         fadeDebugIntervalFrames = 45,
-        trailDotMaxSteps = 5,
         taperHideSpeedStart = 1.2,
         taperHideSpeedEnd = 3.2,
         menuSpeedMin = -20,
