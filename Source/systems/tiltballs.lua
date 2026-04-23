@@ -156,7 +156,7 @@ function TiltBalls:getGravity()
     if not self.preview and pd.accelerometerIsRunning() then
         local ax, ay = pd.readAccelerometer()
         if ax ~= nil and ay ~= nil then
-            local gx, gy = normalize(ax, -ay)
+            local gx, gy = normalize(ax, ay)
             return gx, gy
         end
     end
