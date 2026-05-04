@@ -208,3 +208,5 @@
 | Keep Warp persistent spin active while the A-menu is open and add player-speed and rotation-speed settings there. | Done |
 | Remove the Trailing Stars setting from Warp Speed's A-menu and clean up the trail-toggle implementation. | Done |
 | In Warp Speed, keep streak trails visible at high speeds so active stars still show their trails and on-screen heads instead of collapsing into fade-only flashes. | Done |
+| In Trail Blazer Flow mode, hide the on-screen text when Home is pressed so system-menu screenshots show only the playfield. | Done |
+| In Trail Blazer, make Flow use the same controls as Drive 3.2 and replace the A-button clear action in both modes with an on-screen menu containing Clear Screen and a Hide Text checkbox. | Done |

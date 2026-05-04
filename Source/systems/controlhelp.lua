@@ -126,6 +126,36 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "You can absorb 4 hits total: 2 shield blocks first, then 2 hull hits.",
             "B: return to title."
         })
+    elseif viewId == "skywatch" then
+        return buildSpec("Sky Watch Controls", {
+            "On first entry, choose a timezone with Up/Down and confirm with A. The game remembers it.",
+            "Crank: set a signed simulation rate centered on zero, with very slow motion near zero and unlimited speed in either direction.",
+            "A: lock or unlock crank speed changes.",
+            "Left/Right: pause time and step backward or forward by the current signed-rate size.",
+            "Hold Left/Right briefly: jump to the previous or next sunrise or sunset.",
+            "Up/Down: rotate the view between N, NE, E, SE, S, SW, W, and NW.",
+            "On the title menu while Sky Watch is selected, press B to forget the saved timezone.",
+            "B: return to title."
+        })
+    elseif viewId == "trailblazer" then
+        return buildSpec("Trail Blazer Controls", {
+            "Crank: steer the player circle.",
+            "Hold D-pad Up/Down: move forward or backward at a fixed speed of 3.2.",
+            "Hold D-pad Right: draw trail only while the button is held.",
+            "D-pad Left: drop the loaded ball onto the board once it is available. Only 3 dropped balls can be active at once.",
+            "A: open the on-screen menu for Clear Screen and the Hide Text checkbox.",
+            "Tilt and motion: influence falling and rolling balls after they are released.",
+            "B: return to title."
+        })
+    elseif viewId == "photoviewer" then
+        return buildSpec("Photo Viewer Controls", {
+            "Crank or D-pad Left/Right: move through the Artemis photo set one still at a time.",
+            "A: toggle autoplay slideshow mode.",
+            "D-pad Up: hide or show the info plaque.",
+            "D-pad Down: cycle the photo view between fullscreen fill, fit-to-screen, and inverted fullscreen.",
+            "The title preview cycles through the collection automatically.",
+            "B: return to title."
+        })
     elseif viewId == "gifplayer" then
         return buildSpec("GIF Player Controls", {
             "On entry, crank or D-pad chooses a GIF category and A opens it.",
@@ -217,7 +247,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             })
         end
 
-        return buildSpec("RC Arena Controls", {
+        return buildSpec("Eject the Bad Thoughts! Controls", {
             "Crank: rotate the car.",
             "A: toggle the crank between steering and max-speed control.",
             "D-pad Left/Right: fine steering.",

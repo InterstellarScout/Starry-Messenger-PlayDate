@@ -71,6 +71,14 @@ function ViewScene.new(config)
         self.effect = SpaceMiner.new(400, 240, {
             modeId = self.modeId
         })
+    elseif self.viewId == "skywatch" then
+        self.effect = SkyWatch.new(400, 240)
+    elseif self.viewId == "trailblazer" then
+        self.effect = TrailBlazer.new(400, 240, {
+            modeId = self.modeId
+        })
+    elseif self.viewId == "photoviewer" then
+        self.effect = PhotoViewerEffect.new(400, 240)
     elseif self.viewId == "gifplayer" then
         self.effect = GifPlayerEffect.new(400, 240, {
             modeId = self.modeId
@@ -105,6 +113,32 @@ function ViewScene.new(config)
     )
 
     return self
+end
+
+function ViewScene:onWillPause()
+    if self.viewId == "trailblazer"
+        and self.effect
+        and self.effect.setPauseHudHidden then
+        self.effect:setPauseHudHidden(true)
+        local pauseImage = pd.graphics.image.new(400, 240)
+        if pauseImage ~= nil then
+            pd.graphics.pushContext(pauseImage)
+            self.effect:draw()
+            pd.graphics.popContext()
+            pd.setMenuImage(pauseImage, 0)
+        else
+            self.effect:draw()
+        end
+    end
+end
+
+function ViewScene:onDidResume()
+    if self.viewId == "trailblazer"
+        and self.effect
+        and self.effect.setPauseHudHidden then
+        self.effect:setPauseHudHidden(false)
+        pd.setMenuImage(nil)
+    end
 end
 
 function ViewScene:isLifeScrubbing()
@@ -441,6 +475,10 @@ function ViewScene:update()
             self.warpMenuOpen = false
             return
         end
+        if self.viewId == "trailblazer" and self.effect and self.effect.isMenuOpen and self.effect:isMenuOpen() then
+            self.effect:closeMenu()
+            return
+        end
         if self:isLifeReviewMode() and self.effect:handleReviewBack() then
             return
         end
@@ -455,6 +493,13 @@ function ViewScene:update()
             self.effect = nil
             self.onReturnToTitle(self.viewId, effect)
         end
+        return
+    end
+
+    if self.viewId == "skywatch" then
+        self.effect:update()
+        self.effect:draw()
+        ControlHelp.drawOverlay(self.viewId, self.modeId)
         return
     end
 
@@ -488,10 +533,14 @@ function ViewScene:update()
             self.effect:handlePrimaryAction()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
+        elseif self.viewId == "photoviewer" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "wacky" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "spaceminer" then
         elseif self.viewId == "fishpond" then
+        elseif self.viewId == "trailblazer" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "rccar" then
             if self.effect and self.effect.toggleCrankMode then
                 self.effect:toggleCrankMode()
@@ -547,6 +596,12 @@ function ViewScene:update()
     elseif self.viewId == "gifplayer" then
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
+    elseif self.viewId == "trailblazer" then
+        self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
+    elseif self.viewId == "photoviewer" then
+        self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
     elseif self.viewId == "fishpond" then
         if self.effect.modeId == FishPond.MODE_TANK then
             self.effect:adjustTankCurrent(change)
@@ -597,6 +652,36 @@ function ViewScene:update()
             pd.buttonJustPressed(pd.kButtonLeft),
             pd.buttonJustPressed(pd.kButtonRight)
         )
+    elseif self.viewId == "photoviewer" then
+        if pd.buttonJustPressed(pd.kButtonLeft) then
+            self.effect:stepPhoto(-1)
+        elseif pd.buttonJustPressed(pd.kButtonRight) then
+            self.effect:stepPhoto(1)
+        end
+        if pd.buttonJustPressed(pd.kButtonUp) then
+            self.effect:handleUp()
+        elseif pd.buttonJustPressed(pd.kButtonDown) then
+            self.effect:handleDown()
+        end
+    elseif self.viewId == "trailblazer" then
+        if self.effect.isMenuOpen and self.effect:isMenuOpen() then
+            self.effect:updateMenuInput(
+                pd.buttonJustPressed(pd.kButtonUp),
+                pd.buttonJustPressed(pd.kButtonDown),
+                pd.buttonJustPressed(pd.kButtonLeft),
+                pd.buttonJustPressed(pd.kButtonRight),
+                pd.buttonJustPressed(pd.kButtonA)
+            )
+        else
+            self.effect:updateDriveInput(
+                pd.buttonIsPressed(pd.kButtonUp),
+                pd.buttonIsPressed(pd.kButtonDown),
+                pd.buttonIsPressed(pd.kButtonRight)
+            )
+            if pd.buttonJustPressed(pd.kButtonLeft) then
+                self.effect:handleDrop()
+            end
+        end
     elseif self.viewId == "spaceminer" then
         self.effect:updateInput(
             pd.buttonIsPressed(pd.kButtonUp),
