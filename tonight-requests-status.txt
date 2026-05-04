@@ -207,3 +207,4 @@
 | Make slow crank motion bump the title menu more reactively and make Bouncy Balls solid white. | Done |
 | Keep Warp persistent spin active while the A-menu is open and add player-speed and rotation-speed settings there. | Done |
 | Remove the Trailing Stars setting from Warp Speed's A-menu and clean up the trail-toggle implementation. | Done |
+| In Warp Speed, keep streak trails visible at high speeds so active stars still show their trails and on-screen heads instead of collapsing into fade-only flashes. | Done |

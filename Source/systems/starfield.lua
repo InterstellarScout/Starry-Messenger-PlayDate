@@ -94,6 +94,51 @@ local function distanceSquaredToSegment(px, py, x1, y1, x2, y2)
     return (offsetX * offsetX) + (offsetY * offsetY)
 end
 
+local function isPointInsideRect(x, y, left, top, right, bottom)
+    return x >= left and x <= right and y >= top and y <= bottom
+end
+
+local function clipLineToRect(x1, y1, x2, y2, left, top, right, bottom)
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local t0 = 0
+    local t1 = 1
+
+    local function clip(p, q)
+        if p == 0 then
+            return q >= 0
+        end
+
+        local r = q / p
+        if p < 0 then
+            if r > t1 then
+                return false
+            end
+            if r > t0 then
+                t0 = r
+            end
+        else
+            if r < t0 then
+                return false
+            end
+            if r < t1 then
+                t1 = r
+            end
+        end
+
+        return true
+    end
+
+    if not clip(-dx, x1 - left)
+        or not clip(dx, right - x1)
+        or not clip(-dy, y1 - top)
+        or not clip(dy, bottom - y1) then
+        return nil
+    end
+
+    return x1 + (t0 * dx), y1 + (t0 * dy), x1 + (t1 * dx), y1 + (t1 * dy)
+end
+
 local STAR_FALL_BOUNDARY_RADIUS <const> = STAR_FALL_CONFIG.boundaryRadius or 467
 local STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES <const> = STAR_FALL_CONFIG.largeStarMinDelayFrames or 300
 local STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES <const> = STAR_FALL_CONFIG.largeStarMaxDelayFrames or 1800
@@ -160,6 +205,10 @@ function Starfield.newStarFall(width, height, count, options)
     self.stars = {}
     self.largeFallStar = nil
     self.largeFallStarTimer = randomLargeStarDelayFrames()
+    self.uniformMotion = options and options.uniformMotion == true or false
+    self.uniformStarSize = options and options.uniformStarSize or 2
+    self.uniformStarSpeed = options and options.uniformStarSpeed or 1
+    self.disableLargeStar = options and options.disableLargeStar == true or false
 
     for i = 1, count do
         self.stars[i] = {
@@ -286,6 +335,15 @@ function Starfield:stepWarpStarSizePercent(direction)
     StarryLog.info("warp star size percent changed: %d", self.starSizePercent)
 end
 
+function Starfield:setWarpStarSizePercent(percent)
+    if self.kind ~= "warp" then
+        return
+    end
+
+    self.starSizePercent = math.floor((tonumber(percent) or 0) + 0.5)
+    self:refreshWarpStarSizes()
+end
+
 function Starfield:assignWarpStarVisuals(star)
     star.speed = 0.25 + (math.random() * 1.15)
     local normalizedSpeed = clamp((star.speed - 0.25) / 1.15, 0, 1)
@@ -410,8 +468,13 @@ function Starfield:movePerspective(deltaX, deltaY)
 end
 
 function Starfield:spawnFallStar(star, randomizeInsideScreen)
-    star.size = math.random(2, 5)
-    star.speed = 0.4 + math.random() * 1.4
+    if self.uniformMotion then
+        star.size = self.uniformStarSize
+        star.speed = self.uniformStarSpeed
+    else
+        star.size = math.random(2, 5)
+        star.speed = 0.4 + math.random() * 1.4
+    end
 
     if randomizeInsideScreen then
         local angle = math.random() * (math.pi * 2)
@@ -442,6 +505,12 @@ function Starfield:spawnFallStar(star, randomizeInsideScreen)
 end
 
 function Starfield:spawnLargeFallStar(randomizeInsideScreen)
+    if self.disableLargeStar then
+        self.largeFallStar = nil
+        self.largeFallStarTimer = randomLargeStarDelayFrames()
+        return
+    end
+
     local star = self.largeFallStar or {}
     star.size = math.random(STAR_FALL_LARGE_STAR_MIN_RADIUS, STAR_FALL_LARGE_STAR_MAX_RADIUS)
     star.speed = 0.18 + (math.random() * 0.35)
@@ -609,20 +678,29 @@ function Starfield:updateWarpStarScreenCache(star)
         star.sy1 = prevWorldY
         star.sx2 = worldX
         star.sy2 = worldY
-        return
+    else
+        local px = prevWorldX - self.centerX
+        local py = prevWorldY - self.centerY
+        local x = worldX - self.centerX
+        local y = worldY - self.centerY
+        local prevX, prevY = rotatePointWithTrig(px, py, self.screenCos, self.screenSin)
+        local nextX, nextY = rotatePointWithTrig(x, y, self.screenCos, self.screenSin)
+
+        star.sx1 = self.centerX + prevX
+        star.sy1 = self.centerY + prevY
+        star.sx2 = self.centerX + nextX
+        star.sy2 = self.centerY + nextY
     end
 
-    local px = prevWorldX - self.centerX
-    local py = prevWorldY - self.centerY
-    local x = worldX - self.centerX
-    local y = worldY - self.centerY
-    local prevX, prevY = rotatePointWithTrig(px, py, self.screenCos, self.screenSin)
-    local nextX, nextY = rotatePointWithTrig(x, y, self.screenCos, self.screenSin)
-
-    star.sx1 = self.centerX + prevX
-    star.sy1 = self.centerY + prevY
-    star.sx2 = self.centerX + nextX
-    star.sy2 = self.centerY + nextY
+    local margin = math.max(2, star.size or 1)
+    local left = -margin
+    local top = -margin
+    local right = self.width + margin
+    local bottom = self.height + margin
+    star.headVisible = isPointInsideRect(star.sx2, star.sy2, left, top, right, bottom)
+    star.streakX1, star.streakY1, star.streakX2, star.streakY2 =
+        clipLineToRect(star.sx1, star.sy1, star.sx2, star.sy2, left, top, right, bottom)
+    star.streakVisible = star.streakX1 ~= nil
 end
 
 function Starfield:getWarpStarFade(star)
@@ -910,8 +988,8 @@ function Starfield:drawWarpSpeed()
         local dx = star.sx2 - star.sx1
         local dy = star.sy2 - star.sy1
         local lengthSquared = (dx * dx) + (dy * dy)
-        if fade >= 0.35 and lengthSquared > 4 and not self.warpStyleStarFall then
-            self:drawWarpStreak(star.sx1, star.sy1, star.sx2, star.sy2)
+        if star.streakVisible and lengthSquared > 4 and not self.warpStyleStarFall then
+            self:drawWarpStreak(star.streakX1, star.streakY1, star.streakX2, star.streakY2)
         end
         if self.warpStyleTaper then
             local length = math.sqrt(lengthSquared)
@@ -923,7 +1001,9 @@ function Starfield:drawWarpSpeed()
                 end
             end
         end
-        self:drawWarpHeadScaled(star, math.max(0.35, fade))
+        if star.headVisible then
+            self:drawWarpHeadScaled(star, math.max(0.35, fade))
+        end
     end
 
     self.debugFadeFrameCounter = self.debugFadeFrameCounter + 1
