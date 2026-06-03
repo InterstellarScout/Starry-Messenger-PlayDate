@@ -48,6 +48,8 @@ local APP_NAME <const> = "Starry Messenger"
 local APP_VERSION <const> = "0.1.0"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
+StarryMessengerAppVersion = APP_VERSION
+
 local app = {
     fatalError = nil,
     fatalContext = nil,

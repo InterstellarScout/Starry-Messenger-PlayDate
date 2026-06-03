@@ -1,6 +1,6 @@
 # Starry Messenger
 
-Starry Messenger is a Playdate collection of small games, visual toys, procedural effects, and experiments built around the crank, D-pad, accelerometer, and short-session play. The app opens on a live title carousel where each view has an animated preview. Use the crank or `Up`/`Down` to browse, `Left`/`Right` to change a view's mode when it has one, `A` to open the selected view, and `B` to go back.
+Starry Messenger is a Playdate collection of small games, visual toys, procedural effects, and experiments built around the crank, D-pad, accelerometer, and short-session play. The app opens on a live title carousel where each view has an animated preview and the app version in the bottom-right corner. Use the crank or `Up`/`Down` to browse, `Left`/`Right` to change a view's mode when it has one, `A` to open the selected view, and `B` to go back.
 
 The project is still in active development. The packaged app metadata is:
 

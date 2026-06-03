@@ -84,8 +84,13 @@ local function getDefaultSelectedIndex(viewItems)
 end
 
 local function getAppVersionLabel()
+    local version = StarryMessengerAppVersion
+    if version ~= nil and version ~= "" then
+        return "v" .. tostring(version)
+    end
+
     local metadata = pd.metadata or {}
-    local version = metadata.version
+    version = metadata.version
     if version == nil or version == "" then
         return nil
     end
@@ -1181,7 +1186,7 @@ function TitleScene:drawAppVersion()
 
     gfx.setFont(self.smallFont)
     gfx.setImageDrawMode(self:getTextDrawMode())
-    gfx.drawTextAligned(versionLabel, 392, 190, kTextAlignment.right)
+    gfx.drawTextAligned(versionLabel, 392, 224, kTextAlignment.right)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
