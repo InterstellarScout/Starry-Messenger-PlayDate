@@ -558,9 +558,6 @@ function ViewScene:update()
         end
         if self.onReturnToTitle then
             local effect = self.effect
-            if self.viewId == "warp" and effect and effect.kind == "warp" then
-                effect.speed = 9
-            end
             self.effect = nil
             self.onReturnToTitle(self.viewId, effect)
         end

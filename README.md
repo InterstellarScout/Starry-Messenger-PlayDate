@@ -1,101 +1,89 @@
-# Starry-Messenger-PlayDate
-This is a collection of vibe-coded games for the Play.Date console based on personal programming projects over the years. Experience stars, mini games (some multiplayer), procedural toys, and much more.
+# Starry Messenger
 
-Build the project with `.\build.ps1`. For feature and bug-fix hardware validation, connect and unlock the Playdate, then use `.\build.ps1 -InstallDevice` to compile, upload, and launch the current build over USB with `pdutil`. If direct USB deployment is unavailable, reboot the Playdate into Data Disk mode and use `.\build.ps1 -InstallDataDisk` as a fallback. The only supported generated app bundle in this project root is `StarryMessenger.pdx`; stale test bundles such as `StarryMessenger-test.pdx` are not valid launch targets.
+Starry Messenger is a Playdate collection of small games, visual toys, procedural effects, and experiments built around the crank, D-pad, accelerometer, and short-session play. The app opens on a live title carousel where each view has an animated preview. Use the crank or `Up`/`Down` to browse, `Left`/`Right` to change a view's mode when it has one, `A` to open the selected view, and `B` to go back.
 
-Current single-player views include Warp Speed, Star Fall, Multiplayer, Vibes, Game of Life, Fireworks, Puddle Drops, Dropper, Bouncy Balls, Wacky, Dimensional Split, Space Miner, Trail Blazer, Marble Madness, Photo Viewer, Gif Player, Fishy Pond, RC Arena, Orbital Defense, and Lava Lamp, plus the shared title-preview variants of those systems.
+The project is still in active development. The packaged app metadata is:
 
-The main `Star Fall` title entry now offers two modes again: `Star Fall` and `Inverted Star Fall`. Both use the clean-loop prototype behavior where stars seed once from a random starting layout, preserve those starting positions, and wrap back to their original coordinates instead of being freshly respawned.
+- Name: `Starry Messenger`
+- Bundle ID: `com.deansheldon.starrymessenger.playdate`
+- Version: `0.1.0`
+- Build number: `1`
 
-`CRT TV` now lives inside the `Vibes` folder and still enters through a title-specific loading handoff. Pressing `A` on that menu item removes the title scene immediately, holds on a captured CRT still, then swaps into the live CRT view once that mode finishes initializing. While `CRT TV` is merely highlighted on the Vibes menu, that same captured still is used as the preview so the real CRT effect does not start loading until `A` is pressed.
+## Install
 
-`Vibes` is now a dedicated title-menu folder directly under `Multiplayer` for lightweight procedural effects. Choosing `Vibes` from the main title runs a shorter warp-speed folder transition, flashes white, and loads the `Vibes` submenu during that flash so the menu is ready as the transition clears. Pressing `B` from that submenu runs the reverse negative-speed transition, flashes black, and returns to the main title with `Vibes` selected again. Returning from a live vibe effect also restores the Vibes title over the view you just left, matching the main title-screen preview handoff behavior. Inside the folder, each item opens one locked effect directly instead of dropping into a free-cycling browser.
+This repository expects the Playdate SDK to be installed one directory above this workspace, or available through `PLAYDATE_SDK_PATH`. The project-local script resolves the compiler, simulator, and device tools automatically.
 
-The current `Vibes` folder entries are `CRT TV`, `Spiral`, `Tunnel Bars`, `Fractal Spiral`, `Line Bloom`, `Shape Pile-Up`, `Loop Fall`, `Polygon Storm`, `Micro Rotate`, `Cloud Bubbles`, and `Bubble Pop`. They stay code-drawn rather than GIF-backed so the crank can drive one shared signed speed model cleanly across every sub-effect. `Loop Fall` in `Vibes` remains the clean-loop Star Fall prototype built from preserved random starting positions that wrap back to their original distribution instead of respawning, while the main title `Star Fall` entry now exposes both normal and inverted variants of that same effect. `Spiral` is one massive geometric spiral centered on-screen and extending beyond the display width, `Fractal Spiral` draws a much denser field, `Micro Rotate` fills the full screen width, and `Line Bloom` has three crank-driven modes that cycle with `A`: in-place spin, full-screen orbit, and off-screen respawn drift. Live Vibes HUD text is hidden by default and can be restored with the Home-menu `View Stats` toggle.
+Build the app:
 
-`Puddle Drops` is now a separate dedicated view with two title modes: `Drop Waves` and `Player Pulse`. `Drop Waves` continuously spawns layered ripple circles from random points with a rolling active cap of `10`, while `Player Pulse` puts a movable marker on-screen so pressing `A` can fire a leading pulse from the player's current point before the layered puddle rings spread outward. That player marker now moves with the full D-pad again, and the pressed-`A` droplet now grows from a tiny point to a random size between `3` and `25` before it becomes ripples.
+```powershell
+.\build.ps1
+```
 
-`Dropper` is a darker game-sized branch of that puddle idea and lives in the main `Views` folder, not under `Vibes`. It flips the scene to black water with white ripples and a white player stone. Bubble leaks now rise in random `20x20` clusters about once a second; if they finish swelling from a pixel to radius `5`, they burst into more ripple rings. Pressing `A` sends out a bright expanding flash from the player's stone, again starting tiny and growing to a random size between `3` and `25`, and any leaks caught inside that flash count toward the run score. Its crank speed now uses the same Warp Speed-style ladder as the other shared speed-driven views. The view also keeps a persistent cumulative `Depth` total of all plugged leaks across runs and drives a lightweight procedural watery soundscape when the system `Sound` toggle is enabled.
+Run in the Playdate Simulator:
 
-`Game of Life` now follows the same pattern. Its title tile uses a static captured still instead of building the live simulation preview, and the actual Life view is only constructed after selection. On entry it now uses a dedicated loading card that incrementally prewarms the live Life state and lets the player press `A` to interrupt and jump in immediately with whatever warm data has finished so far, instead of blocking for one long startup stall. Whether the prewarm completes on its own or the player presses `A` early, the live session now starts from the first warmed frame instead of dropping in on the last cached one.
+```powershell
+.\build.ps1 -RunSimulator
+```
 
-The title wheel now has a free-spin state: when you crank hard enough to throw the menu, the normal background preview is unloaded, a temporary uniform `Star Fall` field fades in behind the spinner, and those stars move together in the crank direction at the wheel's spin speed until the menu settles and fades back to the selected preview. The normal title menu also shows the current app version from `pdxinfo` in the lower-right corner above the instruction band. That title-only fidget background now has separate `Star Fall` and `Warp Speed` response modifiers, both currently set to `-0.5`, so the temporary stars need roughly twice as much crank speed before they streak as aggressively as before. Once fidget speed crosses `600`, the temporary background swaps into `Warp Speed`, and after warp metric `3000` it keeps the same star count but scales up warp-star size every additional `1000` of speed for a progressive whiteout effect without the earlier star-count lag spike. That temporary spin state also drops the usual title-screen gray overlay and hides the menu header and subtitle, including folder headers such as `Vibes`, until menu previews can load again. Pressing `A` during the spin now brings up a live counter that keeps tracking the crank, shows the current session-high speed for the title fidget mode, and toggles between live and locked display states on repeated `A` presses without stopping the spinner itself.
+Install and launch on a connected, unlocked Playdate over USB:
 
-The Home-menu `Title Menu` command returns to the title catalog and item for the app that was left. For example, using it during `Orbital Defense` returns to the title menu with `Orbital Defense` selected, and multiplayer or Vibes entries return to their matching folder title instead of falling back to a stale catalog.
+```powershell
+.\build.ps1 -InstallDevice
+```
 
-The live `Warp Speed` view and the title and splash warp previews now all run from a `200`-star pool. Warp star screen coordinates are quantized once into the per-frame cache before drawing, which reduces shimmer from sub-pixel line and head placement and trims redundant work in the draw path. At higher speeds, a regulator now steadily reduces the active star count over time instead of letting the full pool hammer the frame rate indefinitely. Warp also emits periodic debug lines with active star count, total pool size, regulator target, visible star count, spawn count during the interval, and Lua memory usage including delta and peak values so long runs can be profiled on hardware for suspected memory leaks.
+Install through Data Disk mode as a fallback:
 
-`Trail Blazer` is a line-and-drop toy with two title labels, `Flow` and `Drive 3.2`, that now share the same live controls. The crank steers the player circle, `Up` and `Down` move it forward and backward at a fixed speed of `3.2`, `Right` only draws while held, and `Left` drops the currently loaded ball onto the board. On entry it now shows a controls overlay that auto-hides on the first button press or crank move; that same first interaction clears the demo drawing and recenters the player before live play starts. Pressing `A` now opens an in-scene menu with `Clear Screen` and a `Hide Text` checkbox instead of clearing immediately. Tilt still influences released balls while they fall and roll, dropped balls are still capped at `3` active balls on-screen, and the Home menu now includes a `Trailblazer Controls` toggle for that startup overlay.
+```powershell
+.\build.ps1 -InstallDataDisk
+```
 
-`Marble Madness` ports the local Processing marble toy into a Playdate view with mixed-size bouncing marbles, chaos collision impulses, edge bounces, and startup burst energy. The D-pad moves a gravity-well cursor, holding `A` pulls marbles toward that cursor, and the crank adjusts gravity strength.
+The supported generated app bundle is `StarryMessenger.pdx` in this project root. Stale test bundles such as `StarryMessenger-test.pdx` are not valid launch targets.
 
-`Photo Viewer` packages the converted Artemis stills from `Source/images/adapted/` and the generated `Source/data/photos.lua` manifest into a monochrome Playdate slideshow. The title preview cycles the collection automatically. In the live view, the crank or `Left` and `Right` move photo-by-photo, `A` toggles autoplay, `Up` hides or shows the info plaque, and `Down` cycles between fullscreen fill, fit-to-screen, and inverted fullscreen image modes. The live viewer now opens with the plaque hidden by default and swaps between pre-rendered fit and fill image variants instead of scaling one shared asset at runtime. The still-image converter also regenerates `Source/launcher.png` by choosing a random photo background and compositing a splash-style `Starry Messenger` title and star field for the Playdate launcher icon.
+## Mini Games And Views
 
-Photo credits for the Artemis stills are now preserved in `Source/data/photos.lua` and shown in the live viewer info plaque. Those credits are derived from the original NASA source image metadata and shoot notes that came with the downloaded originals. When the original files name an individual crew photographer such as Christina Koch, Victor Glover, Reid Wiseman, Jeremy Hansen, or Robert Markowitz, that name is used. When the source only identifies a NASA batch, PAO set, survey set, or mixed crew batch, the credit remains at the source level such as `NASA` or `Artemis II crew` rather than inventing a more specific attribution.
+| Game Name | Game Type | Description | Play Instructions |
+| --- | --- | --- | --- |
+| Star Fall | Main | A falling starfield toy with normal and inverted modes. | Crank changes fall speed. D-pad steers the field. `A` opens the view and toggles speed/spin control in-game. `B` returns to the title. |
+| Warp Speed | Main | A forward-flight starfield with normal and inverse warp styles. | Crank changes star speed. D-pad steers direction. `A` opens the warp settings menu for speed, spin, star size, and style toggles. `B` returns to the title while preserving the current speed; press `B` again on the Warp title item to reset the preview. |
+| Game of Life | Main | Conway-style cellular automata with standard, endless, recorder, and review modes. | Crank scrubs generations. `Up`/`Down` changes simulation speed. `Left`/`Right` injects cells. `A` injects a larger burst or opens selected recordings in Review mode. |
+| Fireworks | Main | A player-controlled fireworks launcher with automatic background bursts. | Crank or `Left`/`Right` moves the launcher. `Up`/`Down` changes firework type. Hold `A` to launch. |
+| Puddle Drops | Main | Ripple simulation with automatic drop waves and a player-pulse mode. | Crank changes signed ripple speed. In Player Pulse, D-pad moves the marker and `A` fires a pulse. `Left`/`Right` on the title changes modes. |
+| Dropper | Main | A black-water ripple game about plugging rising bubble leaks. | D-pad moves the white stone. Crank changes speed. `A` flashes outward to plug leaks before they burst. |
+| Bouncy Balls | Main | Accelerometer-driven bouncing balls with adjustable slowdown. | Tilt the Playdate to roll balls. `A` adds a ball. Crank changes slowdown so balls settle faster or keep momentum longer. |
+| Wacky | Main | A crank-flung inflatable tube figure with springy limbs and pile-up behavior. | Crank forward flings the figure upward; crank backward pulls it down faster. `A` toggles rigid and pile-up modes. |
+| Dimensional Split | Main | A blinking grid of black and white cells with variable subdivision. | Crank changes grid density and regenerates the pattern. `A` randomizes square colors and blink timing. |
+| Space Miner | Main | Asteroid mining and ship combat with shields, missiles, enemy waves, and configurable steering. | Crank turns the ship. `Up`/`Down` thrusts. Hold `Left` to drill. Press `Right` to launch or detonate a missile. Home menu can toggle compact turn. |
+| Trail Blazer | Main | A drawing and ball-drop toy with steerable movement and tilt-influenced dropped balls. | Crank steers. Hold `Up`/`Down` to move. Hold `Right` to draw. Press `Left` to drop a ball. `A` opens the Clear Screen/Hide Text menu. |
+| Marble Madness | Main | A marble field with collisions, burst energy, and a movable gravity well. | D-pad moves the gravity cursor. Hold `A` to pull marbles toward it. Crank changes gravity strength. |
+| Photo Viewer | Main | A monochrome Artemis photo slideshow with fill, fit, and inverted display modes. | Crank or `Left`/`Right` changes photos. `A` toggles autoplay. `Up` hides or shows the info plaque. `Down` changes view mode. |
+| Gif Player | Main | A category browser and fullscreen GIF player with frame scrubbing and optional synced audio. | Crank or D-pad chooses categories and GIFs. `A` opens, plays, or cycles playback modes. Crank scrubs frames or changes spin speed. `B` backs out one level. |
+| Fishy Pond | Main | A fish-and-bubble toy with Pond, Bubbles, and Tank modes. | In Pond/Bubbles, crank moves the bubble maker, D-pad moves the fish, and hold `A` to make bubbles. In Tank, crank creates current and shake triggers panic. |
+| Duck Game | Main | A chick-collecting duck game with solo center-nest and multi-duck variants. | Normal mode uses D-pad for direction and crank for forward movement. Duck Turn Mode uses crank to steer and `Up`/`Down` to move. Collect chicks and bank them at nests. |
+| Orbital Defense | Main | A shield-defense turret game with laser fire, missiles, bot assist, and multiplayer support. | Crank or `Left`/`Right` aims. `Up`/`Down` moves around the shield. Hold `A` for laser fire. `B` launches or detonates a missile. |
+| RC Arena | Main | RC car modes for puck hockey, crash racing, and block sliding. | Crank rotates the car. `A` toggles crank steering/speed control. D-pad steers and accelerates. Home menu can enable auto brake. |
+| Lava Lamp | Main | A tilt-driven bubble simulation with merging, wall travel, and crank agitation. | Tilt sets the current top side. Crank agitates bubbles while moving. `Up`/`Down` changes overall bubble speed. |
+| Multiplayer Duck Game | Main | Portal-enabled Duck Game for 2-4 players. | Choose player count from the Multiplayer title entry, then collect and steal chicks while banking them at player nests. |
+| Multiplayer Orbital Defense | Main | Portal-enabled Orbital Defense for 2-4 turrets. | Choose player count from the Multiplayer title entry, then coordinate turret movement, laser fire, and missiles around the shared shield. |
+| Crash Racing | Main | Multiplayer RC mode with crash racing and RC hockey options. | Pick the RC multiplayer mode from the title dial. Use crank and D-pad driving controls. `A` switches crank speed control. |
+| CRT TV | Vibe | A procedural CRT rolling-bar effect with manual and automatic bars. | `A` toggles automatic transparent rolling bars. Crank spawns and drags a manual bar up or down; idle bars slide away. |
+| Spiral | Vibe | A large crank-driven geometric spiral. | Crank controls signed playback speed with reverse, near-stop, and fast-forward behavior. `B` returns to the Vibes folder. |
+| Tunnel Bars | Vibe | A tunnel-like field of moving bars. | Crank controls signed playback speed. Use the Home menu `View Stats` toggle to show or hide Vibes stats. |
+| Fractal Spiral | Vibe | A denser spiral pattern built for visual texture. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Line Bloom | Vibe | A line-field effect with spin, orbit, and drift modes. | Crank controls signed speed. `A` cycles motion modes. `B` returns to the Vibes folder. |
+| Shape Pile-Up | Vibe | A code-drawn shape accumulation and motion effect. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Loop Fall | Vibe | A clean-loop Star Fall variant that preserves each star's starting position. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Polygon Storm | Vibe | A procedural polygon field with speed-driven motion. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Micro Rotate | Vibe | A full-screen micro-rotation pattern. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Cloud Bubbles | Vibe | A soft procedural bubble-cloud effect. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Bubble Pop | Vibe | A bubble popping visual toy. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 
-`Duck Game` now defaults to crank-turning controls on entry, so the crank steers the duck and `Up`/`Down` drive it forward and backward unless you toggle back out of that mode. It also now opens with a centered two-line tilt hint for up to `5` seconds, or until you press `A`, before getting out of the way.
+## Home Menu
 
-`Bouncy Balls` now opens with a centered two-line prompt for up to `5` seconds, or until you press `A`: `Turn the Play Date upside down` and `and watch the ball fall to your feet!`
+The Playdate Home menu always includes `Title Menu` and `Sound`. Some views add extra toggles while active:
 
-`Dimensional Split` is a standalone grid-blink view, not part of the `Vibes` folder. It fills the screen with black and white squares that each blink independently on random intervals between `0.1` and `5` seconds. Turning the crank now removes the old subdivision floor and ceiling, so the field can collapse to one flashing box or subdivide all the way down toward pixel-sized cells, while pressing `A` randomizes every square's starting color and blink timing again.
-
-The single-player RC car entry now opens on `Puck Ring` first. Its former `Eject the Bad Thoughts!` mode is still present, but its title-screen mode label is now `Box Slider`.
-
-`Wacky` is a procedural inflatable tube-man scene. Its title preview starts fully extended, then slumps into a floppy idle pose. In the live view, turning the crank pumps the body upright, while stopping the crank lets it sag and flop over again. Its arms now use a multi-jointed spring chain, so the old bend direction is still there but it bounces through several joints instead of folding at one elbow.
-
-`Space Miner` is a ship-combat and asteroid-mining view. The ship stays centered while the world moves around it, the crank rotates the ship, `Up` and `Down` add forward or reverse thrust with persistent space momentum, `Left` holds a laser drill, and `Right` launches or detonates a missile using the same single-active-missile rhythm as Orbital Defense. After the shield has taken damage, avoiding further hits for `5` seconds now starts a slow shield refill, depleted shields no longer keep drawing after the last block is gone, and each combat wave flashes a bold white on-screen `ALERT` warning three times before the first enemies spawn with a clean gap before the actual wave entry. Large asteroids also get extra off-screen prune protection so newly arrived rocks do not disappear immediately under entity-pressure cleanup. Asteroid lifecycle diagnostics emit a bounded hardware log summary every `150` frames plus limited event lines for visibility exits, world wraps, player collisions, and entity-pressure prunes so disappearing rocks can be traced without restoring noisy global logging.
-
-`Space Miner` supports three crank-turn modes from the title screen:
-- `Turn 360`: one full crank rotation equals one full ship rotation.
-- `Turn 180`: half a crank window maps to a full ship rotation, so crank motion is more sensitive.
-- `Turn 90`: a quarter-turn crank window maps to a full ship rotation for the most sensitive steering.
-
-`Space Miner` asteroid mining flow:
-- Large asteroids split into two smaller chunks when destroyed.
-- Each of those chunks can split again, for three total breakup generations after the starting rock.
-- Smaller fragments move faster, so the mining field gets busier as the player drills deeper into a cluster.
-
-`Space Miner` wave entities and other live entities:
-- Configurable wave-spawn entities: `seeker`, `escaper`, and `striker`.
-- Other entities active in the view include asteroid chunks across four breakup stages, enemy missiles, the player's missile, explosion rings, and decorative starfield items.
-
-`Space Miner` stage schedule defaults now live in `Source/data/spaceminerwaves.lua`:
-- Stage 1: a two-minute mining window with only asteroids.
-- Stage 2: seeker wave 1 with 4 heat-seeking ships, preceded by the three-flash `ALERT`.
-- Stage 3: seeker wave 2 with 8 heat-seeking ships.
-- Stage 4: seeker wave 3 with 16 heat-seeking ships.
-- Stage 5: another two-minute mining break.
-- Stage 6: escaper wave 1 with 2 ships that try to avoid nearby asteroids, the player, and incoming missiles.
-- Stage 7: escaper wave 2 with 4 more evasive ships.
-- Stage 8: striker assault with 3 narrow, agile ships that can accelerate independently while aiming at the player and firing missiles.
-
-Each wave stage in that config can now define:
-- a timed start or an `after_stage_clear` trigger,
-- one or more spawn entries,
-- the entity type,
-- quantity,
-- and an entry degree where `0/360` is top, `90` is right, `180` is bottom, and `270` is left.
-
-If a spawn entry quantity is greater than `1`, enemies alternate between the requested degree and its opposite degree. For example, `6` at `90` degrees yields `3` spawns at `90` and `3` at `270`.
-
-`Lava Lamp` crank input now temporarily agitates all bubbles at once with per-bubble random push strength scaled by crank speed, instead of only nudging bubbles already in motion along one shared direction. As soon as the crank stops moving, that extra agitation stops too. Every bubble also carries a random layer number from `1` to `3`: bubbles on the same layer retain the existing collision, orbit, settling, and merged-goop behavior, while bubbles on different layers pass through each other to simulate depth. A bubble rerolls its layer whenever it settles at the top or bottom. Initial lamp population is configurable and currently starts with `40%` anchored at the top, `20%` anchored at the bottom, and the remaining `40%` already traveling through the main spawn area.
-
-`Orbital Defense` single-player now lets the local turret fall back to bot behavior after `5` seconds without player input. Any new intentional crank, D-pad, laser, or missile input immediately restores control to the player, so the local turret can idle like the NPC wingmate and then be reclaimed seamlessly. The crank input threshold ignores tiny physical jitter that previously kept resetting the idle timer.
-
-`Duck Game` ducks now render with a rounder oval body while keeping the smaller round head, so the pond racers read more like compact cartoon ducks instead of blocky rectangles.
-
-Newly collected or stolen `Duck Game` chicks now ease slowly toward the back of the trail first instead of snapping quickly into line, so they stay closer to the pickup spot until the lead duck has moved past and the trail naturally gathers them in.
-
-`Duck Game` now shows the local duck's current carried chick count in the top-left corner and a persistent lifetime total of all chicks ever delivered in the top-right corner.
-
-`Space Miner` combat and survivability rules:
-- The player has 2 shield blocks first, then 2 hull hits after the shield is gone.
-- Seeker ships chase the player directly with slower mass-heavy acceleration.
-- Escaper ships run away when they enter the player's 100-pixel threat area, and otherwise try to dodge asteroids and missiles.
-- Striker ships orbit and strafe, keep their noses pointed at the player, and periodically fire missiles that must be intercepted or dodged.
-
-The GIF player now browses category folders under `Source/gifs/<Category>/`. It opens on a category selector first, then drops into the GIF browser for that folder, and finally into fullscreen playback for the selected GIF. Original downloaded media is kept under `assets/source_gifs/originals/`, while converted Playdate frame sets remain under `Source/gifs/`.
-
-GIF-specific optional audio now lives under `Source/audio/gifplayer/<gif-audio-folder>/`. The GIF player looks for the first supported file in each folder and keeps it synced while scrubbing or during forward autoplay. Reverse autoplay remains silent because Playdate's streamed file playback cannot run backwards.
-
-Large still images can be prepared with `python .\tools\image_adapter.py`. The script reads originals from `assets/source_images/originals/`, creates both fit-to-screen and fullscreen-cropped Playdate monochrome PNGs for each image, writes them to `Source/images/adapted/`, and regenerates the `Source/data/photos.lua` manifest used by `Photo Viewer`.
+- `Fish Spawn Mode` for Fishy Pond.
+- `Duck Turn Mode` for Duck Game.
+- `RC Auto Brake` for RC Arena.
+- `View Stats` while inside the Vibes folder.
+- `Trailblazer Controls` for Trail Blazer.
+- `Space Miner Compact Turn` for Space Miner.

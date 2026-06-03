@@ -41,7 +41,8 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "A: open the Warp settings menu. Adjust speed/spin, star size, and the Warp style toggles there.",
             "Spin control: the crank sets a persistent rotation speed that keeps going.",
             "Speed control: the crank changes star speed while spin keeps running.",
-            "B: close the Warp test menu first, then return to title. Warp speed resets to 9 on exit."
+            "B: close the Warp test menu first, then return to title with the current speed preserved.",
+            "Press B again on the Warp title item to reset the preview."
         })
     elseif viewId == "fall" then
         return buildSpec("Star Fall Controls", {
