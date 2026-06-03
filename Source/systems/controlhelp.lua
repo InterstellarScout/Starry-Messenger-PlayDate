@@ -47,7 +47,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         return buildSpec("Star Fall Controls", {
             "Crank: change falling speed.",
             "D-pad: steer the falling field direction.",
-            "Left/Right on the title wheel: switch between Star Fall and Inverse Fall.",
+            "Left/Right on the title wheel: switch between Star Fall and Inverted Star Fall.",
             "A: start. In game, toggle between speed control and spin control.",
             "Spin control: the crank sets a persistent rotation speed that keeps going.",
             "Speed control: the crank changes fall speed while spin keeps running.",
@@ -97,12 +97,55 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "The title preview now uses cached CRT playback frames that pre-render during startup.",
             "B: return to title."
         })
+    elseif viewId == "vibes" then
+        return buildSpec("Vibes Controls", {
+            "A: cycle through the current Vibes prototypes. In Line Bloom, A cycles its motion modes.",
+            "Crank: change signed playback speed with a near-stop center and unlimited fast forward or reverse.",
+            "Left/Right: also cycle effects.",
+            "Current prototypes include CRT TV, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
+            "Loop Fall is the clean-loop Star Fall prototype built from preserved random starting positions.",
+            "B: return to title."
+        })
+    elseif viewId == "puddledrops" then
+        if modeId == PuddleDrops.MODE_PLAYER then
+            return buildSpec("Player Pulse Controls", {
+                "A: spawn a pulse from the player marker. The droplet starts tiny and expands to a random size between 3 and 25 before turning into rings.",
+                "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
+                "D-pad: move the player marker in all four directions.",
+                "Left/Right on the title wheel: switch between Drop Waves and Player Pulse.",
+                "B: return to title."
+            })
+        end
+
+        return buildSpec("Drop Waves Controls", {
+            "Random drop points spawn ripple circles that expand in layered bands.",
+            "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
+            "Left/Right on the title wheel: switch between Drop Waves and Player Pulse.",
+            "B: return to title."
+        })
+    elseif viewId == "dropper" then
+        return buildSpec("Dropper Controls", {
+            "D-pad: move the white stone around the black water.",
+            "Crank: change speed with the same near-stop and larger-step ladder used by Warp Speed.",
+            "A: flash outward from the stone. The flash starts tiny and expands to a random size between 3 and 25 before turning into bright rings.",
+            "Bubble leaks rise in 20x20 clusters. Plug them with your flash before they burst into more ripples.",
+            "Depth is the cumulative total of plugged leaks saved across runs, while Run tracks this session.",
+            "B: return to title."
+        })
     elseif viewId == "tiltballs" then
         return buildSpec("Bouncy Balls Controls", {
             "Tilt the Playdate to roll the balls and bounce them off each other and the walls.",
             "A: add another ball to the playfield.",
             "Crank: raise or lower the slowdown rate so the balls carry momentum longer or settle faster.",
             "The slowdown readout appears in the scene while you play.",
+            "B: return to title."
+        })
+    elseif viewId == "dimensionalsplit" then
+        return buildSpec("Dimensional Split Controls", {
+            "The screen is divided into squares that each blink independently between black and white.",
+            "Each square uses a random blink interval between 0.1 seconds and 5 seconds.",
+            "Crank: subdivide into a different grid density and regenerate the whole pattern.",
+            "A: randomize every square's color and blink timing again.",
             "B: return to title."
         })
     elseif viewId == "wacky" then
@@ -121,20 +164,10 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Hold Left: fire the laser drill straight ahead to mine asteroids or burn enemy ships.",
             "Press Right: launch a missile. Press Right again while one is active to detonate it early, like Orbital Defense.",
             "Asteroids split into two smaller chunks three times, so mining escalates into denser debris fields.",
-            "The run opens with two minutes of mining, then three seeker waves at 4, 8, and 16 ships, then another two-minute mining break.",
-            "Later waves add escaper ships that avoid the player and missiles, then agile striker ships that aim at you and fire missiles of their own.",
+            "Each combat wave now flashes a bold ALERT warning three times before the first enemies arrive.",
+            "The default config opens with two minutes of mining, then seeker waves at 4, 8, and 16 ships, another two-minute mining break, two escaper waves, and a final striker assault.",
+            "Available wave entities today are seeker, escaper, striker, four asteroid breakup stages, player and enemy missiles, explosion rings, and decor stars/shapes.",
             "You can absorb 4 hits total: 2 shield blocks first, then 2 hull hits.",
-            "B: return to title."
-        })
-    elseif viewId == "skywatch" then
-        return buildSpec("Sky Watch Controls", {
-            "On first entry, choose a timezone with Up/Down and confirm with A. The game remembers it.",
-            "Crank: set a signed simulation rate centered on zero, with very slow motion near zero and unlimited speed in either direction.",
-            "A: lock or unlock crank speed changes.",
-            "Left/Right: pause time and step backward or forward by the current signed-rate size.",
-            "Hold Left/Right briefly: jump to the previous or next sunrise or sunset.",
-            "Up/Down: rotate the view between N, NE, E, SE, S, SW, W, and NW.",
-            "On the title menu while Sky Watch is selected, press B to forget the saved timezone.",
             "B: return to title."
         })
     elseif viewId == "trailblazer" then
@@ -145,6 +178,15 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "D-pad Left: drop the loaded ball onto the board once it is available. Only 3 dropped balls can be active at once.",
             "A: open the on-screen menu for Clear Screen and the Hide Text checkbox.",
             "Tilt and motion: influence falling and rolling balls after they are released.",
+            "B: return to title."
+        })
+    elseif viewId == "marblemadness" then
+        return buildSpec("Marble Madness Controls", {
+            "D-pad: move the gravity-well cursor around the marble field.",
+            "Hold A: activate a temporary gravity well at the cursor and pull marbles toward it.",
+            "Crank: raise or lower gravity strength.",
+            "Marbles start with burst energy and bounce off each other and the screen edges.",
+            "Chaos mode adds random impulses and pattern changes on collisions.",
             "B: return to title."
         })
     elseif viewId == "photoviewer" then
@@ -190,6 +232,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "D-pad Up/Down: move the turret around the defense shield.",
             "Hold A: fire the laser.",
             "B: launch a missile, then press B again to detonate the current missile.",
+            "In single-player, your turret hands off to bot control after 5 seconds of no input, and any new input immediately gives control back to you.",
             "Use the Home menu Title Menu entry to exit mid-run.",
             "Single-player uses one NPC wingmate; multiplayer uses pdportal host/client play with exactly the chosen 2-4 turrets."
         })
@@ -247,7 +290,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             })
         end
 
-        return buildSpec("Eject the Bad Thoughts! Controls", {
+        return buildSpec("Box Slider Controls", {
             "Crank: rotate the car.",
             "A: toggle the crank between steering and max-speed control.",
             "D-pad Left/Right: fine steering.",
@@ -268,7 +311,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "When 4 or more touching bubbles collect on the same wall, the shared gap between them fills in white temporarily.",
             "If one whole wall is about to flip and 4+ bubbles on the other wall are also close, those other timers reshuffle to break the sync.",
             "A full 180-degree pickup flips wall-bound bubbles to the opposite wall while already traveling bubbles keep going.",
-            "Crank: bump only the bubbles that are currently in motion.",
+            "Crank: temporarily agitate all bubbles with random push strength scaled by crank speed. The effect stops as soon as the crank stops.",
             "D-pad Up/Down: raise or lower the overall bubble speed.",
             "B: return to title.",
             "D-pad Left/Right and A: no action."

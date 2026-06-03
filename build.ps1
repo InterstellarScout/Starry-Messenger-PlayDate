@@ -1,6 +1,7 @@
 param(
     [switch]$RunSimulator,
-    [switch]$InstallDevice
+    [switch]$InstallDevice,
+    [switch]$InstallDataDisk
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,6 +9,7 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sdkRoot = if ($env:PLAYDATE_SDK_PATH) { $env:PLAYDATE_SDK_PATH } else { (Resolve-Path (Join-Path $projectRoot "..\\..")).Path }
 $pdc = Join-Path $sdkRoot "bin\\pdc.exe"
+$pdutil = Join-Path $sdkRoot "bin\\pdutil.exe"
 $simulator = Join-Path $sdkRoot "bin\\PlaydateSimulator.exe"
 $sourceDir = Join-Path $projectRoot "Source"
 $outputDir = Join-Path $projectRoot "StarryMessenger.pdx"
@@ -42,7 +44,7 @@ function Wait-ForPlaydateDrive {
     throw "Playdate drive '$deviceLabel' was not found."
 }
 
-function Install-ToPlaydateDevice {
+function Install-ToPlaydateDataDisk {
     $lastError = $null
 
     for ($attempt = 1; $attempt -le $deviceInstallAttempts; $attempt++) {
@@ -79,6 +81,26 @@ function Install-ToPlaydateDevice {
     throw "Failed to install to Playdate after $deviceInstallAttempts attempts. $lastError"
 }
 
+function Install-ToPlaydateDevice {
+    if (-not (Test-Path $pdutil)) {
+        throw "Playdate device utility not found at $pdutil"
+    }
+
+    & $pdutil install $outputDir
+    if ($LASTEXITCODE -ne 0) {
+        throw "pdutil install failed with exit code $LASTEXITCODE"
+    }
+
+    Start-Sleep -Seconds 1
+
+    & $pdutil run "Games/StarryMessenger.pdx"
+    if ($LASTEXITCODE -ne 0) {
+        throw "pdutil run failed with exit code $LASTEXITCODE"
+    }
+
+    Write-Host "Installed and launched build on the connected Playdate"
+}
+
 if (-not (Test-Path $pdc)) {
     throw "Playdate compiler not found at $pdc"
 }
@@ -99,4 +121,8 @@ if ($RunSimulator) {
 
 if ($InstallDevice) {
     Install-ToPlaydateDevice
+}
+
+if ($InstallDataDisk) {
+    Install-ToPlaydateDataDisk
 }

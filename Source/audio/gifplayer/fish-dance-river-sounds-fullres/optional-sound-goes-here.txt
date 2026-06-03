@@ -1,0 +1,1 @@
+Optional GIF-specific audio goes in this folder. The GIF player loads the first supported file it finds here.

@@ -57,6 +57,11 @@ local TIMER_RESHUFFLE_COOLDOWN_FRAMES <const> = LAVA_CONFIG.timerReshuffleCooldo
 local WALL_FLIP_DOT_THRESHOLD <const> = LAVA_CONFIG.wallFlipDotThreshold or -0.94
 local WALL_FLIP_COOLDOWN_FRAMES <const> = LAVA_CONFIG.wallFlipCooldownFrames or 18
 local CONTACT_FILL_DISTANCE_SCALE <const> = LAVA_CONFIG.contactFillDistanceScale or 0.8
+local BUBBLE_LAYER_MIN <const> = LAVA_CONFIG.bubbleLayerMin or 1
+local BUBBLE_LAYER_MAX <const> = LAVA_CONFIG.bubbleLayerMax or 3
+local INITIAL_TOP_SPAWN_WEIGHT <const> = LAVA_CONFIG.initialTopSpawnWeight or 0.4
+local INITIAL_BOTTOM_SPAWN_WEIGHT <const> = LAVA_CONFIG.initialBottomSpawnWeight or 0.2
+local INITIAL_TRAVELING_SPAWN_WEIGHT <const> = LAVA_CONFIG.initialTravelingSpawnWeight or 0.4
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -122,6 +127,8 @@ function LavaLamp.new(width, height, bubbleCount, options)
     self.frameNumber = 0
     self.lastTimerReshuffleFrame = -TIMER_RESHUFFLE_COOLDOWN_FRAMES
     self.lastWallFlipFrame = -WALL_FLIP_COOLDOWN_FRAMES
+    self.crankAgitation = 0
+    self.crankDirection = 1
     self:applyOptions(options)
 
     for index = 1, self.targetBubbleCount do
@@ -153,6 +160,7 @@ function LavaLamp:createBubble(index)
         vx = 0,
         vy = 0,
         radius = radius,
+        layer = math.random(BUBBLE_LAYER_MIN, BUBBLE_LAYER_MAX),
         travelSpeed = randomRange(BUBBLE_TRAVEL_SPEED_MIN, BUBBLE_TRAVEL_SPEED_MAX),
         state = "bottom",
         lingerValue = math.random(TOP_LINGER_VALUE_MIN, TOP_LINGER_VALUE_MAX),
@@ -172,7 +180,10 @@ function LavaLamp:createBubble(index)
         orbitCenterVy = 0,
         orbitStartAngle = 0,
         orbitRadius = 0,
-        orbitResumeState = nil
+        orbitResumeState = nil,
+        crankPushScale = randomRange(0.55, 1.45),
+        crankPushAngle = randomRange(0, math.pi * 2),
+        crankPushDrift = randomRange(0.18, 0.42)
     }
 end
 
@@ -189,7 +200,7 @@ function LavaLamp:positionInitialBubbles()
                 local dx = candidateX - other.x
                 local dy = candidateY - other.y
                 local minDistance = bubble.radius + other.radius + INITIAL_SPAWN_PADDING
-                if ((dx * dx) + (dy * dy)) < (minDistance * minDistance) then
+                if bubble.layer == other.layer and ((dx * dx) + (dy * dy)) < (minDistance * minDistance) then
                     overlaps = true
                     break
                 end
@@ -208,6 +219,71 @@ function LavaLamp:positionInitialBubbles()
             bubble.y = randomRange(bubble.radius + 6, self.height - bubble.radius - 6)
         end
     end
+
+    self:initializeBubblePopulation()
+end
+
+function LavaLamp:initializeBubblePopulation()
+    local topWeight = math.max(0, INITIAL_TOP_SPAWN_WEIGHT)
+    local bottomWeight = math.max(0, INITIAL_BOTTOM_SPAWN_WEIGHT)
+    local travelingWeight = math.max(0, INITIAL_TRAVELING_SPAWN_WEIGHT)
+    local totalWeight = topWeight + bottomWeight + travelingWeight
+    if totalWeight <= 0 then
+        topWeight = 0.4
+        bottomWeight = 0.2
+        travelingWeight = 0.4
+        totalWeight = 1
+    end
+
+    local bubbleCount = #self.bubbles
+    local topCount = math.min(bubbleCount, math.floor((bubbleCount * topWeight / totalWeight) + 0.5))
+    local bottomCount = math.min(bubbleCount - topCount, math.floor((bubbleCount * bottomWeight / totalWeight) + 0.5))
+    local initialStates = {}
+
+    for _ = 1, topCount do
+        initialStates[#initialStates + 1] = "top"
+    end
+    for _ = 1, bottomCount do
+        initialStates[#initialStates + 1] = "bottom"
+    end
+    while #initialStates < bubbleCount do
+        initialStates[#initialStates + 1] = "traveling"
+    end
+
+    for index = #initialStates, 2, -1 do
+        local swapIndex = math.random(index)
+        initialStates[index], initialStates[swapIndex] = initialStates[swapIndex], initialStates[index]
+    end
+
+    for index, bubble in ipairs(self.bubbles) do
+        local initialState = initialStates[index]
+        if initialState == "top" then
+            bubble.state = "top"
+            bubble.targetSide = "bottom"
+            bubble.lingerFrames = self:getTopLingerFrames(bubble)
+        elseif initialState == "bottom" then
+            bubble.state = "bottom"
+            bubble.targetSide = "top"
+        else
+            self:startTravel(bubble, math.random() < 0.5 and "top" or "bottom")
+        end
+    end
+
+    local flowX, flowY, perpX, perpY = self:getFlowBasis()
+    self:updateAnchoredSpreadTargets(flowX, flowY, perpX, perpY)
+    for _, bubble in ipairs(self.bubbles) do
+        if bubble.state == "top" or bubble.state == "bottom" then
+            self:anchorBubble(bubble, bubble.state, flowX, flowY, perpX, perpY, true)
+        end
+    end
+end
+
+function LavaLamp:assignNextBubbleLayer(bubble)
+    bubble.layer = math.random(BUBBLE_LAYER_MIN, BUBBLE_LAYER_MAX)
+end
+
+function LavaLamp:doBubbleLayersMatch(bubbleA, bubbleB)
+    return bubbleA.layer == bubbleB.layer
 end
 
 function LavaLamp:activate()
@@ -398,39 +474,41 @@ function LavaLamp:updateAnchoredSpreadTargets(flowX, flowY, perpX, perpY)
     local sides = { "top", "bottom" }
 
     for _, side in ipairs(sides) do
-        local anchored = {}
-        local maxRadius = 0
+        for layer = BUBBLE_LAYER_MIN, BUBBLE_LAYER_MAX do
+            local anchored = {}
+            local maxRadius = 0
 
-        for _, bubble in ipairs(self.bubbles) do
-            if bubble.state == side or bubble.state == ("settling_" .. side) then
-                local _, perp = self:projectBubble(bubble, flowX, flowY, perpX, perpY)
-                anchored[#anchored + 1] = { bubble = bubble, perp = perp }
-                if bubble.radius > maxRadius then
-                    maxRadius = bubble.radius
+            for _, bubble in ipairs(self.bubbles) do
+                if bubble.layer == layer and (bubble.state == side or bubble.state == ("settling_" .. side)) then
+                    local _, perp = self:projectBubble(bubble, flowX, flowY, perpX, perpY)
+                    anchored[#anchored + 1] = { bubble = bubble, perp = perp }
+                    if bubble.radius > maxRadius then
+                        maxRadius = bubble.radius
+                    end
                 end
             end
-        end
 
-        table.sort(anchored, function(a, b)
-            return a.perp < b.perp
-        end)
+            table.sort(anchored, function(a, b)
+                return a.perp < b.perp
+            end)
 
-        local edgePadding = maxRadius + ANCHOR_SPREAD_MARGIN
-        local startPerp = minPerp + edgePadding
-        local endPerp = maxPerp - edgePadding
+            local edgePadding = maxRadius + ANCHOR_SPREAD_MARGIN
+            local startPerp = minPerp + edgePadding
+            local endPerp = maxPerp - edgePadding
 
-        if #anchored == 1 then
-            anchored[1].bubble.anchorPerp = 0
-        elseif #anchored > 1 then
-            if startPerp > endPerp then
-                local midpoint = (minPerp + maxPerp) * 0.5
-                startPerp = midpoint
-                endPerp = midpoint
-            end
+            if #anchored == 1 then
+                anchored[1].bubble.anchorPerp = 0
+            elseif #anchored > 1 then
+                if startPerp > endPerp then
+                    local midpoint = (minPerp + maxPerp) * 0.5
+                    startPerp = midpoint
+                    endPerp = midpoint
+                end
 
-            for index, item in ipairs(anchored) do
-                local t = (index - 1) / (#anchored - 1)
-                item.bubble.anchorPerp = lerp(startPerp, endPerp, t)
+                for index, item in ipairs(anchored) do
+                    local t = (index - 1) / (#anchored - 1)
+                    item.bubble.anchorPerp = lerp(startPerp, endPerp, t)
+                end
             end
         end
     end
@@ -545,6 +623,7 @@ function LavaLamp:updateSettlingBubble(bubble, flowX, flowY, perpX, perpY)
 
     if bubble.settleFrames <= 0 then
         bubble.state = side
+        self:assignNextBubbleLayer(bubble)
         bubble.vx = 0
         bubble.vy = 0
         bubble.travelFrames = 0
@@ -564,6 +643,9 @@ function LavaLamp:canOrbitPair(bubbleA, bubbleB)
     end
 
     if bubbleA.orbitPartner ~= nil or bubbleB.orbitPartner ~= nil then
+        return false
+    end
+    if not self:doBubbleLayersMatch(bubbleA, bubbleB) then
         return false
     end
 
@@ -760,7 +842,7 @@ function LavaLamp:resolveActiveCollisions()
         if bubbleA.state == "rising" or bubbleA.state == "falling" then
             for otherIndex = index + 1, #self.bubbles do
                 local bubbleB = self.bubbles[otherIndex]
-                if bubbleB.state == "rising" or bubbleB.state == "falling" then
+                if (bubbleB.state == "rising" or bubbleB.state == "falling") and self:doBubbleLayersMatch(bubbleA, bubbleB) then
                     local dx = bubbleB.x - bubbleA.x
                     local dy = bubbleB.y - bubbleA.y
                     local distanceSquared = (dx * dx) + (dy * dy)
@@ -820,7 +902,7 @@ function LavaLamp:resolveSettlingCollisions()
                     or (bubbleB.state == "settling_top" and "top")
                     or (bubbleB.state == "settling_bottom" and "bottom")
 
-                if sideA == sideB then
+                if sideA == sideB and self:doBubbleLayersMatch(bubbleA, bubbleB) then
                     local dx = bubbleB.x - bubbleA.x
                     local dy = bubbleB.y - bubbleA.y
                     local distanceSquared = (dx * dx) + (dy * dy)
@@ -909,19 +991,30 @@ end
 
 function LavaLamp:applyCrank(change)
     if math.abs(change) <= 0.01 then
+        self.crankAgitation = 0
         return
     end
 
-    local flowX, flowY = self:getFlowBasis()
-    local impulse = clamp(change * 0.018, -1.8, 1.8)
+    self.crankDirection = change >= 0 and 1 or -1
+    self.crankAgitation = clamp(math.abs(change) * 0.03, 0, 3.2)
+end
+
+function LavaLamp:applyCrankAgitation()
+    local agitation = self.crankAgitation or 0
+    if agitation <= 0 then
+        return
+    end
 
     for _, bubble in ipairs(self.bubbles) do
-        if bubble.state == "rising" or bubble.state == "falling" then
-            bubble.x = bubble.x + (flowX * impulse)
-            bubble.y = bubble.y + (flowY * impulse)
-            self:clampBubbleToScreen(bubble)
-        end
+        local randomSpeed = randomRange(0.55, 1.45)
+        local impulse = agitation * bubble.crankPushScale * randomSpeed
+        bubble.crankPushAngle = bubble.crankPushAngle + (bubble.crankPushDrift * self.crankDirection)
+        bubble.x = bubble.x + (math.cos(bubble.crankPushAngle) * impulse)
+        bubble.y = bubble.y + (math.sin(bubble.crankPushAngle) * impulse)
+        self:clampBubbleToScreen(bubble)
     end
+
+    self.crankAgitation = 0
 end
 
 function LavaLamp:update()
@@ -949,6 +1042,7 @@ function LavaLamp:update()
     self:resolveOpposingOrbitContacts()
     self:resolveSettlingCollisions()
     self:reshuffleCrowdedFlipTimers()
+    self:applyCrankAgitation()
 end
 
 function LavaLamp:getBubbleRenderRadius(index)
@@ -966,7 +1060,7 @@ function LavaLamp:getBubbleRenderRadius(index)
     end
 
     for otherIndex, otherBubble in ipairs(self.bubbles) do
-        if otherIndex ~= index and otherBubble.state == mergeGroup then
+        if otherIndex ~= index and otherBubble.state == mergeGroup and self:doBubbleLayersMatch(bubble, otherBubble) then
             local dx = otherBubble.x - bubble.x
             local dy = otherBubble.y - bubble.y
             local touchDistance = (bubble.radius + otherBubble.radius) * 0.72
@@ -1009,7 +1103,9 @@ function LavaLamp:getContactFillClusters()
                     local currentBubble = self.bubbles[currentIndex]
 
                     for otherIndex, otherBubble in ipairs(self.bubbles) do
-                        if not visited[otherIndex] and self:getBubbleContactGroup(otherBubble) == group then
+                        if not visited[otherIndex]
+                            and self:getBubbleContactGroup(otherBubble) == group
+                            and self:doBubbleLayersMatch(currentBubble, otherBubble) then
                             local dx = otherBubble.x - currentBubble.x
                             local dy = otherBubble.y - currentBubble.y
                             local touchDistance = (currentBubble.radius + otherBubble.radius) * CONTACT_FILL_DISTANCE_SCALE

@@ -302,25 +302,122 @@ function GameOfLife.prewarmStarryMessenger()
     GameOfLife.prewarm(400, 240, 5, 0.28, WARM_FRAME_COUNT)
 end
 
+function GameOfLife.beginPrewarm(configs)
+    if configs == nil or #configs == 0 then
+        GameOfLife._prewarmQueue = nil
+        return
+    end
+
+    local normalizedConfigs = {}
+    for _, config in ipairs(configs) do
+        normalizedConfigs[#normalizedConfigs + 1] = {
+            width = config.width,
+            height = config.height,
+            cellSize = config.cellSize or 5,
+            seedChance = config.seedChance or 0.28,
+            frameCount = math.max(1, math.floor(config.frameCount or WARM_FRAME_COUNT))
+        }
+    end
+
+    GameOfLife._prewarmQueue = {
+        configs = normalizedConfigs,
+        configIndex = 1,
+        snapshotIndex = 1,
+        temp = nil
+    }
+    lifeLog("prewarm queued count=%d", #normalizedConfigs)
+end
+
+function GameOfLife.beginPrewarmForConfig(width, height, cellSize, seedChance, frameCount)
+    GameOfLife.beginPrewarm({
+        {
+            width = width,
+            height = height,
+            cellSize = cellSize,
+            seedChance = seedChance,
+            frameCount = frameCount
+        }
+    })
+end
+
 function GameOfLife.beginPrewarmStarryMessenger()
     if GameOfLife._prewarmQueue ~= nil then
         return
     end
 
-    lifeLog("prewarm queued")
-    GameOfLife._prewarmQueue = {
-        configs = {
-            { width = 400, height = 240, cellSize = 6, seedChance = 0.3, frameCount = WARM_FRAME_COUNT },
-            { width = 400, height = 240, cellSize = 5, seedChance = 0.28, frameCount = WARM_FRAME_COUNT }
-        },
-        configIndex = 1,
-        snapshotIndex = 1,
-        temp = nil
-    }
+    GameOfLife.beginPrewarm({
+        { width = 400, height = 240, cellSize = 6, seedChance = 0.3, frameCount = WARM_FRAME_COUNT },
+        { width = 400, height = 240, cellSize = 5, seedChance = 0.28, frameCount = WARM_FRAME_COUNT }
+    })
 end
 
 function GameOfLife.isPrewarmComplete()
     return GameOfLife._prewarmQueue == nil
+end
+
+function GameOfLife.cancelPrewarm()
+    GameOfLife._prewarmQueue = nil
+end
+
+function GameOfLife.getPrewarmStatus()
+    local queue = GameOfLife._prewarmQueue
+    if queue == nil then
+        return {
+            active = false,
+            complete = true,
+            progress = 1
+        }
+    end
+
+    local config = queue.configs and queue.configs[queue.configIndex] or nil
+    local loadedFrames = 0
+    local totalFrames = config and config.frameCount or 0
+    if queue.temp and queue.temp.snapshots then
+        loadedFrames = #queue.temp.snapshots
+    elseif totalFrames > 0 and queue.snapshotIndex then
+        loadedFrames = queue.snapshotIndex
+    end
+
+    return {
+        active = true,
+        complete = false,
+        configIndex = queue.configIndex or 1,
+        configCount = queue.configs and #queue.configs or 0,
+        loadedFrames = loadedFrames,
+        totalFrames = totalFrames,
+        progress = totalFrames > 0 and clamp(loadedFrames / totalFrames, 0, 1) or 0
+    }
+end
+
+function GameOfLife.getWarmCache(width, height, cellSize, seedChance, allowPartial)
+    local targetCellSize = cellSize or 5
+    local targetSeedChance = seedChance or 0.28
+    local configKey = GameOfLife.getConfigKey(width, height, targetCellSize, targetSeedChance)
+    local cached = GameOfLife._warmCaches[configKey]
+    if cached and cached.snapshots and #cached.snapshots > 0 then
+        return cached
+    end
+
+    if allowPartial ~= true then
+        return nil
+    end
+
+    local queue = GameOfLife._prewarmQueue
+    if queue == nil or queue.temp == nil or queue.temp.configKey ~= configKey then
+        return nil
+    end
+
+    if queue.temp.snapshots == nil or #queue.temp.snapshots == 0 then
+        return nil
+    end
+
+    return {
+        width = width,
+        height = height,
+        cellSize = targetCellSize,
+        seedChance = targetSeedChance,
+        snapshots = queue.temp.snapshots
+    }
 end
 
 function GameOfLife.updatePrewarm(budgetMs)
@@ -401,6 +498,8 @@ function GameOfLife.new(width, height, cellSize, seedChance, options)
     local modeId = options.modeId or GameOfLife.MODE_STANDARD
     local preview = options.preview and true or false
     local reviewMode = modeId == GameOfLife.MODE_REVIEW and not preview
+    local initialCache = options.initialCache
+    local startAtFirstFrame = options.startAtFirstFrame == true
     lifeLog(
         "new requested width=%s height=%s cellSize=%s seedChance=%s preview=%s mode=%s forceFresh=%s",
         tostring(width),
@@ -497,12 +596,20 @@ function GameOfLife.new(width, height, cellSize, seedChance, options)
         self.standbyKey
     )
 
-    if not self.reviewMode and not forceFresh then
-        self:applyWarmCache(GameOfLife.prewarm(self.width, self.height, self.cellSize, self.seedChance, WARM_FRAME_COUNT), self.preview)
+    if initialCache and initialCache.snapshots and #initialCache.snapshots > 0 then
+        self:applyWarmCache(initialCache, self.preview, startAtFirstFrame)
+        lifeLog(
+            "applied initial cache mode=%s review=%s preview=%s frames=%d startAtFirst=%s",
+            tostring(self.modeId),
+            tostring(self.reviewMode),
+            tostring(self.preview),
+            #initialCache.snapshots,
+            tostring(startAtFirstFrame)
+        )
     else
         self:seedRandomGrid()
         self:recordHistory()
-        lifeLog("seeded fresh grid mode=%s review=%s", tostring(self.modeId), tostring(self.reviewMode))
+        lifeLog("seeded fresh grid mode=%s review=%s preview=%s", tostring(self.modeId), tostring(self.reviewMode), tostring(self.preview))
     end
 
     if self.preview then
@@ -541,12 +648,6 @@ function GameOfLife:setPreview(isPreview)
         self:buildPreviewFrames()
     elseif wasPreview and not self.preview then
         local resumedHistoryIndex = clamp((self.previewBaseIndex or 1) + ((self.previewFrameIndex or 1) - 1), 1, math.max(1, #self.history))
-        if self.previewUsedWarmSlice then
-            local warmCache = GameOfLife.prewarm(self.width, self.height, self.cellSize, self.seedChance, WARM_FRAME_COUNT)
-            self:applyWarmCache(warmCache, false)
-            resumedHistoryIndex = clamp((self.previewBaseIndex or 1) + ((self.previewFrameIndex or 1) - 1), 1, math.max(1, #self.history))
-            lifeLog("expanded preview slice to full warm cache for gameplay handoff")
-        end
         self.previewFrames = nil
         self.previewFrameIndex = 1
         self.previewDirection = 1
@@ -585,7 +686,7 @@ function GameOfLife:seedRandomGrid()
     end
 end
 
-function GameOfLife:applyWarmCache(cache, preview)
+function GameOfLife:applyWarmCache(cache, preview, startAtFirstFrame)
     if not cache or not cache.snapshots or #cache.snapshots == 0 then
         lifeLog("warm cache missing; seeding fallback grid")
         self:seedRandomGrid()
@@ -608,7 +709,7 @@ function GameOfLife:applyWarmCache(cache, preview)
     end
 
     self.liveHistoryCount = #self.history
-    self.historyCursor = preview and 1 or #self.history
+    self.historyCursor = (preview or startAtFirstFrame) and 1 or #self.history
     self.futureBuffer = {}
     self.futureAdvanceArmed = false
     self:restoreGrid(self.history[self.historyCursor])

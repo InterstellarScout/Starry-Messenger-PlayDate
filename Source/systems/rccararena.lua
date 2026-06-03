@@ -107,7 +107,7 @@ function RCCarArena.getModeLabel(modeId)
         return "Puck Ring"
     end
 
-    return "RC Arena"
+    return "Box Slider"
 end
 
 function RCCarArena.isAutoBrakeEnabled()

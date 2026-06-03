@@ -23,11 +23,15 @@ local TRAIL_HISTORY_STEP <const> = DUCK_CONFIG.trailHistoryStep or 5
 local TRAIL_HISTORY_GAP <const> = DUCK_CONFIG.trailHistoryGap or 3
 local WRAP_MARGIN <const> = DUCK_CONFIG.wrapMargin or 8
 local DELIVERY_CHICK_SPEED <const> = DUCK_CONFIG.deliveryChickSpeed or 92
+local PENDING_CHICK_SWIM_EASE <const> = DUCK_CONFIG.pendingChickSwimEase or 0.08
+local PENDING_CHICK_JOIN_DISTANCE_SQUARED <const> = DUCK_CONFIG.pendingChickJoinDistanceSquared or 36
 local TARGET_FREE_CHICKS <const> = DUCK_CONFIG.targetFreeChicks or 18
 local MIN_FREE_CHICKS <const> = DUCK_CONFIG.minFreeChicks or 12
 local SNAPSHOT_INTERVAL_FRAMES <const> = DUCK_CONFIG.snapshotIntervalFrames or 2
 local WIN_SCORE <const> = DUCK_CONFIG.winScore or 50
 local TURN_MODE_CRANK_DEGREES <const> = DUCK_CONFIG.turnModeCrankDegrees or 0.04
+local DUCK_LIFETIME_TOTAL_SAVE_KEY <const> = "duck-game-lifetime-total"
+local ENTRY_OVERLAY_TEXT <const> = "Turn the play date upside down\nand watch the ball fall to your feet!"
 
 local PLAYFIELD_LEFT <const> = 16
 local PLAYFIELD_TOP <const> = 18
@@ -118,6 +122,25 @@ local function randomPondPoint()
     end
 end
 
+local function loadLifetimeCollectedTotal()
+    if pd.datastore and pd.datastore.read then
+        local savedValue = pd.datastore.read(DUCK_LIFETIME_TOTAL_SAVE_KEY)
+        if type(savedValue) == "table" then
+            return math.max(0, math.floor(tonumber(savedValue.totalCollected) or 0))
+        end
+        return math.max(0, math.floor(tonumber(savedValue) or 0))
+    end
+    return 0
+end
+
+local function saveLifetimeCollectedTotal(totalCollected)
+    if pd.datastore and pd.datastore.write then
+        pd.datastore.write({
+            totalCollected = math.max(0, math.floor(tonumber(totalCollected) or 0))
+        }, DUCK_LIFETIME_TOTAL_SAVE_KEY)
+    end
+end
+
 local function createPlayer(slot, controlKind)
     local layout = SLOT_LAYOUT[slot]
     local facingX = (slot == 1 or slot == 3) and -1 or 1
@@ -154,7 +177,7 @@ DuckGameScene.MODE_SOLO_2 = "solo-2"
 DuckGameScene.MODE_SOLO_3 = "solo-3"
 DuckGameScene.MODE_SOLO_4 = "solo-4"
 DuckGameScene.MODE_SOLO_CENTER = "solo-center"
-DuckGameScene.turnModeEnabled = false
+DuckGameScene.turnModeEnabled = true
 
 function DuckGameScene.getModeLabel(modeId)
     if modeId == DuckGameScene.MODE_SOLO_CENTER then
@@ -217,6 +240,9 @@ function DuckGameScene.new(config)
     self.lastSentMoving = false
     self.winBackground = Starfield.newWarpSpeed(400, 240, 180)
     self.winBackground.speed = 9
+    self.totalCollectedEver = loadLifetimeCollectedTotal()
+    self.entryOverlayFrames = math.floor((pd.display.getRefreshRate() or 30) * 5)
+    self.entryOverlayVisible = not self.preview
 
     if self.preview then
         self:resetMatch(self.multiplayer and "networked" or "single", 1)
@@ -653,17 +679,39 @@ function DuckGameScene:updateTrails()
         local player = self.players[slot]
         if player ~= nil then
             local history = player.trailHistory or {}
+            local trailOrder = 0
             for chickIndex, chick in ipairs(player.chicks) do
                 if chick.state ~= "delivering" then
-                    local historyIndex = math.min(#history, 1 + (chickIndex * TRAIL_HISTORY_GAP))
-                    local targetPoint = history[historyIndex] or history[#history]
-                    if targetPoint ~= nil then
-                        if targetPoint.wrapped == true then
-                            chick.x = targetPoint.x
-                            chick.y = targetPoint.y
-                        else
-                            chick.x = chick.x + ((targetPoint.x - chick.x) * 0.24)
-                            chick.y = chick.y + ((targetPoint.y - chick.y) * 0.24)
+                    if chick.state == "pending" then
+                        local targetX = player.x
+                        local targetY = player.y
+                        for previousIndex = chickIndex - 1, 1, -1 do
+                            local previousChick = player.chicks[previousIndex]
+                            if previousChick ~= nil and previousChick.state ~= "delivering" then
+                                targetX = previousChick.x
+                                targetY = previousChick.y
+                                break
+                            end
+                        end
+
+                        chick.x = chick.x + ((targetX - chick.x) * PENDING_CHICK_SWIM_EASE)
+                        chick.y = chick.y + ((targetY - chick.y) * PENDING_CHICK_SWIM_EASE)
+
+                        if squaredDistance(chick.x, chick.y, targetX, targetY) <= PENDING_CHICK_JOIN_DISTANCE_SQUARED then
+                            chick.state = "trail"
+                        end
+                    else
+                        trailOrder = trailOrder + 1
+                        local historyIndex = math.min(#history, 1 + (trailOrder * TRAIL_HISTORY_GAP))
+                        local targetPoint = history[historyIndex] or history[#history]
+                        if targetPoint ~= nil then
+                            if targetPoint.wrapped == true then
+                                chick.x = targetPoint.x
+                                chick.y = targetPoint.y
+                            else
+                                chick.x = chick.x + ((targetPoint.x - chick.x) * 0.24)
+                                chick.y = chick.y + ((targetPoint.y - chick.y) * 0.24)
+                            end
                         end
                     end
                 end
@@ -687,6 +735,8 @@ function DuckGameScene:updateDeliveringChicks(dt)
                     if squaredDistance(chick.x, chick.y, nestX, nestY) <= ((NEST_RADIUS - 3) * (NEST_RADIUS - 3)) then
                         table.remove(player.chicks, chickIndex)
                         player.score = player.score + 1
+                        self.totalCollectedEver = (self.totalCollectedEver or 0) + 1
+                        saveLifetimeCollectedTotal(self.totalCollectedEver)
                         self:addNestPixel(slot)
                         self:addRipple(chick.x, chick.y, 2)
 
@@ -714,7 +764,7 @@ function DuckGameScene:collectFreeChicks()
                     x = chick.x,
                     y = chick.y,
                     seed = chick.seed,
-                    state = "trail"
+                    state = "pending"
                 }
                 self:addRipple(chick.x, chick.y, 3)
                 table.remove(self.freeChicks, chickIndex)
@@ -737,7 +787,7 @@ function DuckGameScene:stealTrailSegments()
                             if chick.state ~= "delivering" and squaredDistance(attacker.x, attacker.y, chick.x, chick.y) <= (STEAL_RADIUS * STEAL_RADIUS) then
                                 while #defender.chicks >= chickIndex do
                                     local stolenChick = table.remove(defender.chicks, chickIndex)
-                                    stolenChick.state = "trail"
+                                    stolenChick.state = "pending"
                                     attacker.chicks[#attacker.chicks + 1] = stolenChick
                                     self:addRipple(stolenChick.x, stolenChick.y, 4)
                                 end
@@ -980,6 +1030,22 @@ function DuckGameScene:drawShadedRect(x, y, width, height, tone, outlined)
     end
 end
 
+function DuckGameScene:drawShadedEllipse(x, y, width, height, tone, outlined)
+    if tone == nil then
+        gfx.setColor(gfx.kColorWhite)
+        gfx.fillEllipseInRect(x, y, width, height)
+    else
+        self:applyDitherFill(tone)
+        gfx.fillEllipseInRect(x, y, width, height)
+        self:resetFillStyle()
+    end
+
+    if outlined ~= false then
+        gfx.setColor(gfx.kColorBlack)
+        gfx.drawEllipseInRect(x, y, width, height)
+    end
+end
+
 function DuckGameScene:drawDuck(player)
     local duckX = math.floor(player.x + 0.5)
     local duckY = math.floor(player.y + 0.5)
@@ -1001,8 +1067,8 @@ function DuckGameScene:drawDuck(player)
     local tailOffsetX = -facingX * math.floor(6 * scale)
     local tailOffsetY = -facingY * math.floor(6 * scale)
 
-    self:drawShadedRect(duckX - math.floor(bodyWidth * 0.5), duckY - math.floor(bodyHeight * 0.5), bodyWidth, bodyHeight, tone, true)
-    self:drawShadedRect(duckX + headOffsetX - math.floor(headSize * 0.5), duckY + headOffsetY - math.floor(headSize * 0.5), headSize, headSize, tone, true)
+    self:drawShadedEllipse(duckX - math.floor(bodyWidth * 0.5), duckY - math.floor(bodyHeight * 0.5), bodyWidth, bodyHeight, tone, true)
+    self:drawShadedEllipse(duckX + headOffsetX - math.floor(headSize * 0.5), duckY + headOffsetY - math.floor(headSize * 0.5), headSize, headSize, tone, true)
     gfx.setColor(gfx.kColorBlack)
     gfx.fillRect(duckX + tailOffsetX - math.floor(tailSize * 0.5), duckY + tailOffsetY - math.floor(tailSize * 0.5), tailSize, tailSize)
 end
@@ -1070,6 +1136,15 @@ end
 function DuckGameScene:drawHudFromState(state)
     gfx.setFont(self.smallFont)
     gfx.setColor(gfx.kColorBlack)
+    local currentChickCount = 0
+    for _, player in ipairs(state.players or {}) do
+        if player.slot == self.localSlot then
+            currentChickCount = #(player.chicks or {})
+        end
+    end
+
+    gfx.drawText(string.format("Chicks %d", currentChickCount), 10, 4)
+    gfx.drawTextAligned(string.format("Total %d", self.totalCollectedEver or 0), 390, 4, kTextAlignment.right)
     if state.centerNestMode then
         gfx.drawTextAligned("Bring Birds Home", 200, 4, kTextAlignment.center)
     else
@@ -1091,6 +1166,20 @@ function DuckGameScene:drawWinner(state)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawTextAligned(state.winMessage or string.format("Ducky %d Wins!", state.winnerSlot or 1), 200, 106, kTextAlignment.center)
     gfx.drawTextAligned("Press B to return to the title.", 200, 126, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function DuckGameScene:drawEntryOverlay()
+    if not self.entryOverlayVisible then
+        return
+    end
+
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(0.55, gfx.image.kDitherTypeBayer8x8)
+    gfx.fillRoundRect(36, 84, 328, 72, 10)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextInRect(ENTRY_OVERLAY_TEXT, 52, 104, 296, 34, nil, nil, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -1137,12 +1226,24 @@ end
 
 function DuckGameScene:draw()
     self:drawGameState(self:getRenderState())
-    ControlHelp.drawOverlay("duck", self.modeId)
+    self:drawEntryOverlay()
 end
 
 function DuckGameScene:update()
     if self.preview then
         return
+    end
+
+    if self.entryOverlayVisible then
+        if self.entryOverlayFrames > 0 then
+            self.entryOverlayFrames = self.entryOverlayFrames - 1
+        end
+        if self.entryOverlayFrames <= 0 then
+            self.entryOverlayVisible = false
+        elseif pd.buttonJustPressed(pd.kButtonA) then
+            self.entryOverlayVisible = false
+            return
+        end
     end
 
     if not self.networked and pd.buttonJustPressed(pd.kButtonA) then

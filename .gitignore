@@ -1,4 +1,5 @@
 StarryMessenger.pdx/
+StarryMessenger-test.pdx/
 *.log
 .sentry-native/
 .DS_Store

@@ -22,6 +22,7 @@ local MAX_BALLS <const> = TILT_BALLS_CONFIG.maxBalls or 18
 local GRAVITY_STRENGTH <const> = TILT_BALLS_CONFIG.gravityStrength or 0.55
 local WALL_BOUNCE <const> = TILT_BALLS_CONFIG.wallBounce or 0.84
 local BALL_BOUNCE <const> = TILT_BALLS_CONFIG.ballBounce or 0.92
+local WALL_ROLL_SPIN_SCALE <const> = TILT_BALLS_CONFIG.wallRollSpinScale or 6.5
 local MIN_SLOWDOWN <const> = TILT_BALLS_CONFIG.minSlowdown or 0.90
 local MAX_SLOWDOWN <const> = TILT_BALLS_CONFIG.maxSlowdown or 0.995
 local CRANK_SLOWDOWN_STEP <const> = TILT_BALLS_CONFIG.crankSlowdownStep or 0.0025
@@ -221,22 +222,35 @@ function TiltBalls:update()
         local maxX = self.width - ball.radius - SCREEN_PADDING
         local minY = ball.radius + SCREEN_PADDING
         local maxY = self.height - ball.radius - SCREEN_PADDING
+        local touchingVerticalWall = false
+        local touchingHorizontalWall = false
 
         if ball.x < minX then
             ball.x = minX
             ball.vx = math.abs(ball.vx) * WALL_BOUNCE
+            touchingVerticalWall = true
         elseif ball.x > maxX then
             ball.x = maxX
             ball.vx = -math.abs(ball.vx) * WALL_BOUNCE
+            touchingVerticalWall = true
         end
 
         if ball.y < minY then
             ball.y = minY
             ball.vy = math.abs(ball.vy) * WALL_BOUNCE
+            touchingHorizontalWall = true
         elseif ball.y > maxY then
             ball.y = maxY
             ball.vy = -math.abs(ball.vy) * WALL_BOUNCE
             ball.vx = ball.vx * 0.985
+            touchingHorizontalWall = true
+        end
+
+        if touchingVerticalWall then
+            ball.spin = ball.spin + (ball.vy * WALL_ROLL_SPIN_SCALE)
+        end
+        if touchingHorizontalWall then
+            ball.spin = ball.spin + (ball.vx * WALL_ROLL_SPIN_SCALE)
         end
     end
 

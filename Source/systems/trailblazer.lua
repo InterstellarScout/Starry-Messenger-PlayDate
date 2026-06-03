@@ -5,6 +5,7 @@ local gfx <const> = pd.graphics
 
 TrailBlazer = {}
 TrailBlazer.__index = TrailBlazer
+TrailBlazer.controlsHintEnabled = true
 
 TrailBlazer.MODE_FLOW = "flow"
 TrailBlazer.MODE_DRIVE = "drive"
@@ -98,12 +99,13 @@ function TrailBlazer.new(width, height, options)
     self.statusMessage = nil
     self.statusFrames = 0
     self.driveDirection = 0
-    self.showControlsHint = true
+    self.showControlsHint = not self.preview and TrailBlazer.controlsHintEnabled
+    self.awaitingIntroInteract = not self.preview and TrailBlazer.controlsHintEnabled
     self.pauseHudHidden = false
     self.hudHidden = false
     self.menuOpen = false
     self.menuIndex = 1
-    self.instructionText = 'Hold Right D Pad to draw. Use Up/Down to move. Use Left D Pad to drop a ball.'
+    self.instructionText = "Press any button to start. Then crank steers, Up/Down moves, Right draws, and Left drops a ball."
     self:resetLoadedBall()
     if self.trailDrawing then
         self:startTrailAtPlayer()
@@ -122,6 +124,14 @@ function TrailBlazer.getModeLabel(modeId)
     return "Flow"
 end
 
+function TrailBlazer.isControlsHintEnabled()
+    return TrailBlazer.controlsHintEnabled == true
+end
+
+function TrailBlazer.setControlsHintEnabled(enabled)
+    TrailBlazer.controlsHintEnabled = enabled == true
+end
+
 function TrailBlazer:setPreview(preview)
     self.preview = preview == true
 end
@@ -132,6 +142,13 @@ end
 
 function TrailBlazer:setPauseHudHidden(hidden)
     self.pauseHudHidden = hidden == true
+end
+
+function TrailBlazer:refreshMenuSettings()
+    if not TrailBlazer.isControlsHintEnabled() then
+        self.showControlsHint = false
+        self.awaitingIntroInteract = false
+    end
 end
 
 function TrailBlazer:isMenuOpen()
@@ -268,6 +285,25 @@ end
 
 function TrailBlazer:hideControlsHint()
     self.showControlsHint = false
+end
+
+function TrailBlazer:handleFirstInteraction()
+    if not self.awaitingIntroInteract then
+        return
+    end
+
+    self.awaitingIntroInteract = false
+    self.player.x = self.width * 0.5
+    self.player.y = self.height * 0.5
+    self.player.angle = -90
+    self.trailDrawing = false
+    self.trailPoints = {}
+    self.trailSegments = {}
+    self.balls = {}
+    self.loadedBall = nil
+    self:resetLoadedBall()
+    self:hideControlsHint()
+    self:setStatus("Ready")
 end
 
 function TrailBlazer:toggleTrailDrawing()

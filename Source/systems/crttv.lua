@@ -125,7 +125,7 @@ function CRTTVEffect.new(width, height, options)
     self.height = height
     self.preview = options and options.preview == true or false
     self.staticPhase = 0
-    self.noiseFrames = ensureNoiseFrames(width, height)
+    self.noiseFrames = self.preview and nil or ensureNoiseFrames(width, height)
     self.noiseFrameIndex = 1
     self.frameCounter = 0
     self.barsActive = false
@@ -289,6 +289,24 @@ function CRTTVEffect:update()
 end
 
 function CRTTVEffect:drawNoise()
+    if self.preview then
+        gfx.setColor(gfx.kColorBlack)
+        for y = 0, self.height - 1, STATIC_NOISE_STEP_Y do
+            local rowOffset = math.floor(staticNoise(0, y, self.staticPhase * 11) * 12)
+            for x = -rowOffset, self.width - 1, STATIC_NOISE_STEP_X do
+                if staticNoise(x, y, self.staticPhase) < 0.44 then
+                    gfx.fillRect(x, y, 2, STATIC_NOISE_STEP_Y)
+                end
+            end
+
+            if y % 6 == 0 or staticNoise(200, y, self.staticPhase * 0.5) < 0.08 then
+                gfx.drawLine(0, y, self.width, y)
+            end
+        end
+        drawNoiseBands(self.width, self.height, self.staticPhase)
+        return
+    end
+
     local frame = self.noiseFrames and self.noiseFrames[self.noiseFrameIndex]
     if frame then
         frame:draw(0, 0)

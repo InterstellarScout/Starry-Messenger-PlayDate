@@ -18,9 +18,17 @@ function SessionState.new()
     return self
 end
 
+function SessionState:setCatalog(catalog)
+    self.catalog = catalog or "single"
+end
+
 function SessionState:setPlayerCount(playerCount)
     self.playerCount = MultiplayerConfig.clampPlayerCount(playerCount, 1, 4, 1)
-    self.catalog = self.playerCount > 1 and "multi" or "single"
+    if self.playerCount > 1 then
+        self.catalog = "multi"
+    elseif self.catalog == "multi" then
+        self.catalog = "single"
+    end
 end
 
 function SessionState:isMultiplayer()

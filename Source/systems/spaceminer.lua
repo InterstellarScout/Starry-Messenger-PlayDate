@@ -1,4 +1,5 @@
 import "gameconfig"
+import "data/spaceminerwaves"
 
 import "CoreLibs/graphics"
 
@@ -47,9 +48,19 @@ local DECOR_ITEM_COUNT <const> = SPACE_MINER_CONFIG.decorItemCount or 120
 local SHIELD_HITS <const> = SPACE_MINER_CONFIG.shieldHits or 2
 local HULL_HITS <const> = SPACE_MINER_CONFIG.hullHits or 2
 local SHIELD_FLASH_FRAMES <const> = SPACE_MINER_CONFIG.shieldFlashFrames or 18
-local FIRST_MINING_STAGE_FRAMES <const> = SPACE_MINER_CONFIG.firstMiningStageFrames or (30 * 120)
-local INTERMISSION_STAGE_FRAMES <const> = SPACE_MINER_CONFIG.intermissionStageFrames or (30 * 120)
+local SHIELD_RECHARGE_DELAY_FRAMES <const> = SPACE_MINER_CONFIG.shieldRechargeDelayFrames or (30 * 5)
+local SHIELD_RECHARGE_STEP_FRAMES <const> = SPACE_MINER_CONFIG.shieldRechargeStepFrames or 90
+local ASTEROID_PRUNE_PROTECTION_FRAMES <const> = SPACE_MINER_CONFIG.asteroidPruneProtectionFrames or 45
+local ASTEROID_VISIBLE_PRUNE_GRACE_FRAMES <const> = SPACE_MINER_CONFIG.asteroidVisiblePruneGraceFrames or 120
+local ASTEROID_DIAGNOSTICS_ENABLED <const> = SPACE_MINER_CONFIG.asteroidDiagnosticsEnabled ~= false
+local ASTEROID_DIAGNOSTIC_INTERVAL_FRAMES <const> = SPACE_MINER_CONFIG.asteroidDiagnosticIntervalFrames or 150
+local ASTEROID_DIAGNOSTIC_EVENT_LIMIT <const> = SPACE_MINER_CONFIG.asteroidDiagnosticEventLimit or 6
 local STRIKER_MISSILE_COOLDOWN <const> = SPACE_MINER_CONFIG.strikerMissileCooldown or 70
+local ALERT_FLASH_FRAMES <const> = 15
+local ALERT_FLASH_CYCLES <const> = 3
+local ALERT_TOTAL_FRAMES <const> = ALERT_FLASH_FRAMES * 2 * ALERT_FLASH_CYCLES
+local ALERT_GAP_FRAMES <const> = SPACE_MINER_CONFIG.alertGapFrames or 12
+local DEFAULT_ALERT_TEXT <const> = "ALERT"
 
 local ASTEROID_STAGE_CONFIG <const> = {
     [0] = { radius = 30, hp = 7, speed = 0.28, fragments = 2, score = 20 },
@@ -64,17 +75,6 @@ local TURN_WINDOW_DEGREES <const> = {
     [SpaceMiner.MODE_QUARTER] = 90
 }
 
-local STAGE_SCHEDULE <const> = {
-    { id = "mining-1", kind = "mining", durationFrames = FIRST_MINING_STAGE_FRAMES, label = "Mining Window" },
-    { id = "seekers-1", kind = "wave", enemyType = "seeker", count = 4, label = "Seeker Wave 1" },
-    { id = "seekers-2", kind = "wave", enemyType = "seeker", count = 8, label = "Seeker Wave 2" },
-    { id = "seekers-3", kind = "wave", enemyType = "seeker", count = 16, label = "Seeker Wave 3" },
-    { id = "mining-2", kind = "mining", durationFrames = INTERMISSION_STAGE_FRAMES, label = "Mining Break" },
-    { id = "escapers-1", kind = "wave", enemyType = "escaper", count = 2, label = "Escaper Wave 1" },
-    { id = "escapers-2", kind = "wave", enemyType = "escaper", count = 4, label = "Escaper Wave 2" },
-    { id = "strikers", kind = "wave", enemyType = "striker", count = 3, label = "Striker Assault" }
-}
-
 local function clamp(value, minValue, maxValue)
     if value < minValue then
         return minValue
@@ -85,12 +85,118 @@ local function clamp(value, minValue, maxValue)
     return value
 end
 
+local function parseFrameCount(value)
+    if type(value) == "number" then
+        return math.max(0, math.floor(value))
+    end
+    if type(value) ~= "string" then
+        return 0
+    end
+
+    local parts = {}
+    for segment in string.gmatch(value, "[^:]+") do
+        parts[#parts + 1] = tonumber(segment) or 0
+    end
+
+    if #parts == 1 then
+        return math.max(0, math.floor(parts[1]))
+    elseif #parts == 2 then
+        return math.max(0, math.floor((parts[1] * 30) + parts[2]))
+    elseif #parts == 3 then
+        return math.max(0, math.floor((parts[1] * 60 * 30) + (parts[2] * 30) + parts[3]))
+    elseif #parts >= 4 then
+        return math.max(0, math.floor((parts[1] * 60 * 60 * 30) + (parts[2] * 60 * 30) + (parts[3] * 30) + parts[4]))
+    end
+
+    return 0
+end
+
+local function normalizeConfigDegrees(value)
+    local normalized = (tonumber(value) or 0) % 360
+    if normalized < 0 then
+        normalized = normalized + 360
+    end
+    return normalized
+end
+
+local function normalizeWaveSchedule(rawConfig)
+    local schedule = {}
+    local rawStages = rawConfig and rawConfig.stages or nil
+    if rawStages == nil then
+        return schedule
+    end
+
+    for index, rawStage in ipairs(rawStages) do
+        local stage = {
+            id = rawStage.id or string.format("stage-%d", index),
+            kind = rawStage.kind or "mining",
+            label = rawStage.label or rawStage.id or string.format("Stage %d", index),
+            wave = rawStage.wave,
+            alertText = rawStage.alertText or DEFAULT_ALERT_TEXT
+        }
+
+        if stage.kind == "mining" then
+            stage.durationFrames = parseFrameCount(rawStage.durationFrames or rawStage.duration or 0)
+        else
+            local rawTrigger = rawStage.trigger or {}
+            stage.trigger = {
+                type = rawTrigger.type or "after_stage_clear",
+                timestampFrames = parseFrameCount(rawTrigger.timestampFrames or rawTrigger.timestamp or 0),
+                delayFrames = parseFrameCount(rawTrigger.delayFrames or rawTrigger.delay or 0)
+            }
+            stage.entries = {}
+
+            for entryIndex, rawEntry in ipairs(rawStage.entries or {}) do
+                local entry = {
+                    id = rawEntry.id or string.format("%s-entry-%d", stage.id, entryIndex),
+                    entityType = rawEntry.entityType or rawEntry.enemyType or "seeker",
+                    quantity = math.max(1, math.floor(rawEntry.quantity or rawEntry.count or 1)),
+                    entryDegrees = normalizeConfigDegrees(rawEntry.entryDegrees or rawEntry.entryLocation or 0),
+                    timestampFrames = rawEntry.timestamp ~= nil and parseFrameCount(rawEntry.timestamp) or rawEntry.timestampFrames,
+                    offsetFrames = rawEntry.offset ~= nil and parseFrameCount(rawEntry.offset) or parseFrameCount(rawEntry.offsetFrames or 0)
+                }
+                stage.entries[#stage.entries + 1] = entry
+            end
+
+            table.sort(stage.entries, function(left, right)
+                local leftTime = left.timestampFrames or left.offsetFrames or 0
+                local rightTime = right.timestampFrames or right.offsetFrames or 0
+                if leftTime == rightTime then
+                    return left.id < right.id
+                end
+                return leftTime < rightTime
+            end)
+
+            if stage.trigger.type == "time" then
+                local firstSpawnFrame = stage.trigger.timestampFrames
+                for _, entry in ipairs(stage.entries) do
+                    if entry.timestampFrames ~= nil then
+                        firstSpawnFrame = math.min(firstSpawnFrame, entry.timestampFrames)
+                    end
+                end
+                stage.waveStartFrame = firstSpawnFrame
+                stage.alertStartFrame = math.max(0, firstSpawnFrame - ALERT_TOTAL_FRAMES - ALERT_GAP_FRAMES)
+            end
+        end
+
+        schedule[#schedule + 1] = stage
+    end
+
+    return schedule
+end
+
+local STAGE_SCHEDULE <const> = normalizeWaveSchedule(SpaceMinerWaveConfig)
+
 local function normalizeAngle(angle)
     local normalized = angle % 360
     if normalized < 0 then
         normalized = normalized + 360
     end
     return normalized
+end
+
+local function screenDegreesToRadians(degrees)
+    return math.rad(normalizeAngle(degrees) - 90)
 end
 
 local function shortestAngleDelta(current, target)
@@ -221,19 +327,27 @@ function SpaceMiner.new(width, height, options)
     self.stageIndex = 1
     self.stageFrame = 0
     self.stageStatus = "active"
-    self.stageLabel = STAGE_SCHEDULE[1].label
-    self.spawnedWave = false
+    self.stageLabel = (#STAGE_SCHEDULE > 0 and STAGE_SCHEDULE[1].label) or "Open Mining"
+    self.stageRuntime = nil
     self.enemySerial = 0
     self.playerShieldHits = SHIELD_HITS
     self.playerHullHits = HULL_HITS
     self.shieldFlashFrames = 0
+    self.framesSincePlayerDamage = SHIELD_RECHARGE_DELAY_FRAMES
+    self.shieldRechargeFrames = 0
     self.gameOver = false
     self.previewDriftAngle = 0
     self.previewFrameCounter = 0
     self.decor = {}
+    self.asteroidSerial = 0
+    self.asteroidDiagnostics = nil
+    self:resetAsteroidDiagnostics()
     self:applyTurnModeSetting()
     self:seedDecor()
     self:seedAsteroids(10)
+    if #STAGE_SCHEDULE > 0 then
+        self:beginStage(1)
+    end
     return self
 end
 
@@ -314,6 +428,104 @@ function SpaceMiner:updateDecor()
     end
 end
 
+function SpaceMiner:resetAsteroidDiagnostics()
+    self.asteroidDiagnostics = {
+        spawned = 0,
+        fragments = 0,
+        minedLaser = 0,
+        minedMissile = 0,
+        playerCollisions = 0,
+        pressureChecks = 0,
+        pressureCandidates = 0,
+        pressureBlockedAge = 0,
+        pressureBlockedGrace = 0,
+        pressurePruned = 0,
+        visibilityEntries = 0,
+        visibilityExits = 0,
+        wrapsX = 0,
+        wrapsY = 0,
+        eventLines = 0
+    }
+end
+
+function SpaceMiner:logAsteroidDiagnosticEvent(message, ...)
+    if not ASTEROID_DIAGNOSTICS_ENABLED or self.preview then
+        return
+    end
+    if self.asteroidDiagnostics.eventLines >= ASTEROID_DIAGNOSTIC_EVENT_LIMIT then
+        return
+    end
+
+    self.asteroidDiagnostics.eventLines = self.asteroidDiagnostics.eventLines + 1
+    StarryLog.forceDebug("miner asteroid " .. message, ...)
+end
+
+function SpaceMiner:addAsteroid(asteroid, source)
+    self.asteroidSerial = self.asteroidSerial + 1
+    asteroid.id = self.asteroidSerial
+    asteroid.wasVisible = false
+    self.asteroids[#self.asteroids + 1] = asteroid
+
+    if source == "fragment" then
+        self.asteroidDiagnostics.fragments = self.asteroidDiagnostics.fragments + 1
+    else
+        self.asteroidDiagnostics.spawned = self.asteroidDiagnostics.spawned + 1
+    end
+end
+
+function SpaceMiner:getAsteroidScreenState(asteroid)
+    local drawX, drawY = worldToScreen(self.player.x, self.player.y, asteroid.x, asteroid.y)
+    local visible = drawX >= -asteroid.radius
+        and drawX <= (SCREEN_WIDTH + asteroid.radius)
+        and drawY >= -asteroid.radius
+        and drawY <= (SCREEN_HEIGHT + asteroid.radius)
+    return drawX, drawY, visible
+end
+
+function SpaceMiner:logAsteroidDiagnosticsIfNeeded()
+    if not ASTEROID_DIAGNOSTICS_ENABLED or self.preview or self.frame % ASTEROID_DIAGNOSTIC_INTERVAL_FRAMES ~= 0 then
+        return
+    end
+
+    local visible = 0
+    local stages = { 0, 0, 0, 0 }
+    for _, asteroid in ipairs(self.asteroids) do
+        local _, _, asteroidVisible = self:getAsteroidScreenState(asteroid)
+        if asteroidVisible then
+            visible = visible + 1
+        end
+        stages[asteroid.stage + 1] = (stages[asteroid.stage + 1] or 0) + 1
+    end
+
+    local diagnostics = self.asteroidDiagnostics
+    StarryLog.forceDebug(
+        "miner asteroid summary frame=%d asteroids=%d visible=%d stages=%d/%d/%d/%d entities=%d spawned=%d fragments=%d minedLaser=%d minedMissile=%d collisions=%d visibilityEntries=%d visibilityExits=%d wraps=%d/%d pressureChecks=%d pressureCandidates=%d blockedAge=%d blockedGrace=%d pressurePruned=%d",
+        self.frame,
+        #self.asteroids,
+        visible,
+        stages[1],
+        stages[2],
+        stages[3],
+        stages[4],
+        self:getActiveEntityCount(),
+        diagnostics.spawned,
+        diagnostics.fragments,
+        diagnostics.minedLaser,
+        diagnostics.minedMissile,
+        diagnostics.playerCollisions,
+        diagnostics.visibilityEntries,
+        diagnostics.visibilityExits,
+        diagnostics.wrapsX,
+        diagnostics.wrapsY,
+        diagnostics.pressureChecks,
+        diagnostics.pressureCandidates,
+        diagnostics.pressureBlockedAge,
+        diagnostics.pressureBlockedGrace,
+        diagnostics.pressurePruned
+    )
+    self:resetAsteroidDiagnostics()
+end
+
 function SpaceMiner:spawnAsteroid(stage, originX, originY)
     local config = ASTEROID_STAGE_CONFIG[stage] or ASTEROID_STAGE_CONFIG[0]
     local angle = math.random() * math.pi * 2
@@ -326,36 +538,47 @@ function SpaceMiner:spawnAsteroid(stage, originX, originY)
         y = y + math.random(-80, 80)
     end
 
-    self.asteroids[#self.asteroids + 1] = {
+    self:addAsteroid({
         x = x,
         y = y,
         vx = math.cos(angle + math.pi * 0.5) * speed,
         vy = math.sin(angle + math.pi * 0.5) * speed,
         stage = stage,
         radius = config.radius,
-        hp = config.hp
-    }
+        hp = config.hp,
+        ageFrames = 0,
+        lastVisibleFrame = -99999
+    }, "spawn")
 end
 
-function SpaceMiner:spawnFragments(asteroid)
+function SpaceMiner:spawnFragments(asteroid, options)
     local nextStage = asteroid.stage + 1
     local nextConfig = ASTEROID_STAGE_CONFIG[nextStage]
     if nextConfig == nil then
         return
     end
 
+    options = options or {}
+    local missileCascade = options.missileCascade == true
+
     for index = 1, 2 do
+        if missileCascade and math.random() < 0.5 then
+            goto continue
+        end
         local angle = math.atan(asteroid.vy, asteroid.vx) + ((index == 1 and -0.8) or 0.8)
         local speed = nextConfig.speed * (0.8 + (math.random() * 0.7))
-        self.asteroids[#self.asteroids + 1] = {
+        self:addAsteroid({
             x = asteroid.x + math.cos(angle) * nextConfig.radius,
             y = asteroid.y + math.sin(angle) * nextConfig.radius,
             vx = asteroid.vx * 0.55 + math.cos(angle) * speed,
             vy = asteroid.vy * 0.55 + math.sin(angle) * speed,
             stage = nextStage,
             radius = nextConfig.radius,
-            hp = nextConfig.hp
-        }
+            hp = nextConfig.hp,
+            ageFrames = 0,
+            lastVisibleFrame = self.frame or 0
+        }, "fragment")
+        ::continue::
     end
 end
 
@@ -381,6 +604,8 @@ function SpaceMiner:damagePlayer(reason)
     end
 
     self.shieldFlashFrames = SHIELD_FLASH_FRAMES
+    self.framesSincePlayerDamage = 0
+    self.shieldRechargeFrames = 0
     self:addExplosion(self.player.x, self.player.y, 14, 10)
     StarryLog.info("miner player hit reason=%s shield=%d hull=%d", tostring(reason), self.playerShieldHits, self.playerHullHits)
     if self.playerHullHits <= 0 then
@@ -388,9 +613,32 @@ function SpaceMiner:damagePlayer(reason)
     end
 end
 
-function SpaceMiner:spawnEnemy(enemyType)
+function SpaceMiner:updateShieldRecharge()
+    if self.preview or self.gameOver then
+        return
+    end
+
+    self.framesSincePlayerDamage = self.framesSincePlayerDamage + 1
+    if self.playerShieldHits >= SHIELD_HITS or self.framesSincePlayerDamage < SHIELD_RECHARGE_DELAY_FRAMES then
+        self.shieldRechargeFrames = 0
+        return
+    end
+
+    self.shieldRechargeFrames = self.shieldRechargeFrames + 1
+    if self.shieldRechargeFrames >= SHIELD_RECHARGE_STEP_FRAMES then
+        self.playerShieldHits = math.min(SHIELD_HITS, self.playerShieldHits + 1)
+        self.shieldRechargeFrames = 0
+    end
+end
+
+function SpaceMiner:spawnEnemy(enemyType, entryDegrees)
     self.enemySerial = self.enemySerial + 1
-    local angle = math.random() * math.pi * 2
+    local angle
+    if entryDegrees ~= nil then
+        angle = screenDegreesToRadians(entryDegrees)
+    else
+        angle = math.random() * math.pi * 2
+    end
     local distance = 280 + math.random(60, 180)
     local x = self.player.x + math.cos(angle) * distance
     local y = self.player.y + math.sin(angle) * distance
@@ -429,9 +677,14 @@ end
 function SpaceMiner:beginStage(index)
     self.stageIndex = clamp(index, 1, #STAGE_SCHEDULE)
     self.stageFrame = 0
-    self.spawnedWave = false
     local stage = STAGE_SCHEDULE[self.stageIndex]
     self.stageLabel = stage.label
+    self.stageRuntime = {
+        alertStarted = false,
+        alertStartFrame = nil,
+        waveStartFrame = stage.waveStartFrame,
+        spawnedEntries = {}
+    }
     StarryLog.info("miner stage begin %s", stage.id)
 end
 
@@ -444,12 +697,78 @@ function SpaceMiner:advanceStage()
     end
 end
 
+function SpaceMiner:getCurrentStage()
+    return STAGE_SCHEDULE[self.stageIndex]
+end
+
+function SpaceMiner:hasWaveAlertAtFrame(alertStartFrame)
+    if alertStartFrame == nil then
+        return false
+    end
+
+    local elapsed = self.frame - alertStartFrame
+    if elapsed < 0 or elapsed >= ALERT_TOTAL_FRAMES then
+        return false
+    end
+
+    local phase = math.floor(elapsed / ALERT_FLASH_FRAMES)
+    return (phase % 2) == 0
+end
+
+function SpaceMiner:getActiveAlertText()
+    local stage = self:getCurrentStage()
+    if stage == nil then
+        return nil
+    end
+
+    local runtime = self.stageRuntime
+    if stage.kind == "wave" and runtime ~= nil and runtime.alertStarted and self:hasWaveAlertAtFrame(runtime.alertStartFrame) then
+        return stage.alertText or DEFAULT_ALERT_TEXT
+    end
+
+    if stage.kind == "mining" then
+        local nextStage = STAGE_SCHEDULE[self.stageIndex + 1]
+        if nextStage ~= nil
+            and nextStage.kind == "wave"
+            and nextStage.trigger ~= nil
+            and nextStage.trigger.type == "time"
+            and self:hasWaveAlertAtFrame(nextStage.alertStartFrame) then
+            return nextStage.alertText or DEFAULT_ALERT_TEXT
+        end
+    end
+
+    return nil
+end
+
+function SpaceMiner:spawnWaveEntry(entry)
+    local oppositeDegrees = normalizeAngle(entry.entryDegrees + 180)
+    for index = 1, entry.quantity do
+        local spawnDegrees = ((index % 2) == 1) and entry.entryDegrees or oppositeDegrees
+        self:spawnEnemy(entry.entityType, spawnDegrees)
+    end
+end
+
+function SpaceMiner:stageEntriesFullySpawned(stage)
+    local runtime = self.stageRuntime
+    if runtime == nil then
+        return false
+    end
+
+    for _, entry in ipairs(stage.entries or {}) do
+        if runtime.spawnedEntries[entry.id] ~= true then
+            return false
+        end
+    end
+
+    return true
+end
+
 function SpaceMiner:updateStage()
     if self.preview then
         return
     end
 
-    local stage = STAGE_SCHEDULE[self.stageIndex]
+    local stage = self:getCurrentStage()
     if stage == nil or self.gameOver then
         return
     end
@@ -462,12 +781,46 @@ function SpaceMiner:updateStage()
         return
     end
 
-    if not self.spawnedWave then
-        for _ = 1, stage.count do
-            self:spawnEnemy(stage.enemyType)
+    local runtime = self.stageRuntime
+    if runtime == nil then
+        return
+    end
+
+    if not runtime.alertStarted then
+        if stage.trigger.type == "time" then
+            if self.frame >= (stage.alertStartFrame or 0) then
+                runtime.alertStarted = true
+                runtime.alertStartFrame = stage.alertStartFrame or self.frame
+                runtime.waveStartFrame = stage.waveStartFrame or self.frame
+            end
+        elseif self.stageFrame >= (stage.trigger.delayFrames or 0) then
+            runtime.alertStarted = true
+            runtime.alertStartFrame = self.frame
+            runtime.waveStartFrame = self.frame + ALERT_TOTAL_FRAMES + ALERT_GAP_FRAMES
         end
-        self.spawnedWave = true
-    elseif #self.enemyShips == 0 and #self.enemyMissiles == 0 then
+    end
+
+    if runtime.waveStartFrame == nil or self.frame < runtime.waveStartFrame then
+        return
+    end
+
+    for _, entry in ipairs(stage.entries or {}) do
+        if runtime.spawnedEntries[entry.id] ~= true then
+            local dueFrame
+            if stage.trigger.type == "time" then
+                dueFrame = entry.timestampFrames or ((stage.waveStartFrame or runtime.waveStartFrame) + (entry.offsetFrames or 0))
+            else
+                dueFrame = runtime.waveStartFrame + (entry.offsetFrames or 0)
+            end
+
+            if self.frame >= dueFrame then
+                self:spawnWaveEntry(entry)
+                runtime.spawnedEntries[entry.id] = true
+            end
+        end
+    end
+
+    if self:stageEntriesFullySpawned(stage) and #self.enemyShips == 0 and #self.enemyMissiles == 0 then
         self:advanceStage()
     end
 end
@@ -524,6 +877,7 @@ function SpaceMiner:updatePlayerPosition()
     if self.shieldFlashFrames > 0 then
         self.shieldFlashFrames = self.shieldFlashFrames - 1
     end
+    self:updateShieldRecharge()
 end
 
 function SpaceMiner:handleMissileTrigger()
@@ -565,7 +919,14 @@ function SpaceMiner:damageAsteroid(index, amount, options)
     self.minedChunks = self.minedChunks + 1
     self:addExplosion(asteroid.x, asteroid.y, asteroid.radius + 4, 9)
     if options.spawnFragments ~= false then
-        self:spawnFragments(asteroid)
+        self:spawnFragments(asteroid, {
+            missileCascade = options.missileCascade == true
+        })
+    end
+    if options.removalReason == "missile" then
+        self.asteroidDiagnostics.minedMissile = self.asteroidDiagnostics.minedMissile + 1
+    else
+        self.asteroidDiagnostics.minedLaser = self.asteroidDiagnostics.minedLaser + 1
     end
     table.remove(self.asteroids, index)
 end
@@ -601,7 +962,10 @@ function SpaceMiner:explodePlayerMissile(x, y)
         local asteroid = self.asteroids[asteroidIndex]
         local hitRadius = MISSILE_BLAST_RADIUS + asteroid.radius
         if distanceSquared(x, y, asteroid.x, asteroid.y) <= (hitRadius * hitRadius) then
-            self:damageAsteroid(asteroidIndex, MISSILE_DAMAGE)
+            self:damageAsteroid(asteroidIndex, MISSILE_DAMAGE, {
+                missileCascade = true,
+                removalReason = "missile"
+            })
         end
     end
 
@@ -682,7 +1046,9 @@ function SpaceMiner:applyLaser()
         local hitDistanceSq = linePointDistanceSquared(asteroid.x, asteroid.y, self.player.x, self.player.y, endX, endY)
         local hitRadius = asteroid.radius + LASER_WIDTH
         if hitDistanceSq <= (hitRadius * hitRadius) then
-            self:damageAsteroid(asteroidIndex, LASER_DAMAGE)
+            self:damageAsteroid(asteroidIndex, LASER_DAMAGE, {
+                removalReason = "laser"
+            })
         end
     end
 end
@@ -690,14 +1056,73 @@ end
 function SpaceMiner:updateAsteroids()
     for asteroidIndex = #self.asteroids, 1, -1 do
         local asteroid = self.asteroids[asteroidIndex]
-        asteroid.x = wrapCoordinate(self.player.x, asteroid.x + asteroid.vx)
-        asteroid.y = wrapCoordinate(self.player.y, asteroid.y + asteroid.vy)
+        asteroid.ageFrames = (asteroid.ageFrames or 0) + 1
+        local nextX = asteroid.x + asteroid.vx
+        local nextY = asteroid.y + asteroid.vy
+        asteroid.x = wrapCoordinate(self.player.x, nextX)
+        asteroid.y = wrapCoordinate(self.player.y, nextY)
+        if asteroid.x ~= nextX then
+            self.asteroidDiagnostics.wrapsX = self.asteroidDiagnostics.wrapsX + 1
+            self:logAsteroidDiagnosticEvent(
+                "wrap id=%d stage=%d axis=x age=%d world=%.1f,%.1f player=%.1f,%.1f",
+                asteroid.id,
+                asteroid.stage,
+                asteroid.ageFrames,
+                asteroid.x,
+                asteroid.y,
+                self.player.x,
+                self.player.y
+            )
+        end
+        if asteroid.y ~= nextY then
+            self.asteroidDiagnostics.wrapsY = self.asteroidDiagnostics.wrapsY + 1
+            self:logAsteroidDiagnosticEvent(
+                "wrap id=%d stage=%d axis=y age=%d world=%.1f,%.1f player=%.1f,%.1f",
+                asteroid.id,
+                asteroid.stage,
+                asteroid.ageFrames,
+                asteroid.x,
+                asteroid.y,
+                self.player.x,
+                self.player.y
+            )
+        end
+
+        local drawX, drawY, visible = self:getAsteroidScreenState(asteroid)
+        if visible then
+            asteroid.lastVisibleFrame = self.frame
+            if not asteroid.wasVisible then
+                self.asteroidDiagnostics.visibilityEntries = self.asteroidDiagnostics.visibilityEntries + 1
+            end
+        elseif asteroid.wasVisible then
+            self.asteroidDiagnostics.visibilityExits = self.asteroidDiagnostics.visibilityExits + 1
+            self:logAsteroidDiagnosticEvent(
+                "visibility-exit id=%d stage=%d age=%d screen=%.1f,%.1f velocity=%.2f,%.2f",
+                asteroid.id,
+                asteroid.stage,
+                asteroid.ageFrames,
+                drawX,
+                drawY,
+                asteroid.vx,
+                asteroid.vy
+            )
+        end
+        asteroid.wasVisible = visible
 
         local hitRadius = asteroid.radius + PLAYER_RADIUS
         if distanceSquared(asteroid.x, asteroid.y, self.player.x, self.player.y) <= (hitRadius * hitRadius) then
             self:addExplosion(asteroid.x, asteroid.y, asteroid.radius + 4, 8)
             self:damagePlayer("asteroid")
             self:spawnFragments(asteroid)
+            self.asteroidDiagnostics.playerCollisions = self.asteroidDiagnostics.playerCollisions + 1
+            self:logAsteroidDiagnosticEvent(
+                "player-collision id=%d stage=%d age=%d screen=%.1f,%.1f",
+                asteroid.id,
+                asteroid.stage,
+                asteroid.ageFrames,
+                drawX,
+                drawY
+            )
             table.remove(self.asteroids, asteroidIndex)
         end
     end
@@ -720,20 +1145,22 @@ function SpaceMiner:pruneOffscreenAsteroidsForEntityPressure()
         return
     end
 
+    self.asteroidDiagnostics.pressureChecks = self.asteroidDiagnostics.pressureChecks + 1
     local removable = {}
     for asteroidIndex, asteroid in ipairs(self.asteroids) do
-        local drawX, drawY = worldToScreen(self.player.x, self.player.y, asteroid.x, asteroid.y)
-        local visible = drawX >= -asteroid.radius
-            and drawX <= (SCREEN_WIDTH + asteroid.radius)
-            and drawY >= -asteroid.radius
-            and drawY <= (SCREEN_HEIGHT + asteroid.radius)
+        local drawX, drawY, visible = self:getAsteroidScreenState(asteroid)
         if not visible then
             removable[#removable + 1] = {
                 asteroid = asteroid,
-                radius = asteroid.radius
+                radius = asteroid.radius,
+                drawX = drawX,
+                drawY = drawY
             }
+        else
+            asteroid.lastVisibleFrame = self.frame
         end
     end
+    self.asteroidDiagnostics.pressureCandidates = self.asteroidDiagnostics.pressureCandidates + #removable
 
     table.sort(removable, function(left, right)
         return left.radius < right.radius
@@ -743,13 +1170,33 @@ function SpaceMiner:pruneOffscreenAsteroidsForEntityPressure()
         if activeEntities <= MAX_ACTIVE_ENTITIES then
             break
         end
+        if (candidate.asteroid.ageFrames or 0) < ASTEROID_PRUNE_PROTECTION_FRAMES then
+            self.asteroidDiagnostics.pressureBlockedAge = self.asteroidDiagnostics.pressureBlockedAge + 1
+            goto continue
+        end
+        if (self.frame - (candidate.asteroid.lastVisibleFrame or -99999)) <= ASTEROID_VISIBLE_PRUNE_GRACE_FRAMES then
+            self.asteroidDiagnostics.pressureBlockedGrace = self.asteroidDiagnostics.pressureBlockedGrace + 1
+            goto continue
+        end
         for asteroidIndex = #self.asteroids, 1, -1 do
             if self.asteroids[asteroidIndex] == candidate.asteroid then
+                self.asteroidDiagnostics.pressurePruned = self.asteroidDiagnostics.pressurePruned + 1
+                self:logAsteroidDiagnosticEvent(
+                    "pressure-prune id=%d stage=%d age=%d screen=%.1f,%.1f invisibleFrames=%d entitiesBefore=%d",
+                    candidate.asteroid.id,
+                    candidate.asteroid.stage,
+                    candidate.asteroid.ageFrames or 0,
+                    candidate.drawX,
+                    candidate.drawY,
+                    self.frame - (candidate.asteroid.lastVisibleFrame or -99999),
+                    activeEntities
+                )
                 table.remove(self.asteroids, asteroidIndex)
                 activeEntities = activeEntities - 1
                 break
             end
         end
+        ::continue::
     end
 end
 
@@ -928,9 +1375,11 @@ function SpaceMiner:update()
     self:updateEnemies()
     self:updateAsteroids()
     self:updateExplosions()
+    self:logAsteroidDiagnosticsIfNeeded()
 end
 
 function SpaceMiner:drawDecorLayer(layer)
+    gfx.setColor(gfx.kColorWhite)
     for _, item in ipairs(self.decor) do
         if item.layer == layer then
             local drawX, drawY = parallaxWorldToScreen(self.player.x, self.player.y, item.x, item.y, item.parallax)
@@ -956,9 +1405,12 @@ function SpaceMiner:drawDecorLayer(layer)
             end
         end
     end
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setColor(gfx.kColorWhite)
 end
 
 function SpaceMiner:drawShip()
+    gfx.setColor(gfx.kColorWhite)
     local radians = math.rad(self.player.angle)
     local tipX = CENTER_X + (math.cos(radians) * 10)
     local tipY = CENTER_Y + (math.sin(radians) * 10)
@@ -977,25 +1429,55 @@ function SpaceMiner:drawShip()
     end
 
     local shieldRadius = PLAYER_RADIUS + 3 + (self.playerShieldHits > 0 and 2 or 0)
-    if self.playerShieldHits > 0 or self.shieldFlashFrames > 0 then
+    if self.playerShieldHits > 0 then
         gfx.drawCircleAtPoint(CENTER_X, CENTER_Y, shieldRadius)
     end
 end
 
 function SpaceMiner:drawAsteroids()
+    gfx.setColor(gfx.kColorWhite)
+    local lateStageGhostMediumAsteroids = not self.preview and self.stageIndex >= 6
     for _, asteroid in ipairs(self.asteroids) do
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, asteroid.x, asteroid.y)
         if drawX >= -30 and drawX <= (SCREEN_WIDTH + 30) and drawY >= -30 and drawY <= (SCREEN_HEIGHT + 30) then
-            gfx.setDitherPattern(0.6, gfx.image.kDitherTypeBayer8x8)
-            gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
-            gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+            if asteroid.stage >= 2 then
+                gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+                gfx.setColor(gfx.kColorBlack)
+                if asteroid.radius >= 5 then
+                    gfx.fillCircleAtPoint(drawX + 1, drawY - 1, math.max(1, asteroid.radius - 4))
+                end
+                gfx.setColor(gfx.kColorWhite)
+            elseif asteroid.stage == 1 then
+                if lateStageGhostMediumAsteroids then
+                    gfx.setDitherPattern(0.6, gfx.image.kDitherTypeBayer8x8)
+                    gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+                    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+                else
+                    gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+                    gfx.setColor(gfx.kColorBlack)
+                    gfx.fillCircleAtPoint(drawX + 1, drawY - 1, math.max(1, asteroid.radius - 6))
+                    gfx.setColor(gfx.kColorWhite)
+                end
+            else
+                gfx.setDitherPattern(0.6, gfx.image.kDitherTypeBayer8x8)
+                gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+                gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+            end
             gfx.drawCircleAtPoint(drawX, drawY, asteroid.radius)
-            gfx.drawLine(drawX - asteroid.radius * 0.6, drawY, drawX + asteroid.radius * 0.6, drawY - asteroid.radius * 0.2)
+            if asteroid.stage <= 1 then
+                gfx.drawLine(drawX - asteroid.radius * 0.6, drawY, drawX + asteroid.radius * 0.6, drawY - asteroid.radius * 0.2)
+            else
+                gfx.drawLine(drawX - asteroid.radius * 0.4, drawY, drawX + asteroid.radius * 0.4, drawY)
+                gfx.drawLine(drawX, drawY - asteroid.radius * 0.4, drawX, drawY + asteroid.radius * 0.4)
+            end
         end
     end
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setColor(gfx.kColorWhite)
 end
 
 function SpaceMiner:drawEnemies()
+    gfx.setColor(gfx.kColorWhite)
     for _, enemy in ipairs(self.enemyShips) do
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, enemy.x, enemy.y)
         local half = enemy.size
@@ -1010,6 +1492,7 @@ function SpaceMiner:drawEnemies()
 end
 
 function SpaceMiner:drawMissiles()
+    gfx.setColor(gfx.kColorWhite)
     if self.player.missile ~= nil then
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, self.player.missile.x, self.player.missile.y)
         local radians = math.rad(self.player.angle)
@@ -1030,6 +1513,7 @@ function SpaceMiner:drawLaser()
         return
     end
 
+    gfx.setColor(gfx.kColorWhite)
     local radians = math.rad(self.player.angle)
     local endX = CENTER_X + (math.cos(radians) * LASER_RANGE)
     local endY = CENTER_Y + (math.sin(radians) * LASER_RANGE)
@@ -1037,6 +1521,7 @@ function SpaceMiner:drawLaser()
 end
 
 function SpaceMiner:drawExplosions()
+    gfx.setColor(gfx.kColorWhite)
     for _, explosion in ipairs(self.explosions) do
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, explosion.x, explosion.y)
         local radius = math.max(1, math.floor(explosion.radius * (explosion.life / explosion.maxLife)))
@@ -1045,6 +1530,7 @@ function SpaceMiner:drawExplosions()
 end
 
 function SpaceMiner:drawHud()
+    gfx.setColor(gfx.kColorWhite)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawText("Space Miner", 8, 8)
     gfx.drawText(self.stageLabel, 8, 24)
@@ -1060,9 +1546,24 @@ function SpaceMiner:drawHud()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function SpaceMiner:drawAlert()
+    local alertText = self:getActiveAlertText()
+    if alertText == nil then
+        return
+    end
+
+    gfx.setColor(gfx.kColorWhite)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    local centerX = SCREEN_WIDTH * 0.5
+    local centerY = 104
+    gfx.drawTextAligned(alertText, centerX, centerY, kTextAlignment.center)
+end
+
 function SpaceMiner:draw()
     gfx.clear(gfx.kColorBlack)
     gfx.setColor(gfx.kColorWhite)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     self:drawDecorLayer("back")
     self:drawAsteroids()
     self:drawEnemies()
@@ -1070,6 +1571,7 @@ function SpaceMiner:draw()
     self:drawMissiles()
     self:drawExplosions()
     self:drawLaser()
+    self:drawAlert()
     self:drawDecorLayer("front")
     self:drawHud()
 end

@@ -35,6 +35,10 @@ local ENEMY_BASE_SPEED <const> = ORBITAL_CONFIG.enemyBaseSpeed or 0.58
 local ENEMY_SPAWN_FRAMES <const> = ORBITAL_CONFIG.enemySpawnFrames or 16
 local MATCH_DURATION_FRAMES <const> = ORBITAL_CONFIG.matchDurationFrames or (30 * 90)
 local SNAPSHOT_INTERVAL_FRAMES <const> = ORBITAL_CONFIG.snapshotIntervalFrames or 3
+local LOCAL_IDLE_TIMEOUT_FRAMES <const> = ORBITAL_CONFIG.localIdleTimeoutFrames or (30 * 5)
+local LOCAL_IDLE_CRANK_THRESHOLD <const> = ORBITAL_CONFIG.localIdleCrankThreshold or 0.5
+local ENDLESS_TIER_FRAMES <const> = 30 * 30
+local PLANNED_TIER_COUNT <const> = 6
 
 local PLAYER_ANCHORS <const> = {
     [1] = { orbitAngle = -60, defaultAngle = 18, label = "P1" },
@@ -99,6 +103,10 @@ local function copyArray(source)
     return copy
 end
 
+local function randomSign()
+    return math.random() < 0.5 and -1 or 1
+end
+
 OrbitalDefenseScene = {}
 OrbitalDefenseScene.__index = OrbitalDefenseScene
 
@@ -119,6 +127,7 @@ function OrbitalDefenseScene.new(config)
     self.earthHealth = 24
     self.ringHealth = 80
     self.remainingFrames = MATCH_DURATION_FRAMES
+    self.elapsedFrames = 0
     self.gameOver = false
     self.mode = self.networked and "lobby" or "game"
     self.remoteState = nil
@@ -127,6 +136,7 @@ function OrbitalDefenseScene.new(config)
     self.lastSentAngle = 0
     self.lastSentOrbitAngle = PLAYER_ANCHORS[1].orbitAngle
     self.lastSentLaser = false
+    self.localIdleFrames = 0
 
     if self.preview then
         self:resetMatch(self.multiplayer and "networked" or "single", 1)
@@ -227,8 +237,10 @@ function OrbitalDefenseScene:resetMatch(modeId, localSlot)
     self.earthHealth = 24
     self.ringHealth = 80
     self.remainingFrames = MATCH_DURATION_FRAMES
+    self.elapsedFrames = 0
     self.gameOver = false
     self.localSlot = localSlot or 1
+    self.localIdleFrames = 0
 
     local activeCount = modeId == "single" and 2 or self.playerCount
     for index = 1, activeCount do
@@ -295,7 +307,30 @@ function OrbitalDefenseScene:addExplosion(x, y, radius, life)
     }
 end
 
+function OrbitalDefenseScene:getEndlessDifficulty()
+    local elapsedFrames = self.elapsedFrames or 0
+    local tier = math.max(1, math.floor(elapsedFrames / ENDLESS_TIER_FRAMES) + 1)
+    local plannedTier = math.min(PLANNED_TIER_COUNT, tier)
+    local overflowTier = math.max(0, tier - PLANNED_TIER_COUNT)
+
+    local spawnInterval = math.max(4, ENEMY_SPAWN_FRAMES - ((plannedTier - 1) * 2) - overflowTier)
+    local hpBonus = (plannedTier - 1) + math.floor(overflowTier * 0.5)
+    local speedBonus = ((plannedTier - 1) * 0.05) + (overflowTier * 0.035)
+    local sizeBonus = math.min(4, math.floor((plannedTier - 1) / 2) + math.floor(overflowTier / 3))
+
+    return {
+        tier = tier,
+        plannedTier = plannedTier,
+        overflowTier = overflowTier,
+        spawnInterval = spawnInterval,
+        hpBonus = hpBonus,
+        speedBonus = speedBonus,
+        sizeBonus = sizeBonus
+    }
+end
+
 function OrbitalDefenseScene:spawnEnemy()
+    local difficulty = self:getEndlessDifficulty()
     local side = math.random(1, 3)
     local x = 0
     local y = 0
@@ -313,16 +348,22 @@ function OrbitalDefenseScene:spawnEnemy()
     self.enemies[#self.enemies + 1] = {
         x = x,
         y = y,
-        hp = 5 + math.random(0, 2),
-        speed = ENEMY_BASE_SPEED + (math.random() * 0.28),
-        size = 6 + math.random(0, 2)
+        hp = 5 + difficulty.hpBonus + math.random(0, 2 + math.min(3, difficulty.overflowTier)),
+        speed = ENEMY_BASE_SPEED + difficulty.speedBonus + (math.random() * (0.28 + (difficulty.overflowTier * 0.015))),
+        size = 6 + math.random(0, 2 + difficulty.sizeBonus)
     }
+
+    if difficulty.overflowTier > 0 and math.random() < math.min(0.55, 0.16 + (difficulty.overflowTier * 0.05)) then
+        local drift = 0.18 + (math.random() * (0.1 + (difficulty.overflowTier * 0.02)))
+        self.enemies[#self.enemies].driftX = drift * randomSign()
+        self.enemies[#self.enemies].driftY = drift * randomSign()
+    end
 end
 
 function OrbitalDefenseScene:readLocalControls()
     local player = self.players[self.localSlot]
     if player == nil then
-        return
+        return false
     end
 
     local aimInput = 0
@@ -341,11 +382,20 @@ function OrbitalDefenseScene:readLocalControls()
     end
 
     local crankChange = pd.getCrankChange()
+    local laserOn = pd.buttonIsPressed(pd.kButtonA)
+    local missileTriggered = pd.buttonJustPressed(pd.kButtonB)
+    local interacted = aimInput ~= 0
+        or moveInput ~= 0
+        or math.abs(crankChange) >= LOCAL_IDLE_CRANK_THRESHOLD
+        or laserOn
+        or missileTriggered
+
     player.angle = normalizeAngle(player.angle + (aimInput * PLAYER_AIM_SPEED) + (crankChange * 0.8))
     -- Up and down advance the turret around the shield so the player can reposition along the ring.
     player.orbitAngle = normalizeAngle((player.orbitAngle or PLAYER_ANCHORS[self.localSlot].orbitAngle) + (moveInput * PLAYER_ORBIT_SPEED))
-    player.laserOn = pd.buttonIsPressed(pd.kButtonA)
-    player.pendingMissileTrigger = pd.buttonJustPressed(pd.kButtonB)
+    player.laserOn = laserOn
+    player.pendingMissileTrigger = missileTriggered
+    return interacted
 end
 
 function OrbitalDefenseScene:sendClientInput()
@@ -423,10 +473,46 @@ function OrbitalDefenseScene:updateAIPlayers()
     end
 end
 
+function OrbitalDefenseScene:updateSinglePlayerLocalControlState()
+    if self.networked or self.preview then
+        return
+    end
+
+    if #self.players < 2 then
+        return
+    end
+
+    local player = self.players[self.localSlot]
+    if player == nil then
+        return
+    end
+
+    local interacted = self:readLocalControls()
+    if interacted then
+        self.localIdleFrames = 0
+        if player.controlKind ~= "local" then
+            player.controlKind = "local"
+            player.laserOn = false
+            player.pendingMissileTrigger = false
+            StarryLog.forceDebug("orbital local control restored after input")
+        end
+        return
+    end
+
+    self.localIdleFrames = self.localIdleFrames + 1
+    if self.localIdleFrames >= LOCAL_IDLE_TIMEOUT_FRAMES and player.controlKind ~= "bot" then
+        player.controlKind = "bot"
+        player.laserOn = false
+        player.pendingMissileTrigger = false
+        StarryLog.forceDebug("orbital local autopilot activated idleFrames=%d", self.localIdleFrames)
+    end
+end
+
 function OrbitalDefenseScene:updateEnemies()
+    local difficulty = self:getEndlessDifficulty()
     self.spawnTimer = self.spawnTimer - 1
     if self.spawnTimer <= 0 then
-        self.spawnTimer = ENEMY_SPAWN_FRAMES
+        self.spawnTimer = difficulty.spawnInterval
         self:spawnEnemy()
     end
 
@@ -435,8 +521,8 @@ function OrbitalDefenseScene:updateEnemies()
         local dx = PLANET_X - enemy.x
         local dy = PLANET_Y - enemy.y
         local distance = math.max(1, math.sqrt((dx * dx) + (dy * dy)))
-        enemy.x = enemy.x + ((dx / distance) * enemy.speed)
-        enemy.y = enemy.y + ((dy / distance) * enemy.speed)
+        enemy.x = enemy.x + ((dx / distance) * enemy.speed) + (enemy.driftX or 0)
+        enemy.y = enemy.y + ((dy / distance) * enemy.speed) + (enemy.driftY or 0)
 
         -- Enemy ships now burst on shield impact instead of lingering on the ring and draining it every frame.
         if distance <= (RING_RADIUS + enemy.size) and self.ringHealth > 0 then
@@ -591,6 +677,7 @@ function OrbitalDefenseScene:serializeState()
 
     return {
         frame = self.frame,
+        elapsedFrames = self.elapsedFrames,
         earthHealth = self.earthHealth,
         ringHealth = self.ringHealth,
         remainingFrames = self.remainingFrames,
@@ -610,18 +697,19 @@ end
 
 function OrbitalDefenseScene:updateLocalGame()
     self.frame = self.frame + 1
-    if not self.gameOver then
-        self.remainingFrames = math.max(0, self.remainingFrames - 1)
+    self.elapsedFrames = (self.elapsedFrames or 0) + 1
+    if self.networked then
         self:readLocalControls()
-        self:updateAIPlayers()
-        self:updateEnemies()
-        self:applyLasers()
-        self:updateMissiles()
-        self:updateExplosions()
-        if self.earthHealth <= 0 or self.remainingFrames <= 0 then
-            self.gameOver = true
-        end
+    elseif #self.players >= 2 then
+        self:updateSinglePlayerLocalControlState()
+    else
+        self:readLocalControls()
     end
+    self:updateAIPlayers()
+    self:updateEnemies()
+    self:applyLasers()
+    self:updateMissiles()
+    self:updateExplosions()
 end
 
 function OrbitalDefenseScene:drawBackground(frame)
@@ -706,8 +794,10 @@ end
 function OrbitalDefenseScene:drawHud(state)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     local title = self.multiplayer and ("Orbital Defense  " .. tostring(self.playerCount) .. "P") or "Orbital Defense"
+    local elapsedFrames = state.elapsedFrames or 0
+    local difficultyTier = math.max(1, math.floor(elapsedFrames / ENDLESS_TIER_FRAMES) + 1)
     gfx.drawText(title, 10, 8)
-    gfx.drawText(string.format("Earth %d  Ring %d  Time %d", state.earthHealth or 0, math.ceil(state.ringHealth or 0), math.ceil((state.remainingFrames or 0) / 30)), 10, 24)
+    gfx.drawText(string.format("Earth %d  Ring %d  Tier %d  Endless", state.earthHealth or 0, math.ceil(state.ringHealth or 0), difficultyTier), 10, 24)
 
     local scoreLine = {}
     for index, player in ipairs(state.players or {}) do
@@ -715,10 +805,6 @@ function OrbitalDefenseScene:drawHud(state)
     end
     gfx.drawText(table.concat(scoreLine, "   "), 10, 40)
     gfx.drawText(self.networked and "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B missile  pdportal live" or "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B missile", 10, 220)
-
-    if state.gameOver then
-        gfx.drawTextAligned("Defense run complete. Press B to return.", 200, 108, kTextAlignment.center)
-    end
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -726,7 +812,6 @@ function OrbitalDefenseScene:drawGameState(state)
     self:drawBackground(state.frame or 0)
     self:drawWorld(state)
     self:drawHud(state)
-    ControlHelp.drawOverlay("orbital", nil)
 end
 
 function OrbitalDefenseScene:draw()

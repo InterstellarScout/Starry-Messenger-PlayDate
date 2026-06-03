@@ -11,6 +11,9 @@ Purpose:
 local pd <const> = playdate
 local FIREWORK_HOLD_REPEAT_FRAMES <const> = 5
 local LIFE_CRANK_RELEASE_ANGLE_TOLERANCE <const> = 3
+local TILTBALLS_ENTRY_OVERLAY_FRAMES <const> = 30 * 5
+local TILTBALLS_ENTRY_LINE_ONE <const> = "Turn the Play Date upside down"
+local TILTBALLS_ENTRY_LINE_TWO <const> = "and watch the ball fall to your feet!"
 local WARP_MENU_X <const> = 218
 local WARP_MENU_Y <const> = 10
 local WARP_MENU_WIDTH <const> = 172
@@ -48,6 +51,7 @@ function ViewScene.new(config)
     self.fireworkHoldFrames = 0
     self.warpMenuOpen = false
     self.warpMenuIndex = 1
+    self.entryOverlayFrames = 0
 
     if config.effect then
         self.effect = config.effect
@@ -63,20 +67,37 @@ function ViewScene.new(config)
         self.effect = FireworksShow.new(400, 240)
     elseif self.viewId == "crttv" then
         self.effect = CRTTVEffect.new(400, 240)
+    elseif self.viewId == "vibes" then
+        self.effect = VibesEffect.new(400, 240, {
+            modeId = self.modeId,
+            selectionLocked = self.modeId ~= nil
+        })
+    elseif self.viewId == "puddledrops" then
+        self.effect = PuddleDrops.new(400, 240, {
+            modeId = self.modeId
+        })
+    elseif self.viewId == "dropper" then
+        self.effect = Dropper.new(400, 240, {
+            preview = false
+        })
     elseif self.viewId == "tiltballs" then
         self.effect = TiltBalls.new(400, 240)
     elseif self.viewId == "wacky" then
         self.effect = WackyInflatable.new(400, 240)
+    elseif self.viewId == "dimensionalsplit" then
+        self.effect = DimensionalSplit.new(400, 240, {
+            preview = false
+        })
     elseif self.viewId == "spaceminer" then
         self.effect = SpaceMiner.new(400, 240, {
             modeId = self.modeId
         })
-    elseif self.viewId == "skywatch" then
-        self.effect = SkyWatch.new(400, 240)
     elseif self.viewId == "trailblazer" then
         self.effect = TrailBlazer.new(400, 240, {
             modeId = self.modeId
         })
+    elseif self.viewId == "marblemadness" then
+        self.effect = MarbleMadness.new(400, 240)
     elseif self.viewId == "photoviewer" then
         self.effect = PhotoViewerEffect.new(400, 240)
     elseif self.viewId == "gifplayer" then
@@ -101,6 +122,10 @@ function ViewScene.new(config)
 
     if self.effect and self.effect.setPreview then
         self.effect:setPreview(false)
+    end
+
+    if self.viewId == "tiltballs" then
+        self.entryOverlayFrames = TILTBALLS_ENTRY_OVERLAY_FRAMES
     end
 
     StarryLog.info(
@@ -383,11 +408,11 @@ function ViewScene:stepRotateVelocity(direction)
             self.rotateVelocity = self.rotateVelocity + (direction * 0.1)
         end
     elseif self.rotateVelocity > 1 then
-        self.rotateVelocity = math.min(8, self.rotateVelocity + (direction * 0.5))
+        self.rotateVelocity = self.rotateVelocity + (direction * 0.5)
     elseif self.rotateVelocity < -1 then
-        self.rotateVelocity = math.max(-8, self.rotateVelocity + (direction * 0.5))
+        self.rotateVelocity = self.rotateVelocity + (direction * 0.5)
     else
-        self.rotateVelocity = math.max(-8, math.min(8, self.rotateVelocity + (direction * 0.1)))
+        self.rotateVelocity = self.rotateVelocity + (direction * 0.1)
     end
 end
 
@@ -469,7 +494,53 @@ function ViewScene:updatePersistentSpin()
     end
 end
 
+function ViewScene:hasEntryOverlay()
+    return self.entryOverlayFrames ~= nil and self.entryOverlayFrames > 0
+end
+
+function ViewScene:updateEntryOverlay()
+    if self:hasEntryOverlay() then
+        self.entryOverlayFrames = self.entryOverlayFrames - 1
+    end
+end
+
+function ViewScene:dismissEntryOverlay()
+    self.entryOverlayFrames = 0
+end
+
+function ViewScene:drawEntryOverlay()
+    if not self:hasEntryOverlay() then
+        return
+    end
+
+    pd.graphics.setImageDrawMode(pd.graphics.kDrawModeInverted)
+    pd.graphics.drawTextAligned(TILTBALLS_ENTRY_LINE_ONE, 200, 104, kTextAlignment.center)
+    pd.graphics.drawTextAligned(TILTBALLS_ENTRY_LINE_TWO, 200, 120, kTextAlignment.center)
+    pd.graphics.setImageDrawMode(pd.graphics.kDrawModeCopy)
+end
+
+function ViewScene:handleTrailblazerIntroInteraction(change, acceleratedChange)
+    if self.viewId ~= "trailblazer" or self.effect == nil or self.effect.handleFirstInteraction == nil then
+        return
+    end
+
+    if math.abs(change or 0) > 0.01
+        or math.abs(acceleratedChange or 0) > 0.01
+        or pd.buttonJustPressed(pd.kButtonA)
+        or pd.buttonJustPressed(pd.kButtonLeft)
+        or pd.buttonJustPressed(pd.kButtonRight)
+        or pd.buttonJustPressed(pd.kButtonUp)
+        or pd.buttonJustPressed(pd.kButtonDown) then
+        self.effect:handleFirstInteraction()
+    end
+end
+
 function ViewScene:update()
+    local aJustPressed = pd.buttonJustPressed(pd.kButtonA)
+    local change, acceleratedChange = pd.getCrankChange()
+
+    self:handleTrailblazerIntroInteraction(change, acceleratedChange)
+
     if pd.buttonJustPressed(pd.kButtonB) then
         if self.warpMenuOpen then
             self.warpMenuOpen = false
@@ -496,16 +567,15 @@ function ViewScene:update()
         return
     end
 
-    if self.viewId == "skywatch" then
-        self.effect:update()
-        self.effect:draw()
-        ControlHelp.drawOverlay(self.viewId, self.modeId)
-        return
+    if self.viewId == "tiltballs" and self:hasEntryOverlay() then
+        if aJustPressed then
+            self:dismissEntryOverlay()
+        else
+            self:updateEntryOverlay()
+        end
     end
 
-    local change, acceleratedChange = pd.getCrankChange()
-
-    if self.viewId == "warp" and pd.buttonJustPressed(pd.kButtonA) then
+    if self.viewId == "warp" and aJustPressed then
         if self.warpMenuOpen then
             self:toggleWarpMenuSelection()
         else
@@ -515,9 +585,9 @@ function ViewScene:update()
         self.effect:update()
         self.effect:draw()
         self:drawWarpMenu()
-        ControlHelp.drawOverlay(self.viewId, self.modeId)
+        self:drawEntryOverlay()
         return
-    elseif pd.buttonJustPressed(pd.kButtonA) then
+    elseif aJustPressed and not (self.viewId == "tiltballs" and self:hasEntryOverlay()) then
         if self.viewId == "life" then
             if self:isLifeReviewMode() then
                 self.effect:handleReviewPrimaryAction()
@@ -529,7 +599,15 @@ function ViewScene:update()
             self.effect:launchFromLauncher()
         elseif self.viewId == "crttv" then
             self.effect:handlePrimaryAction()
+        elseif self.viewId == "vibes" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "puddledrops" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "dropper" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "tiltballs" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "dimensionalsplit" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
@@ -541,6 +619,7 @@ function ViewScene:update()
         elseif self.viewId == "fishpond" then
         elseif self.viewId == "trailblazer" then
             self.effect:handlePrimaryAction()
+        elseif self.viewId == "marblemadness" then
         elseif self.viewId == "rccar" then
             if self.effect and self.effect.toggleCrankMode then
                 self.effect:toggleCrankMode()
@@ -560,7 +639,7 @@ function ViewScene:update()
         self.effect:update()
         self.effect:draw()
         self:drawWarpMenu()
-        ControlHelp.drawOverlay(self.viewId, self.modeId)
+        self:drawEntryOverlay()
         return
     end
 
@@ -590,6 +669,9 @@ function ViewScene:update()
     elseif self.viewId == "wacky" then
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
+    elseif self.viewId == "dimensionalsplit" then
+        self.effect:applyCrank(change)
+        self.crankAccumulator = 0
     elseif self.viewId == "spaceminer" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
@@ -598,6 +680,9 @@ function ViewScene:update()
         self.crankAccumulator = 0
     elseif self.viewId == "trailblazer" then
         self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
+    elseif self.viewId == "marblemadness" then
+        self.effect:applyCrank(change)
         self.crankAccumulator = 0
     elseif self.viewId == "photoviewer" then
         self.effect:applyCrank(change, acceleratedChange)
@@ -621,6 +706,9 @@ function ViewScene:update()
         if self.effect and self.effect.applyCrank then
             self.effect:applyCrank(change)
         end
+        self.crankAccumulator = 0
+    elseif self.viewId == "vibes" and self.effect and self.effect.usesDirectCrank and self.effect:usesDirectCrank() then
+        self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
     elseif self:usesPersistentSpinControl() then
         if self.crankMode == "spin" then
@@ -652,6 +740,33 @@ function ViewScene:update()
             pd.buttonJustPressed(pd.kButtonLeft),
             pd.buttonJustPressed(pd.kButtonRight)
         )
+    elseif self.viewId == "vibes" then
+        if self.effect and self.effect.handleDirectionalInput then
+            self.effect:handleDirectionalInput(
+                pd.buttonJustPressed(pd.kButtonLeft),
+                pd.buttonJustPressed(pd.kButtonRight),
+                pd.buttonIsPressed(pd.kButtonUp),
+                pd.buttonIsPressed(pd.kButtonDown)
+            )
+        end
+    elseif self.viewId == "puddledrops" then
+        if self.effect and self.effect.handleDirectionalInput then
+            self.effect:handleDirectionalInput(
+                pd.buttonIsPressed(pd.kButtonLeft),
+                pd.buttonIsPressed(pd.kButtonRight),
+                pd.buttonIsPressed(pd.kButtonUp),
+                pd.buttonIsPressed(pd.kButtonDown)
+            )
+        end
+    elseif self.viewId == "dropper" then
+        if self.effect and self.effect.handleDirectionalInput then
+            self.effect:handleDirectionalInput(
+                pd.buttonIsPressed(pd.kButtonLeft),
+                pd.buttonIsPressed(pd.kButtonRight),
+                pd.buttonIsPressed(pd.kButtonUp),
+                pd.buttonIsPressed(pd.kButtonDown)
+            )
+        end
     elseif self.viewId == "photoviewer" then
         if pd.buttonJustPressed(pd.kButtonLeft) then
             self.effect:stepPhoto(-1)
@@ -682,6 +797,14 @@ function ViewScene:update()
                 self.effect:handleDrop()
             end
         end
+    elseif self.viewId == "marblemadness" then
+        self.effect:handleDirectionalInput(
+            pd.buttonIsPressed(pd.kButtonLeft),
+            pd.buttonIsPressed(pd.kButtonRight),
+            pd.buttonIsPressed(pd.kButtonUp),
+            pd.buttonIsPressed(pd.kButtonDown)
+        )
+        self.effect:updateActionInput(pd.buttonIsPressed(pd.kButtonA))
     elseif self.viewId == "spaceminer" then
         self.effect:updateInput(
             pd.buttonIsPressed(pd.kButtonUp),
@@ -740,7 +863,7 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self:applySpeedStep(-1)
         end
-    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "spaceminer" then
+    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "vibes" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "dimensionalsplit" or self.viewId == "dropper" or self.viewId == "spaceminer" then
     elseif self.viewId ~= "lava" then
         if self.effect and self.effect.steerDirectionToward then
             self:updateStarfieldDirection()
@@ -772,7 +895,7 @@ function ViewScene:update()
     end
     self.effect:draw()
     self:drawWarpMenu()
-    ControlHelp.drawOverlay(self.viewId, self.modeId)
+    self:drawEntryOverlay()
 end
 
 function ViewScene:activate()

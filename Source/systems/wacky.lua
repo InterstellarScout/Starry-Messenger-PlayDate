@@ -12,6 +12,11 @@ local BODY_LENGTH <const> = WACKY_CONFIG.bodyLength or 116
 local TUBE_WIDTH <const> = WACKY_CONFIG.tubeWidth or 22
 local HEAD_RADIUS <const> = WACKY_CONFIG.headRadius or 17
 local ARM_LENGTH <const> = WACKY_CONFIG.armLength or 34
+local ARM_SEGMENT_LENGTHS <const> = {
+    ARM_LENGTH * 0.58,
+    ARM_LENGTH * 0.42,
+    ARM_LENGTH * 0.34
+}
 local PREVIEW_EXTENDED_FRAMES <const> = WACKY_CONFIG.previewExtendedFrames or 30
 local PREVIEW_SETTLE_INFLATION <const> = WACKY_CONFIG.previewSettleInflation or 0.12
 local MAX_CRANK_BOOST <const> = WACKY_CONFIG.maxCrankBoost or 1.3
@@ -77,7 +82,9 @@ local function makeArm(direction)
         shoulderAngle = 0,
         shoulderVelocity = 0,
         elbowAngle = 0,
-        elbowVelocity = 0
+        elbowVelocity = 0,
+        wristAngle = 0,
+        wristVelocity = 0
     }
 end
 
@@ -386,13 +393,16 @@ function WackyInflatable:updateArmPhysics()
 
     for _, arm in ipairs(self.arms) do
         local shoulderTarget = bodyAngle + (arm.direction * (0.95 + (flopBias * 0.6))) - bodySwing
-        local elbowTarget = (arm.direction * 0.65) + (bodySwing * 0.45)
+        local elbowTarget = (arm.direction * (0.48 + (flopBias * 0.22))) + (bodySwing * 0.5)
+        local wristTarget = (arm.direction * (0.26 + (flopBias * 0.28))) + (bodySwing * 0.36)
 
         arm.shoulderVelocity = (arm.shoulderVelocity + ((shoulderTarget - arm.shoulderAngle) * 0.18)) * 0.78
-        arm.elbowVelocity = (arm.elbowVelocity + ((elbowTarget - arm.elbowAngle) * 0.2)) * 0.76
+        arm.elbowVelocity = (arm.elbowVelocity + ((elbowTarget - arm.elbowAngle) * 0.22)) * 0.74
+        arm.wristVelocity = (arm.wristVelocity + ((wristTarget - arm.wristAngle) * 0.24)) * 0.72
 
         arm.shoulderAngle = arm.shoulderAngle + arm.shoulderVelocity
         arm.elbowAngle = arm.elbowAngle + arm.elbowVelocity
+        arm.wristAngle = arm.wristAngle + arm.wristVelocity
     end
 end
 
@@ -448,14 +458,20 @@ end
 
 function WackyInflatable:drawArm(shoulderX, shoulderY, bodyAngle, arm)
     local upperAngle = bodyAngle + arm.shoulderAngle
-    local elbowX = shoulderX + (math.cos(upperAngle) * ARM_LENGTH)
-    local elbowY = shoulderY + (math.sin(upperAngle) * ARM_LENGTH)
+    local elbowX = shoulderX + (math.cos(upperAngle) * ARM_SEGMENT_LENGTHS[1])
+    local elbowY = shoulderY + (math.sin(upperAngle) * ARM_SEGMENT_LENGTHS[1])
     local foreAngle = upperAngle + arm.elbowAngle
-    local handX = elbowX + (math.cos(foreAngle) * (ARM_LENGTH * 0.75))
-    local handY = elbowY + (math.sin(foreAngle) * (ARM_LENGTH * 0.75))
+    local wristX = elbowX + (math.cos(foreAngle) * ARM_SEGMENT_LENGTHS[2])
+    local wristY = elbowY + (math.sin(foreAngle) * ARM_SEGMENT_LENGTHS[2])
+    local handAngle = foreAngle + arm.wristAngle
+    local handX = wristX + (math.cos(handAngle) * ARM_SEGMENT_LENGTHS[3])
+    local handY = wristY + (math.sin(handAngle) * ARM_SEGMENT_LENGTHS[3])
 
     gfx.drawLine(shoulderX, shoulderY, elbowX, elbowY)
-    gfx.drawLine(elbowX, elbowY, handX, handY)
+    gfx.drawLine(elbowX, elbowY, wristX, wristY)
+    gfx.drawLine(wristX, wristY, handX, handY)
+    gfx.fillCircleAtPoint(elbowX, elbowY, 1)
+    gfx.fillCircleAtPoint(wristX, wristY, 1)
     gfx.fillCircleAtPoint(handX, handY, 3)
 end
 

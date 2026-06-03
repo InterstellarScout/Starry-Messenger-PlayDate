@@ -25,12 +25,29 @@ local TITLE_FREE_SPIN_IMMEDIATE_CHANGE <const> = TITLE_CONFIG.freeSpinImmediateC
 local TITLE_FREE_SPIN_ACCELERATION_SCALE <const> = TITLE_CONFIG.freeSpinAccelerationScale or 0.0042
 local TITLE_FREE_SPIN_DECAY <const> = TITLE_CONFIG.freeSpinDecay or 0.94
 local TITLE_FREE_SPIN_STOP_VELOCITY <const> = TITLE_CONFIG.freeSpinStopVelocity or 0.018
+local TITLE_FREE_SPIN_STAR_FADE_STEP <const> = TITLE_CONFIG.freeSpinStarFadeStep or 0.12
+local TITLE_FREE_SPIN_STAR_COUNT <const> = TITLE_CONFIG.freeSpinStarCount or 140
+local TITLE_FREE_SPIN_STAR_SPEED_SCALE <const> = TITLE_CONFIG.freeSpinStarSpeedScale or 48
+local TITLE_FREE_SPIN_STAR_MIN_SPEED <const> = TITLE_CONFIG.freeSpinStarMinSpeed or 1.2
+local TITLE_FIDGET_WARP_THRESHOLD <const> = TITLE_CONFIG.fidgetWarpThreshold or 600
+local TITLE_FIDGET_WARP_BUILD_SCALE <const> = TITLE_CONFIG.fidgetWarpBuildScale or (1 / 30)
+local TITLE_FIDGET_WARP_VISUAL_DIVISOR <const> = TITLE_CONFIG.fidgetWarpVisualDivisor or 120
+local TITLE_FIDGET_WARP_VISUAL_MIN_SPEED <const> = TITLE_CONFIG.fidgetWarpVisualMinSpeed or 0.4
+local TITLE_FIDGET_WARP_VISUAL_MAX_SPEED <const> = TITLE_CONFIG.fidgetWarpVisualMaxSpeed or 20
+local TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD <const> = TITLE_CONFIG.fidgetWarpStarTierThreshold or 3000
+local TITLE_FIDGET_WARP_STAR_TIER_STEP <const> = TITLE_CONFIG.fidgetWarpStarTierStep or 1000
+local TITLE_FIDGET_WARP_STAR_SIZE_PERCENT_STEP <const> = TITLE_CONFIG.fidgetWarpStarSizePercentStep or 35
+local TITLE_FIDGET_FALL_SPEED_MODIFIER <const> = TITLE_CONFIG.fidgetFallSpeedModifier or -0.5
+local TITLE_FIDGET_WARP_SPEED_MODIFIER <const> = TITLE_CONFIG.fidgetWarpSpeedModifier or -0.5
 local TITLE_CRANK_BUMP_THRESHOLD <const> = TITLE_CONFIG.crankBumpThreshold or 8
 local TITLE_SLOW_CRANK_SCALE <const> = TITLE_CONFIG.slowCrankScale or 1.5
 local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
 local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
 local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
 local LAVA_CONFIG <const> = GameConfig and GameConfig.lavaLamp or {}
+local CRTTV_TITLE_STILL_PATH <const> = "images/loading/crttv-loading-still"
+local LIFE_TITLE_STILL_PATH <const> = "images/loading/gameoflife-loading-still"
+local freeSpinSessionHighScoreValue = 0
 
 local function roundNearest(value)
     if value >= 0 then
@@ -66,10 +83,39 @@ local function getDefaultSelectedIndex(viewItems)
     return 1
 end
 
+local function getAppVersionLabel()
+    local metadata = pd.metadata or {}
+    local version = metadata.version
+    if version == nil or version == "" then
+        return nil
+    end
+
+    return "v" .. tostring(version)
+end
+
 local function makeWarpPreview(speed)
     local preview = Starfield.newWarpSpeed(400, 240, WARP_CONFIG.previewStarCount or 320)
     preview.speed = speed or 1
     return preview
+end
+
+local function makeStaticImagePreview(path)
+    local image = gfx.image.new(path)
+    return {
+        setPreview = function()
+        end,
+        activate = function()
+        end,
+        shutdown = function()
+        end,
+        update = function()
+        end,
+        draw = function()
+            if image ~= nil then
+                image:draw(0, 0)
+            end
+        end
+    }
 end
 
 local function randomTitleFireworkDelay()
@@ -84,6 +130,7 @@ function TitleScene.new(config)
     self.viewItems = config.viewItems
     self.onSelectView = config.onSelectView
     self.onBack = config.onBack
+    self.onResetSelection = config.onResetSelection
     self.catalog = config.catalog or "single"
     self.playerCount = config.playerCount or 1
     self.selected = config.selectedIndex or getDefaultSelectedIndex(config.viewItems)
@@ -110,6 +157,16 @@ function TitleScene.new(config)
     self.frame = 0
     self.freeSpinActive = false
     self.freeSpinVelocity = 0
+    self.freeSpinSettling = false
+    self.freeSpinStarPreview = nil
+    self.freeSpinStarFade = 0
+    self.freeSpinStarFadeDirection = 0
+    self.freeSpinSpeedOverlayEnabled = false
+    self.freeSpinSpeedOverlayLocked = false
+    self.freeSpinLockedOverlayLabel = nil
+    self.freeSpinLockedOverlayValue = nil
+    self.freeSpinEffectMode = "fidget"
+    self.freeSpinWarpMetric = nil
     self.crankBurstSamples = {}
     self.crankBurstDegrees = 0
     if not self.preview then
@@ -121,6 +178,22 @@ end
 
 function TitleScene:getSelectedView()
     return self.viewItems[self.selected]
+end
+
+function TitleScene:getSelectedActualViewId()
+    local selectedView = self:getSelectedView()
+    if selectedView == nil then
+        return nil
+    end
+    return selectedView.openViewId or selectedView.id
+end
+
+function TitleScene:getSelectedControlViewId()
+    local selectedView = self:getSelectedView()
+    if selectedView == nil then
+        return nil
+    end
+    return selectedView.controlViewId or selectedView.openViewId or selectedView.id
 end
 
 function TitleScene:getSelectedModeId()
@@ -151,6 +224,238 @@ end
 
 function TitleScene:usesInvertedText()
     return false
+end
+
+function TitleScene:createFreeSpinStarPreview()
+    local preview = Starfield.newStarFall(400, 240, TITLE_FREE_SPIN_STAR_COUNT, {
+        uniformMotion = true,
+        uniformStarSize = 2,
+        uniformStarSpeed = 1,
+        disableLargeStar = true
+    })
+    preview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED
+    preview.directionAngle = -90
+    return preview
+end
+
+function TitleScene:getFreeSpinWarpStarSizePercent(warpMetric)
+    if warpMetric == nil or warpMetric < TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD then
+        return 0
+    end
+
+    local tierIndex = math.floor((warpMetric - TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD) / TITLE_FIDGET_WARP_STAR_TIER_STEP) + 1
+    return tierIndex * TITLE_FIDGET_WARP_STAR_SIZE_PERCENT_STEP
+end
+
+function TitleScene:getCurrentFreeSpinOverlayMetric()
+    local speedLabel = "Speed"
+    local speedValue = self:getFreeSpinFidgetMetric()
+    if self.freeSpinEffectMode == "warp" and self.freeSpinWarpMetric ~= nil then
+        speedLabel = "Warp Speed"
+        speedValue = self.freeSpinWarpMetric
+    end
+
+    return speedLabel, speedValue
+end
+
+function TitleScene:recordFreeSpinHighScore()
+    local _, speedValue = self:getCurrentFreeSpinOverlayMetric()
+    freeSpinSessionHighScoreValue = math.max(freeSpinSessionHighScoreValue, speedValue or 0)
+end
+
+function TitleScene.resetSessionFreeSpinHighScore()
+    freeSpinSessionHighScoreValue = 0
+end
+
+function TitleScene:resetFreeSpinHighScore()
+    TitleScene.resetSessionFreeSpinHighScore()
+end
+
+function TitleScene:createFreeSpinWarpPreview()
+    local preview = Starfield.newWarpSpeed(400, 240, WARP_CONFIG.previewStarCount or 320, {
+        modeId = Starfield.MODE_STANDARD
+    })
+    preview.speed = 0
+    return preview
+end
+
+function TitleScene:getFreeSpinFidgetMetric()
+    return math.max(
+        TITLE_FREE_SPIN_STAR_MIN_SPEED,
+        math.abs(self.freeSpinVelocity) * TITLE_FREE_SPIN_STAR_SPEED_SCALE
+    )
+end
+
+function TitleScene:getFreeSpinResponseScale(modifier)
+    return math.max(0.05, 1 + (tonumber(modifier) or 0))
+end
+
+function TitleScene:getFreeSpinFallVisualSpeed(fidgetMetric)
+    return math.max(
+        TITLE_FREE_SPIN_STAR_MIN_SPEED,
+        fidgetMetric * self:getFreeSpinResponseScale(TITLE_FIDGET_FALL_SPEED_MODIFIER)
+    )
+end
+
+function TitleScene:getFreeSpinWarpVisualMetric(fidgetMetric)
+    return fidgetMetric * self:getFreeSpinResponseScale(TITLE_FIDGET_WARP_SPEED_MODIFIER)
+end
+
+function TitleScene:switchFreeSpinEffect(mode)
+    if self.freeSpinStarPreview and self.freeSpinStarPreview.shutdown then
+        self.freeSpinStarPreview:shutdown()
+    end
+
+    self.freeSpinEffectMode = mode or "fidget"
+    if self.freeSpinEffectMode == "warp" then
+        self.freeSpinStarPreview = self:createFreeSpinWarpPreview()
+        self.freeSpinWarpMetric = 0
+    else
+        self.freeSpinStarPreview = self:createFreeSpinStarPreview()
+        self.freeSpinWarpMetric = nil
+    end
+end
+
+function TitleScene:shutdownFreeSpinStarPreview()
+    if self.freeSpinStarPreview and self.freeSpinStarPreview.shutdown then
+        self.freeSpinStarPreview:shutdown()
+    end
+    self.freeSpinStarPreview = nil
+    self.freeSpinStarFade = 0
+    self.freeSpinStarFadeDirection = 0
+    self.freeSpinSpeedOverlayEnabled = false
+    self.freeSpinSpeedOverlayLocked = false
+    self.freeSpinLockedOverlayLabel = nil
+    self.freeSpinLockedOverlayValue = nil
+    self.freeSpinEffectMode = "fidget"
+    self.freeSpinWarpMetric = nil
+end
+
+function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
+    if self.freeSpinStarPreview == nil then
+        return
+    end
+
+    local fidgetMetric = self:getFreeSpinFidgetMetric()
+    if self.freeSpinEffectMode == "warp" then
+        if fidgetMetric < TITLE_FIDGET_WARP_THRESHOLD then
+            self:switchFreeSpinEffect("fidget")
+        end
+    elseif fidgetMetric >= TITLE_FIDGET_WARP_THRESHOLD then
+        self:switchFreeSpinEffect("warp")
+    end
+
+    local visualChange = acceleratedChange or 0
+    if math.abs(visualChange) <= 0.01 then
+        visualChange = self.freeSpinVelocity
+    end
+
+    if self.freeSpinEffectMode == "warp" then
+        if self.freeSpinWarpMetric == nil then
+            self.freeSpinWarpMetric = 0
+        end
+        self.freeSpinWarpMetric = self.freeSpinWarpMetric + (self:getFreeSpinWarpVisualMetric(fidgetMetric) * TITLE_FIDGET_WARP_BUILD_SCALE)
+        self.freeSpinStarPreview:setWarpStarSizePercent(self:getFreeSpinWarpStarSizePercent(self.freeSpinWarpMetric))
+        self.freeSpinStarPreview.speed = math.max(
+            TITLE_FIDGET_WARP_VISUAL_MIN_SPEED,
+            math.min(TITLE_FIDGET_WARP_VISUAL_MAX_SPEED, self.freeSpinWarpMetric / TITLE_FIDGET_WARP_VISUAL_DIVISOR)
+        )
+    else
+        if visualChange > 0.01 then
+            self.freeSpinStarPreview.directionAngle = -90
+        elseif visualChange < -0.01 then
+            self.freeSpinStarPreview.directionAngle = 90
+        end
+
+        self.freeSpinStarPreview.speed = self:getFreeSpinFallVisualSpeed(fidgetMetric)
+    end
+    self.freeSpinStarPreview:update()
+
+    if self.freeSpinStarFadeDirection ~= 0 then
+        self.freeSpinStarFade = math.max(
+            0,
+            math.min(1, self.freeSpinStarFade + (self.freeSpinStarFadeDirection * TITLE_FREE_SPIN_STAR_FADE_STEP))
+        )
+        if self.freeSpinStarFade >= 1 and self.freeSpinStarFadeDirection > 0 then
+            self.freeSpinStarFadeDirection = 0
+        elseif self.freeSpinStarFade <= 0 and self.freeSpinStarFadeDirection < 0 then
+            self.freeSpinStarFadeDirection = 0
+            self:shutdownFreeSpinStarPreview()
+            if self.freeSpinSettling then
+                self.freeSpinSettling = false
+                self:setPreview()
+            end
+        end
+    end
+end
+
+function TitleScene:drawFreeSpinStarPreview()
+    if self.freeSpinStarPreview == nil or self.freeSpinStarFade <= 0 then
+        return
+    end
+
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRect(0, 0, 400, 240)
+    self.freeSpinStarPreview:draw()
+    if self.freeSpinStarFade < 1 then
+        gfx.setColor(gfx.kColorBlack)
+        gfx.setDitherPattern(1 - self.freeSpinStarFade, gfx.image.kDitherTypeBayer8x8)
+        gfx.fillRect(0, 0, 400, 240)
+        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    end
+end
+
+function TitleScene:enableFreeSpinSpeedOverlay()
+    self.freeSpinSpeedOverlayEnabled = true
+    self.freeSpinSpeedOverlayLocked = false
+    self.freeSpinLockedOverlayLabel = nil
+    self.freeSpinLockedOverlayValue = nil
+end
+
+function TitleScene:toggleFreeSpinSpeedOverlay()
+    if not self.freeSpinSpeedOverlayEnabled then
+        self:enableFreeSpinSpeedOverlay()
+        return
+    end
+
+    if self.freeSpinSpeedOverlayLocked then
+        self.freeSpinSpeedOverlayLocked = false
+        self.freeSpinLockedOverlayLabel = nil
+        self.freeSpinLockedOverlayValue = nil
+        return
+    end
+
+    self.freeSpinLockedOverlayLabel, self.freeSpinLockedOverlayValue = self:getCurrentFreeSpinOverlayMetric()
+    self.freeSpinSpeedOverlayLocked = true
+end
+
+function TitleScene:drawFreeSpinSpeedOverlay()
+    if not self.freeSpinActive or not self.freeSpinSpeedOverlayEnabled then
+        return
+    end
+
+    local speedLabel, speedValue = self:getCurrentFreeSpinOverlayMetric()
+    if self.freeSpinSpeedOverlayLocked then
+        speedLabel = self.freeSpinLockedOverlayLabel or speedLabel
+        speedValue = self.freeSpinLockedOverlayValue or speedValue
+    end
+
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned(
+        string.format(
+            "High %.2f - %s %.2f%s",
+            freeSpinSessionHighScoreValue,
+            speedLabel,
+            speedValue,
+            self.freeSpinSpeedOverlayLocked and " [LOCK]" or ""
+        ),
+        200,
+        56,
+        kTextAlignment.center
+    )
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
 function TitleScene:updateSelectedIndexFromDisplayPosition()
@@ -320,11 +625,12 @@ function TitleScene:shouldHandoffPreview(selectedView)
         return false
     end
 
-    if selectedView.id == "duck" or selectedView.id == "orbital" or selectedView.id == "rccar_multi" or selectedView.id == "multiplayer" then
+    local actualViewId = selectedView.openViewId or selectedView.id
+    if actualViewId == "duck" or actualViewId == "orbital" or selectedView.id == "rccar_multi" or actualViewId == "multiplayer" or actualViewId == "crttv" or actualViewId == "life" then
         return false
     end
 
-    if selectedView.id == "life" and selectedView.modeId == GameOfLife.MODE_REVIEW then
+    if actualViewId == "life" and selectedView.modeId == GameOfLife.MODE_REVIEW then
         return false
     end
 
@@ -333,28 +639,14 @@ end
 
 function TitleScene:setPreview(forceFresh)
     local selectedView = self:getSelectedView()
+    local actualViewId = selectedView and (selectedView.openViewId or selectedView.id) or nil
     StarryLog.debug(
         "title setPreview view=%s mode=%s forceFresh=%s locked=%s",
-        tostring(selectedView and selectedView.id or nil),
+        tostring(actualViewId),
         tostring(selectedView and selectedView.modeId or nil),
         tostring(forceFresh == true),
         tostring(self.previewLocked)
     )
-    if selectedView and selectedView.id == "life" then
-        self.pendingPreviewRequest = {
-            modeId = selectedView.modeId,
-            forceFresh = forceFresh == true
-        }
-        self.previewLoading = true
-        if self.preview == nil then
-            self.preview = self:makeFallbackPreview()
-            self.previewViewId = "warp"
-            self.previewModeId = nil
-            self:activatePreview(self.preview)
-        end
-        return
-    end
-
     self.pendingPreviewRequest = nil
     self.previewLoading = false
     local previousPreview = self.preview
@@ -364,67 +656,93 @@ function TitleScene:setPreview(forceFresh)
     self.preview = nil
     stepPreviewGarbageCollector()
     local ok, nextPreview = pcall(function()
-        if selectedView.id == "fall" then
+        if actualViewId == "fall" then
             return Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.previewStarCount or 360, {
                 modeId = selectedView.modeId
             })
-        elseif selectedView.id == "multiplayer" then
+        elseif actualViewId == "multiplayer" then
             return makeWarpPreview(TITLE_CONFIG.multiplayerPreviewSpeed or 2)
-        elseif selectedView.id == "life" then
-            return GameOfLife.new(400, 240, LIFE_CONFIG.previewCellSize or 6, LIFE_CONFIG.previewSeedChance or 0.3, {
-                modeId = selectedView.modeId,
-                preview = true,
-                forceFresh = forceFresh == true
-            })
-        elseif selectedView.id == "fireworks" then
+        elseif actualViewId == "life" then
+            return makeStaticImagePreview(LIFE_TITLE_STILL_PATH)
+        elseif actualViewId == "fireworks" then
             return FireworksShow.new(400, 240, {
                 preview = true
             })
-        elseif selectedView.id == "crttv" then
-            return CRTTVEffect.new(400, 240, {
+        elseif actualViewId == "crttv" then
+            return makeStaticImagePreview(CRTTV_TITLE_STILL_PATH)
+        elseif actualViewId == "vibes" then
+            return VibesEffect.new(400, 240, {
+                preview = true,
+                modeId = selectedView.modeId,
+                selectionLocked = selectedView.openViewId == "vibes"
+            })
+        elseif actualViewId == "puddledrops" then
+            return PuddleDrops.new(400, 240, {
+                modeId = selectedView.modeId,
                 preview = true
             })
-        elseif selectedView.id == "tiltballs" then
+        elseif actualViewId == "dropper" then
+            return Dropper.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "tiltballs" then
             return TiltBalls.new(400, 240, {
                 preview = true
             })
-        elseif selectedView.id == "wacky" then
+        elseif actualViewId == "wacky" then
             return WackyInflatable.new(400, 240, {
                 preview = true
             })
-        elseif selectedView.id == "spaceminer" then
+        elseif actualViewId == "dimensionalsplit" then
+            return DimensionalSplit.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "spaceminer" then
             return SpaceMiner.new(400, 240, {
                 modeId = selectedView.modeId,
                 preview = true
             })
-        elseif selectedView.id == "gifplayer" then
+        elseif actualViewId == "trailblazer" then
+            return TrailBlazer.new(400, 240, {
+                modeId = selectedView.modeId,
+                preview = true
+            })
+        elseif actualViewId == "marblemadness" then
+            return MarbleMadness.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "photoviewer" then
+            return PhotoViewerEffect.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "gifplayer" then
             return GifPlayerEffect.new(400, 240, {
                 modeId = selectedView.modeId,
                 preview = true,
                 previewItemPath = "gifs/Spinning/seal-spinning-spinning-spinning-gif-spinning-seal-water"
             })
-        elseif selectedView.id == "fishpond" then
+        elseif actualViewId == "fishpond" then
             return FishPond.new(400, 240, selectedView.modeId, {
                 preview = true
             })
-        elseif selectedView.id == "duck" then
+        elseif actualViewId == "duck" then
             return DuckGameScene.new({
                 preview = true,
                 multiplayer = self:isMultiplayerCatalog(),
                 playerCount = self.playerCount,
                 modeId = selectedView.modeId
             })
-        elseif selectedView.id == "orbital" then
+        elseif actualViewId == "orbital" then
             return OrbitalDefenseScene.new({
                 preview = true,
                 multiplayer = self:isMultiplayerCatalog(),
                 playerCount = self.playerCount
             })
-        elseif selectedView.id == "rccar" or selectedView.id == "rccar_multi" then
+        elseif actualViewId == "rccar" or selectedView.id == "rccar_multi" then
             return RCCarArena.new(400, 240, selectedView.modeId, {
                 preview = true
             })
-        elseif selectedView.id == "lava" then
+        elseif actualViewId == "lava" then
             return LavaLamp.new(400, 240, LAVA_CONFIG.previewBubbleCount or 36, {
                 modeId = selectedView.modeId
             })
@@ -516,6 +834,13 @@ end
 function TitleScene:changeSelectedMode(delta)
     local selectedView = self:getSelectedView()
     if not selectedView or not selectedView.modes or #selectedView.modes == 0 then
+        return false
+    end
+
+    if #selectedView.modes == 1 then
+        selectedView.modeId = selectedView.modes[1]
+        self.modeDisplayPosition = 1
+        self.modeTargetPosition = 1
         return false
     end
 
@@ -630,19 +955,40 @@ function TitleScene:activateFreeSpin(acceleratedChange)
     self.previewLoading = false
     stepPreviewGarbageCollector()
     self.freeSpinActive = true
+    self.freeSpinSettling = false
     self.freeSpinVelocity = self.freeSpinVelocity + ((acceleratedChange or 0) * TITLE_FREE_SPIN_ACCELERATION_SCALE)
+    self.freeSpinEffectMode = "fidget"
+    self.freeSpinWarpMetric = nil
+    self:switchFreeSpinEffect("fidget")
+    self.freeSpinStarFade = 0
+    self.freeSpinStarFadeDirection = 1
+    self.freeSpinSpeedOverlayEnabled = false
+    self.freeSpinSpeedOverlayLocked = false
+    self.freeSpinLockedOverlayLabel = nil
+    self.freeSpinLockedOverlayValue = nil
     self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
     self.crankAccumulator = 0
+    self:recordFreeSpinHighScore()
     StarryLog.info("title free spin activated velocity=%.3f", self.freeSpinVelocity)
 end
 
 function TitleScene:finishFreeSpin()
     self.freeSpinActive = false
     self.freeSpinVelocity = 0
+    self.freeSpinSpeedOverlayEnabled = false
+    self.freeSpinSpeedOverlayLocked = false
+    self.freeSpinLockedOverlayLabel = nil
+    self.freeSpinLockedOverlayValue = nil
     self:updateSelectedIndexFromDisplayPosition()
     self:syncModeDisplayPosition(true)
     if self.preview == nil or not self:shouldPersistLockedPreview(self:getSelectedView()) then
-        self:setPreview()
+        self.freeSpinSettling = true
+        if self.freeSpinStarPreview ~= nil then
+            self.freeSpinStarFadeDirection = -1
+        else
+            self.freeSpinSettling = false
+            self:setPreview()
+        end
     end
     StarryLog.info("title free spin settled index=%d label=%s", self.selected, self.viewItems[self.selected].label)
 end
@@ -666,6 +1012,8 @@ function TitleScene:updateFreeSpin(acceleratedChange)
 
     self:updateSelectedIndexFromDisplayPosition()
     self:syncModeDisplayPosition(true)
+    self:updateFreeSpinStarPreview(acceleratedChange)
+    self:recordFreeSpinHighScore()
 
     if self.previewPauseFrames > 0 then
         self.previewPauseFrames = self.previewPauseFrames - 1
@@ -803,7 +1151,7 @@ end
 
 function TitleScene:drawBottomInstructions()
     local selectedView = self:getSelectedView()
-    local spec = selectedView and ControlHelp.getEntrySpec(selectedView.id, selectedView.modeId) or nil
+    local spec = selectedView and ControlHelp.getEntrySpec(self:getSelectedControlViewId(), selectedView.modeId) or nil
     local topY = 206
 
     gfx.setFont(self.smallFont)
@@ -821,6 +1169,22 @@ function TitleScene:drawBottomInstructions()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function TitleScene:drawAppVersion()
+    if self.freeSpinActive or self.freeSpinSettling or self.freeSpinStarPreview ~= nil then
+        return
+    end
+
+    local versionLabel = getAppVersionLabel()
+    if versionLabel == nil then
+        return
+    end
+
+    gfx.setFont(self.smallFont)
+    gfx.setImageDrawMode(self:getTextDrawMode())
+    gfx.drawTextAligned(versionLabel, 392, 190, kTextAlignment.right)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 function TitleScene:drawTitleFireworks()
     gfx.setColor(gfx.kColorBlack)
     for _, burst in ipairs(self.titleFireworkBursts) do
@@ -832,15 +1196,15 @@ end
 
 function TitleScene:drawMenu()
     gfx.setFont(self.smallFont)
-    local selectedView = self:getSelectedView()
-    local overlayDither = TITLE_CONFIG.overlayDither or 0.5
-    if selectedView and selectedView.id == "gifplayer" then
-        overlayDither = TITLE_CONFIG.gifPlayerOverlayDither or overlayDither
+    if not self.freeSpinActive and self.freeSpinStarPreview == nil then
+        drawMutedTitleOverlay(TITLE_CONFIG.overlayDither or 0.5)
     end
-    drawMutedTitleOverlay(overlayDither)
+    local selectedView = self:getSelectedView()
     gfx.setImageDrawMode(self:getTextDrawMode())
-    gfx.drawTextAligned(self.headerTitle, 200, 20, kTextAlignment.center)
-    gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
+    if not self.freeSpinActive and not self.freeSpinSettling and self.freeSpinStarPreview == nil then
+        gfx.drawTextAligned(self.headerTitle, 200, 20, kTextAlignment.center)
+        gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
+    end
 
     local hasModes = selectedView and selectedView.modes ~= nil
     local centerY = 146
@@ -867,8 +1231,18 @@ function TitleScene:drawMenu()
         end
     end
 
+    self:drawAppVersion()
     self:drawBottomInstructions()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function TitleScene:shouldShowTitleFireworks()
+    return false
+end
+
+function TitleScene:clearTitleFireworks()
+    self.titleFireworkBursts = {}
+    self.titleFireworkTimer = randomTitleFireworkDelay()
 end
 
 function TitleScene:update()
@@ -877,8 +1251,15 @@ function TitleScene:update()
     self:updateCrank(change, acceleratedChange)
     self:updateDisplayPosition()
     self:updateModeDisplayPosition()
+    if not self.freeSpinActive and self.freeSpinStarPreview ~= nil then
+        self:updateFreeSpinStarPreview(0)
+    end
     if not self.freeSpinActive and self.preview ~= nil then
-        self:updateTitleFireworks()
+        if self:shouldShowTitleFireworks() then
+            self:updateTitleFireworks()
+        else
+            self:clearTitleFireworks()
+        end
         local ok, previewError = pcall(function()
             if self.previewPauseFrames <= 0 then
                 self.preview:update()
@@ -892,6 +1273,9 @@ function TitleScene:update()
             end
             self.preview:draw()
         end
+    end
+    if self.freeSpinActive or self.freeSpinStarPreview ~= nil then
+        self:drawFreeSpinStarPreview()
     end
 
     if pd.buttonJustPressed(pd.kButtonUp) then
@@ -910,26 +1294,34 @@ function TitleScene:update()
             else
                 self:setPreview()
             end
+        elseif self.onResetSelection and self.onResetSelection(self:getSelectedView()) then
+            self:setPreview(true)
         elseif self.onBack then
             self.onBack()
         end
     elseif pd.buttonJustPressed(pd.kButtonA) then
+        if self.freeSpinActive or self.freeSpinSettling or self.freeSpinStarPreview ~= nil then
+            self:toggleFreeSpinSpeedOverlay()
+            return
+        end
         self.previewPauseFrames = 0
         local selectedView = self:getSelectedView()
         local selectedModeId = selectedView.modeId
-        local effect = self.preview
+        local canHandoffPreview = self:shouldHandoffPreview(selectedView)
+        local effect = canHandoffPreview and self.preview or nil
         if effect and effect.setPreview then
             effect:setPreview(false)
         end
-        self.handoffPreview = self:shouldHandoffPreview(selectedView) and effect or nil
-        self.onSelectView(selectedView.id, effect, selectedModeId)
+        self.handoffPreview = canHandoffPreview and effect or nil
+        self.onSelectView(selectedView.openViewId or selectedView.id, effect, selectedModeId, selectedView.id)
     end
 
-    if not self.freeSpinActive then
+    if not self.freeSpinActive and self:shouldShowTitleFireworks() then
         self:drawTitleFireworks()
     end
     self:drawMenu()
-    if not self.freeSpinActive then
+    self:drawFreeSpinSpeedOverlay()
+    if not self.freeSpinActive and not self.freeSpinSettling then
         self:processPendingPreview()
     end
 end
@@ -941,6 +1333,7 @@ function TitleScene:activate()
 end
 
 function TitleScene:shutdown()
+    self:shutdownFreeSpinStarPreview()
     if self.preview and self.preview ~= self.handoffPreview and self.preview.shutdown then
         self.preview:shutdown()
     end

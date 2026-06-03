@@ -1,5 +1,10 @@
 #### Starry Messenger Updates
 
+##### Build Pipeline
+| Request | Status |
+| --- | --- |
+| Add a programmatic Playdate hardware push step for Starry Messenger feature requests and bug fixes. | Done |
+
 ##### In Warp Speed
 | Request | Status |
 | --- | --- |
@@ -84,10 +89,14 @@
 | When the crank is not in use and the bubble has absorbed all bubbles, every 3 seconds, split the bubbles and send the new bubbles down the opposite direction until they all collect again and repeat. Interrupt when the device is oriented differently, and rotate the bottom of the downward dropping bubbles and the top of the upward drifting bubbles. | In Progress |
 | In the lava lamp, please make the blobs circular. If they are a combined blob, make it a little bigger. Do not make them move back and forth. They should only float upwards like a natural bubble. | Done |
 | In the Lava Lamp, when the crank is turned down, move the bubbles opposite of their current direction. Also add a threshold to the accelerometer so it is less reactive to micro movements and responds more to intentional device turns. | Done |
+| In Lava Lamp, assign each bubble a random layer number from 1-3, only allow same-layer bubbles to interact, let different-layer bubbles phase through each other, and reroll the layer whenever a bubble reaches the top or bottom. | Done |
+| In Lava Lamp, make initial spawning configurable with 40% of bubbles anchored at the top, 20% anchored at the bottom, and the remaining 40% starting in the main spawn area already traveling. | Done |
 
 ##### General Updates
 | Request | Status |
 | --- | --- |
+| Make the Home-menu `Title Menu` item return to the title menu on the app that was left, and add a new Marble Madness view based on the local Personal Examples MarbleMadness project. | Done |
+| During main-menu and folder free-spin mode, hide the title and subtitle until previews can load again; make Vibes Spiral one massive geometric spiral; expand Micro Rotate to full-screen width; and fix Orbital Defense local autopilot so crank jitter does not prevent the five-second idle takeover. | Done |
 | Fix the `Review Life` crash when entering gameplay from the title menu by hardening Game of Life recording-directory migration and file-list loading. | Done |
 | Adjust the title menu order so Warp Speed still loads first, Star Fall sits above it, and Multiplayer sits directly below Star Fall. | Done |
 | In CRT TV, let crank input spawn and control a random-sized wraparound manual bar that drifts off when idle, and pre-render the CRT title preview frames during startup so the title uses cached playback images. | Done |
@@ -108,6 +117,7 @@
 | In Space Miner, make the front overlay transparent outside the visible white shapes so the ship is not masked by dither-filled decor. | Done |
 | In Space Miner `Turn 360`, automatically stop the ship once it slows below a low speed threshold, starting with a gentle braking setup. | Done |
 | In Space Miner `Turn 360`, make missile blasts break asteroids down by one tier instead of fully vaporizing larger rocks, and draw asteroid interiors as solid gray fills. | Done |
+| Add bounded Space Miner asteroid lifecycle diagnostics so disappearing rocks can be traced through visibility exits, world wraps, collisions, mining destruction, and entity-pressure pruning on hardware. | Done |
 | Double how long Lava Lamp bubbles can linger before cycling away. | Done |
 | Fix Review Life binary indexing so clean end-of-file reads do not get reported as corrupt frame tags on device. | Done |
 | Default Star Fall and Warp Speed audio to off and add a Home menu `Sound` checkmark toggle to turn view audio on or off. | Done |
@@ -142,6 +152,7 @@
 | Give the Wacky guy a top hat. | Done |
 | Add more stars to the Fireworks background. | Done |
 | Keep source GIF media under `assets/source_gifs/originals/` while converted Playdate frame sets remain under `Source/gifs/`, and have the adapter save originals there. | Done |
+| Remove the `Sky Watch` view and any components dedicated to it after confirming nothing else depends on those pieces. | Done |
 
 ##### Additional Tonight Requests
 | Request | Status |

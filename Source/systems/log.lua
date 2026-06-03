@@ -39,6 +39,22 @@ function StarryLog.write(level, message, ...)
     end
 end
 
+function StarryLog.forceWrite(level, message, ...)
+    if select("#", ...) > 0 then
+        print(string.format("[StarryMessenger] " .. tostring(message), ...))
+    else
+        print("[StarryMessenger] " .. tostring(message))
+    end
+end
+
+function StarryLog.forceDebug(message, ...)
+    StarryLog.forceWrite("debug", message, ...)
+end
+
+function StarryLog.forceError(message, ...)
+    StarryLog.forceWrite("error", message, ...)
+end
+
 function StarryLog.debug(message, ...)
     StarryLog.write("debug", message, ...)
 end

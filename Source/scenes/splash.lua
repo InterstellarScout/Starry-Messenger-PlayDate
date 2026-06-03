@@ -5,13 +5,11 @@ Opening splash scene.
 
 Purpose:
 - shows the animated Starry Messenger splash before the menu flow begins
-- advances after a short hold or an A-button press
-- performs incremental Game of Life warmup work during the splash
+- advances after an input press
 ]]
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 
-local PREWARM_BUDGET_MS <const> = 4
 local SPLASH_CONFIG <const> = GameConfig and GameConfig.splash or {}
 
 local function drawMutedTitleOverlay()
@@ -50,8 +48,6 @@ function SplashScene.new(config)
     self.preview = buildSplashWarpPreview()
     self.titleFont = gfx.font.new("/System/Fonts/Roobert-24-Medium")
     self.smallFont = gfx.getSystemFont()
-    self.prewarmComplete = false
-    GameOfLife.beginPrewarmStarryMessenger()
     StarryLog.info("SplashScene.new ready")
     return self
 end
@@ -77,16 +73,8 @@ function SplashScene:continue()
 end
 
 function SplashScene:update()
-    if self.prewarmComplete then
-        self.preview:update()
-    end
+    self.preview:update()
     self.preview:draw()
-    local prewarmFinished = GameOfLife.updatePrewarm(PREWARM_BUDGET_MS)
-    if prewarmFinished and not self.prewarmComplete then
-        self.prewarmComplete = true
-        self.preview = buildSplashWarpPreview()
-        StarryLog.info("splash warp preview regenerated after prewarm")
-    end
 
     drawMutedTitleOverlay()
 
@@ -94,12 +82,8 @@ function SplashScene:update()
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawTextAligned("Starry Messenger", 200, 105, kTextAlignment.center)
     gfx.setFont(self.smallFont)
-    if self.prewarmComplete then
-        gfx.drawTextAligned("Interact to show consiousness", 200, 198, kTextAlignment.center)
-        gfx.drawTextAligned("and flow beyond.", 200, 214, kTextAlignment.center)
-    else
-        gfx.drawTextAligned("Loading Game of Life...", 200, 204, kTextAlignment.center)
-    end
+    gfx.drawTextAligned("Interact to show consiousness", 200, 198, kTextAlignment.center)
+    gfx.drawTextAligned("and flow beyond.", 200, 214, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 
     local buttonPressed = pd.buttonJustPressed(pd.kButtonA)
@@ -108,12 +92,8 @@ function SplashScene:update()
         or pd.buttonJustPressed(pd.kButtonDown)
         or pd.buttonJustPressed(pd.kButtonLeft)
         or pd.buttonJustPressed(pd.kButtonRight)
-    if self.prewarmComplete and buttonPressed then
+    if buttonPressed then
         self:continue()
-        return
-    end
-
-    if not self.prewarmComplete then
         return
     end
 end
