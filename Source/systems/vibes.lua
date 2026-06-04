@@ -24,7 +24,7 @@ local POLYGON_COUNT <const> = 72
 local TUNNEL_BAR_COUNT <const> = 18
 local BUBBLE_MAX_COUNT <const> = 28
 local SMOOTH_STAR_COUNT <const> = 192
-local SMOOTH_MAX_STREAK_LENGTH_SQUARED <const> = 34 * 34
+local SMOOTH_MAX_STREAK_LENGTH <const> = 52
 local SMOOTH_CENTER_SIZE_RADIUS_SQUARED <const> = 46 * 46
 local BUBBLE_POP_RESPAWN_MIN_FRAMES <const> = 15
 local BUBBLE_POP_RESPAWN_MAX_FRAMES <const> = 150
@@ -994,6 +994,8 @@ function VibesEffect:drawMicroRotate()
 end
 
 function VibesEffect:drawSmoothSailing()
+    local speedMagnitude = math.abs(self.smoothSpeed or 0)
+    local speedTrailBoost = math.min(SMOOTH_MAX_STREAK_LENGTH, 10 + (speedMagnitude * 2.4))
     for _, star in ipairs(self.smoothStars) do
         local x = roundToInt(star.screenX or 0)
         local y = roundToInt(star.screenY or 0)
@@ -1004,8 +1006,14 @@ function VibesEffect:drawSmoothSailing()
         local dy = y - py
 
         local distanceSquared = (dx * dx) + (dy * dy)
-        if star.trailVisible and distanceSquared >= 4 and distanceSquared <= SMOOTH_MAX_STREAK_LENGTH_SQUARED then
-            gfx.drawLine(px, py, x, y)
+        if star.trailVisible and distanceSquared >= 4 then
+            local distance = math.sqrt(distanceSquared)
+            local drawLength = math.min(distance, speedTrailBoost)
+            local unitX = dx / distance
+            local unitY = dy / distance
+            local tailX = x - (unitX * drawLength)
+            local tailY = y - (unitY * drawLength)
+            gfx.drawLine(roundToInt(tailX), roundToInt(tailY), x, y)
         end
 
         if size > 1 then

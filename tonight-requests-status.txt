@@ -11,6 +11,7 @@
 | Double Smooth Sailing's star count to test performance impact, and bump the game version to 0.1.82. | Done |
 | Reduce Playdate deploy timeout risk by changing data-disk installs to mirror into the existing bundle, adding a SkipBuild retry option, and bumping the game version to 0.1.83. | Done |
 | Remove Smooth Sailing's speed clamp, scale star size by center/depth proximity for forward and inward motion, and bump the game version to 0.1.84. | Done |
+| Make Smooth Sailing draw deliberate bounded streaks at high positive and negative speeds instead of collapsing into edge dots, and bump the game version to 0.1.85. | Done |
 
 ##### In Warp Speed
 | Request | Status |
