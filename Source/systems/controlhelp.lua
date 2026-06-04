@@ -103,8 +103,34 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "A: cycle through the current Vibes prototypes. In Line Bloom, A cycles its motion modes.",
             "Crank: change signed playback speed with a near-stop center and unlimited fast forward or reverse.",
             "Left/Right: also cycle effects.",
-            "Current prototypes include CRT TV, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
+            "Current prototypes include CRT TV, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
             "Loop Fall is the clean-loop Star Fall prototype built from preserved random starting positions.",
+            "B: return to title."
+        })
+    elseif viewId == "dripdrop" then
+        if modeId == "dropper" then
+            return buildSpec("Dropper Controls", {
+                "D-pad: move the white stone around the black water.",
+                "Crank: change speed with the same near-stop and larger-step ladder used by Warp Speed.",
+                "A: flash outward from the stone. The flash starts tiny and expands to a random size between 3 and 25 before turning into bright rings.",
+                "Bubble leaks rise in 20x20 clusters. Plug them with your flash before they burst into more ripples.",
+                "Left/Right on the title wheel: switch Drip Drop modes.",
+                "B: return to title."
+            })
+        elseif modeId == PuddleDrops.MODE_PLAYER then
+            return buildSpec("Player Pulse Controls", {
+                "A: spawn a pulse from the player marker. The droplet starts tiny and expands to a random size between 3 and 25 before turning into rings.",
+                "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
+                "D-pad: move the player marker in all four directions.",
+                "Left/Right on the title wheel: switch Drip Drop modes.",
+                "B: return to title."
+            })
+        end
+
+        return buildSpec("Drop Waves Controls", {
+            "Random drop points spawn ripple circles that expand in layered bands.",
+            "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
+            "Left/Right on the title wheel: switch Drip Drop modes.",
             "B: return to title."
         })
     elseif viewId == "puddledrops" then

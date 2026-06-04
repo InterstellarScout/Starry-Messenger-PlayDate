@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.1.80`
-- Build number: `80`
+- Version: `0.1.81`
+- Build number: `81`
 
 ## Install
 
@@ -47,8 +47,7 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Warp Speed | Main | A forward-flight starfield with normal and inverse warp styles. Warp uses finer speed steps and lower per-frame displacement so stars glide more smoothly without increasing draw load. | Crank changes star speed. D-pad steers direction. `A` opens the warp settings menu for speed, spin, star size, and style toggles. `B` returns to the title while preserving the current speed; press `B` again on the Warp title item to reset the preview. |
 | Game of Life | Main | Conway-style cellular automata with standard, endless, recorder, and review modes. | Crank scrubs generations. `Up`/`Down` changes simulation speed. `Left`/`Right` injects cells. `A` injects a larger burst or opens selected recordings in Review mode. |
 | Fireworks | Main | A player-controlled fireworks launcher with automatic background bursts. | Crank or `Left`/`Right` moves the launcher. `Up`/`Down` changes firework type. Hold `A` to launch. |
-| Puddle Drops | Main | Ripple simulation with automatic drop waves and a player-pulse mode. | Crank changes signed ripple speed. In Player Pulse, D-pad moves the marker and `A` fires a pulse. `Left`/`Right` on the title changes modes. |
-| Dropper | Main | A black-water ripple game about plugging rising bubble leaks. | D-pad moves the white stone. Crank changes speed. `A` flashes outward to plug leaks before they burst. |
+| Drip Drop | Main | Ripple and leak-plugging modes that combine Drop Waves, Player Pulse, and Dropper under one title entry. | `Left`/`Right` on the title changes modes. Drop Waves/Player Pulse use crank speed and optional D-pad marker control; Dropper uses D-pad movement and `A` to plug leaks. |
 | Bouncy Balls | Main | Accelerometer-driven bouncing balls with adjustable slowdown. | Tilt the Playdate to roll balls. `A` adds a ball. Crank changes slowdown so balls settle faster or keep momentum longer. |
 | Wacky | Main | A crank-flung inflatable tube figure with springy limbs and pile-up behavior. | Crank forward flings the figure upward; crank backward pulls it down faster. `A` toggles rigid and pile-up modes. |
 | Dimensional Split | Main | A blinking grid of black and white cells with variable subdivision. | Crank changes grid density and regenerates the pattern. `A` randomizes square colors and blink timing. |
@@ -58,7 +57,7 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Photo Viewer | Main | A monochrome Artemis photo slideshow with fill, fit, and inverted display modes. | Crank or `Left`/`Right` changes photos. `A` toggles autoplay. `Up` hides or shows the info plaque. `Down` changes view mode. |
 | Gif Player | Main | A category browser and fullscreen GIF player with frame scrubbing and optional synced audio. | Crank or D-pad chooses categories and GIFs. `A` opens, plays, or cycles playback modes. Crank scrubs frames or changes spin speed. `B` backs out one level. |
 | Fishy Pond | Main | A fish-and-bubble toy with Pond, Bubbles, and Tank modes. | In Pond/Bubbles, crank moves the bubble maker, D-pad moves the fish, and hold `A` to make bubbles. In Tank, crank creates current and shake triggers panic. |
-| Duck Game | Main | A chick-collecting duck game with solo center-nest and multi-duck variants. | Normal mode uses D-pad for direction and crank for forward movement. Duck Turn Mode uses crank to steer and `Up`/`Down` to move. Collect chicks and bank them at nests. |
+| Duck Game | Main | A chick-collecting duck game with solo center-nest, Auto Ducky, and multi-duck variants. | Normal mode uses D-pad for direction and crank for forward movement. Auto Ducky collects loose chicks until D-pad input takes over, then resumes after five seconds. Collect chicks and bank them at nests. |
 | Orbital Defense | Main | A shield-defense turret game with laser fire, missiles, bot assist, and multiplayer support. | Crank or `Left`/`Right` aims. `Up`/`Down` moves around the shield. Hold `A` for laser fire. `B` launches or detonates a missile. |
 | RC Arena | Main | RC car modes for puck hockey, crash racing, and block sliding. | Crank rotates the car. `A` toggles crank steering/speed control. D-pad steers and accelerates. Home menu can enable auto brake. |
 | Lava Lamp | Main | A tilt-driven bubble simulation with merging, wall travel, and crank agitation. | Tilt sets the current top side. Crank agitates bubbles while moving. `Up`/`Down` changes overall bubble speed. |
@@ -66,17 +65,17 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Multiplayer Orbital Defense | Main | Portal-enabled Orbital Defense for 2-4 turrets. | Choose player count from the Multiplayer title entry, then coordinate turret movement, laser fire, and missiles around the shared shield. |
 | Crash Racing | Main | Multiplayer RC mode with crash racing and RC hockey options. | Pick the RC multiplayer mode from the title dial. Use crank and D-pad driving controls. `A` switches crank speed control. |
 | CRT TV | Vibe | A procedural CRT rolling-bar effect with manual and automatic bars. | `A` toggles automatic transparent rolling bars. Crank spawns and drags a manual bar up or down; idle bars slide away. |
-| Smooth Sailing | Vibe | A Playdate-optimized forward star tunnel inspired by Warp Speed, built with fewer stars and simple fixed-cost drawing for smoother motion. | Crank changes speed. Hold D-pad to steer the tunnel. `B` returns to the Vibes folder. |
+| Smooth Sailing | Vibe | A Playdate-optimized black-background star tunnel inspired by Warp Speed, built with bounded streak drawing for smoother motion. | Crank changes speed. Hold D-pad to steer the tunnel. `B` returns to the Vibes folder. |
 | Spiral | Vibe | A large crank-driven geometric spiral. | Crank controls signed playback speed with reverse, near-stop, and fast-forward behavior. `B` returns to the Vibes folder. |
 | Tunnel Bars | Vibe | A tunnel-like field of moving bars. | Crank controls signed playback speed. Use the Home menu `View Stats` toggle to show or hide Vibes stats. |
 | Fractal Spiral | Vibe | A denser spiral pattern built for visual texture. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Line Bloom | Vibe | A line-field effect with spin, orbit, and drift modes. | Crank controls signed speed. `A` cycles motion modes. `B` returns to the Vibes folder. |
 | Shape Pile-Up | Vibe | A code-drawn shape accumulation and motion effect. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
-| Loop Fall | Vibe | A clean-loop Star Fall variant that preserves each star's starting position. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Loop Fall | Vibe | A black-background clean-loop Star Fall variant that preserves each star's starting position. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Polygon Storm | Vibe | A procedural polygon field with speed-driven motion. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Micro Rotate | Vibe | A full-screen micro-rotation pattern. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Cloud Bubbles | Vibe | A soft procedural bubble-cloud effect. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
-| Bubble Pop | Vibe | A bubble popping visual toy. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Bubble Pop | Vibe | A bubble popping visual toy with delayed replacement bubbles that grow in from tiny starts. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 
 ## Home Menu
 

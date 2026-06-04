@@ -41,6 +41,7 @@ function ViewScene.new(config)
     local self = setmetatable({}, ViewScene)
     self.viewId = config.viewId or "warp"
     self.modeId = config.modeId
+    self.returnViewId = config.returnViewId or self.viewId
     self.onReturnToTitle = config.onReturnToTitle
     self.crankAccumulator = 0
     self.rotationAccumulator = 0
@@ -558,8 +559,12 @@ function ViewScene:update()
         end
         if self.onReturnToTitle then
             local effect = self.effect
+            local returnViewId = self.returnViewId or self.viewId
+            if self.viewId == "vibes" and effect ~= nil and effect.modeId ~= nil then
+                returnViewId = "vibes_" .. tostring(effect.modeId)
+            end
             self.effect = nil
-            self.onReturnToTitle(self.viewId, effect)
+            self.onReturnToTitle(returnViewId, effect)
         end
         return
     end

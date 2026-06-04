@@ -26,6 +26,10 @@ local BUBBLE_MAX_COUNT <const> = 28
 local SMOOTH_STAR_COUNT <const> = 96
 local SMOOTH_MIN_SPEED <const> = -8
 local SMOOTH_MAX_SPEED <const> = 8
+local SMOOTH_MAX_STREAK_LENGTH_SQUARED <const> = 34 * 34
+local BUBBLE_POP_RESPAWN_MIN_FRAMES <const> = 15
+local BUBBLE_POP_RESPAWN_MAX_FRAMES <const> = 150
+local BUBBLE_POP_GROW_FRAMES <const> = 18
 local LINE_MODE_SPIN <const> = 1
 local LINE_MODE_ORBIT <const> = 2
 local LINE_MODE_DRIFT <const> = 3
@@ -193,6 +197,7 @@ function VibesEffect.new(width, height, options)
     self.polygonEntries = {}
     self.microRotateImage = nil
     self.bubbles = {}
+    self.pendingBubbles = {}
     self.smoothStars = {}
     self.smoothSpeed = self.preview and 1.2 or 0
     self.smoothTargetSpeed = self.smoothSpeed
@@ -388,6 +393,7 @@ function VibesEffect:seedSmoothStar(star, randomizeDepth)
     star.prevScreenY = self.height * 0.5
     star.screenX = star.prevScreenX
     star.screenY = star.prevScreenY
+    star.trailVisible = false
 end
 
 function VibesEffect:buildSmoothStars()
@@ -472,21 +478,33 @@ function VibesEffect:createBubble(popMode)
         y = math.random() * self.height,
         vx = (-0.4 + (math.random() * 0.8)),
         vy = (-0.55 + (math.random() * 1.1)),
-        radius = radius,
+        radius = popMode and 1 or radius,
         startRadius = radius,
         targetRadius = 2 + math.random() * 5,
         lifetime = lifetime,
         age = 0,
         pulseSeed = math.random() * TAU,
+        growFrames = popMode and BUBBLE_POP_GROW_FRAMES or 0,
         dead = false
     }
 end
 
 function VibesEffect:seedBubbleMode(popMode)
     self.bubbles = {}
+    self.pendingBubbles = {}
     for index = 1, BUBBLE_MAX_COUNT do
         self.bubbles[index] = self:createBubble(popMode)
+        if popMode then
+            self.bubbles[index].radius = self.bubbles[index].startRadius
+            self.bubbles[index].growFrames = 0
+        end
     end
+end
+
+function VibesEffect:queueBubblePopRespawn()
+    self.pendingBubbles[#self.pendingBubbles + 1] = {
+        frames = math.random(BUBBLE_POP_RESPAWN_MIN_FRAMES, BUBBLE_POP_RESPAWN_MAX_FRAMES)
+    }
 end
 
 function VibesEffect:updateSpiral()
@@ -576,7 +594,13 @@ function VibesEffect:updateBubbles(popMode)
         bubble.y = wrapAxis(bubble.y + (bubble.vy * speedScale), self.height)
 
         if popMode then
-            bubble.radius = bubble.startRadius + (math.sin((bubble.age * 0.08) + bubble.pulseSeed) * 0.9)
+            if (bubble.growFrames or 0) > 0 then
+                local progress = 1 - ((bubble.growFrames or 0) / BUBBLE_POP_GROW_FRAMES)
+                bubble.radius = 1 + (((bubble.startRadius or 8) - 1) * progress)
+                bubble.growFrames = bubble.growFrames - 1
+            else
+                bubble.radius = (bubble.startRadius or 8) + (math.sin((bubble.age * 0.08) + bubble.pulseSeed) * 0.9)
+            end
         else
             local progress = math.min(1, bubble.age / math.max(1, bubble.lifetime))
             bubble.radius = bubble.startRadius + ((bubble.targetRadius - bubble.startRadius) * progress)
@@ -616,10 +640,17 @@ function VibesEffect:updateBubbles(popMode)
         for index = #self.bubbles, 1, -1 do
             if self.bubbles[index].dead then
                 table.remove(self.bubbles, index)
+                self:queueBubblePopRespawn()
             end
         end
-        while #self.bubbles < BUBBLE_MAX_COUNT do
-            self.bubbles[#self.bubbles + 1] = self:createBubble(true)
+
+        for index = #self.pendingBubbles, 1, -1 do
+            local pending = self.pendingBubbles[index]
+            pending.frames = pending.frames - 1
+            if pending.frames <= 0 and #self.bubbles < BUBBLE_MAX_COUNT then
+                self.bubbles[#self.bubbles + 1] = self:createBubble(true)
+                table.remove(self.pendingBubbles, index)
+            end
         end
     end
 end
@@ -636,12 +667,16 @@ function VibesEffect:updateSmoothSailing()
     local travel = speed * 0.006
 
     for _, star in ipairs(self.smoothStars) do
+        local previousScreenX = star.screenX or centerX
+        local previousScreenY = star.screenY or centerY
         star.prevScreenX = star.screenX or centerX
         star.prevScreenY = star.screenY or centerY
         star.z = (star.z or 1) - (travel * (star.depthSpeed or 1))
 
+        local respawned = false
         if star.z <= 0.08 or star.z > 1.26 then
             self:seedSmoothStar(star, speed < 0)
+            respawned = true
         end
 
         local z = math.max(0.08, star.z or 1)
@@ -651,14 +686,22 @@ function VibesEffect:updateSmoothSailing()
 
         if screenX < -8 or screenX > self.width + 8 or screenY < -8 or screenY > self.height + 8 then
             self:seedSmoothStar(star, speed < 0)
+            respawned = true
             z = math.max(0.08, star.z or 1)
             perspective = 1 / z
             screenX = centerX + (((star.x or 0) + (self.smoothDriftX or 0)) * perspective * 118)
             screenY = centerY + (((star.y or 0) + (self.smoothDriftY or 0)) * perspective * 86)
-            star.prevScreenX = screenX
-            star.prevScreenY = screenY
         end
 
+        if respawned then
+            star.prevScreenX = screenX
+            star.prevScreenY = screenY
+            star.trailVisible = false
+        else
+            star.prevScreenX = previousScreenX
+            star.prevScreenY = previousScreenY
+            star.trailVisible = true
+        end
         star.screenX = screenX
         star.screenY = screenY
     end
@@ -952,7 +995,8 @@ function VibesEffect:drawSmoothSailing()
         local dx = x - px
         local dy = y - py
 
-        if (dx * dx) + (dy * dy) >= 4 then
+        local distanceSquared = (dx * dx) + (dy * dy)
+        if star.trailVisible and distanceSquared >= 4 and distanceSquared <= SMOOTH_MAX_STREAK_LENGTH_SQUARED then
             gfx.drawLine(px, py, x, y)
         end
 
@@ -985,11 +1029,13 @@ function VibesEffect:drawHud()
 end
 
 function VibesEffect:draw()
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(0, 0, self.width, self.height)
-    gfx.setColor(gfx.kColorBlack)
-
     local effectId = self:getEffect().id
+    local useDarkBackground = effectId == "smoothsailing" or effectId == "loopfall"
+
+    gfx.setColor(useDarkBackground and gfx.kColorBlack or gfx.kColorWhite)
+    gfx.fillRect(0, 0, self.width, self.height)
+    gfx.setColor(useDarkBackground and gfx.kColorWhite or gfx.kColorBlack)
+
     if effectId == "smoothsailing" then
         self:drawSmoothSailing()
     elseif effectId == "spiral" then

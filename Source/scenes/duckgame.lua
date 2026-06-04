@@ -30,6 +30,7 @@ local MIN_FREE_CHICKS <const> = DUCK_CONFIG.minFreeChicks or 12
 local SNAPSHOT_INTERVAL_FRAMES <const> = DUCK_CONFIG.snapshotIntervalFrames or 2
 local WIN_SCORE <const> = DUCK_CONFIG.winScore or 50
 local TURN_MODE_CRANK_DEGREES <const> = DUCK_CONFIG.turnModeCrankDegrees or 0.04
+local AUTO_DUCKY_IDLE_FRAMES <const> = DUCK_CONFIG.autoDuckyIdleFrames or 150
 local DUCK_LIFETIME_TOTAL_SAVE_KEY <const> = "duck-game-lifetime-total"
 local ENTRY_OVERLAY_TEXT <const> = "Turn the play date upside down\nand watch the ball fall to your feet!"
 
@@ -177,10 +178,13 @@ DuckGameScene.MODE_SOLO_2 = "solo-2"
 DuckGameScene.MODE_SOLO_3 = "solo-3"
 DuckGameScene.MODE_SOLO_4 = "solo-4"
 DuckGameScene.MODE_SOLO_CENTER = "solo-center"
+DuckGameScene.MODE_AUTO_DUCKY = "auto-ducky"
 DuckGameScene.turnModeEnabled = true
 
 function DuckGameScene.getModeLabel(modeId)
-    if modeId == DuckGameScene.MODE_SOLO_CENTER then
+    if modeId == DuckGameScene.MODE_AUTO_DUCKY then
+        return "Auto Ducky"
+    elseif modeId == DuckGameScene.MODE_SOLO_CENTER then
         return "Duck Game"
     elseif modeId == DuckGameScene.MODE_SOLO_2 then
         return "Two Ducks"
@@ -191,7 +195,7 @@ function DuckGameScene.getModeLabel(modeId)
 end
 
 function DuckGameScene.getSoloDuckCount(modeId)
-    if modeId == DuckGameScene.MODE_SOLO_CENTER then
+    if modeId == DuckGameScene.MODE_SOLO_CENTER or modeId == DuckGameScene.MODE_AUTO_DUCKY then
         return 1
     elseif modeId == DuckGameScene.MODE_SOLO_2 then
         return 2
@@ -234,6 +238,7 @@ function DuckGameScene.new(config)
     self.frame = 0
     self.remoteState = nil
     self.statusMessage = self.networked and "Open pdportal in the browser and connect the selected ducks." or "Race to 50 chicks."
+    self.autoDuckyInputIdleFrames = AUTO_DUCKY_IDLE_FRAMES
     self.smallFont = gfx.getSystemFont()
     self.lastSentInputX = 0
     self.lastSentInputY = 0
@@ -254,6 +259,10 @@ end
 
 function DuckGameScene:isCenterNestMode()
     return not self.multiplayer and self.modeId == DuckGameScene.MODE_SOLO_CENTER
+end
+
+function DuckGameScene:isAutoDuckyMode()
+    return not self.multiplayer and self.modeId == DuckGameScene.MODE_AUTO_DUCKY
 end
 
 function DuckGameScene:getTargetGoal()
@@ -419,7 +428,11 @@ function DuckGameScene:resetMatch(modeId, localSlot)
 
     local activeCount = modeId == "single" and DuckGameScene.getSoloDuckCount(self.modeId) or self.playerCount
     self.playerCount = activeCount
-    self.statusMessage = self:isCenterNestMode() and "Keep bringing chicks to the center nest." or "Race to 50 chicks."
+    if self:isAutoDuckyMode() then
+        self.statusMessage = "Auto Ducky gathers chicks. D-pad takes over for five seconds."
+    else
+        self.statusMessage = self:isCenterNestMode() and "Keep bringing chicks to the center nest." or "Race to 50 chicks."
+    end
 
     for slot = 1, activeCount do
         self.activeSlots[#self.activeSlots + 1] = slot
@@ -569,6 +582,44 @@ function DuckGameScene:readCurrentInput()
     return inputX, inputY
 end
 
+function DuckGameScene:updateAutoDuckyInput(player)
+    local targetX = nil
+    local targetY = nil
+
+    if #player.chicks >= WIN_SCORE then
+        targetX, targetY = self:getNestPosition(player.slot)
+    else
+        local nearestChick = nil
+        local nearestDistanceSquared = math.huge
+        for _, chick in ipairs(self.freeChicks) do
+            local distanceSquared = squaredDistance(player.x, player.y, chick.x, chick.y)
+            if distanceSquared < nearestDistanceSquared then
+                nearestDistanceSquared = distanceSquared
+                nearestChick = chick
+            end
+        end
+
+        if nearestChick ~= nil then
+            targetX = nearestChick.x
+            targetY = nearestChick.y
+        else
+            if player.botWanderTimer <= 0 then
+                player.botTargetX, player.botTargetY = randomPondPoint()
+                player.botWanderTimer = 20 + math.random(0, 30)
+            end
+            targetX = player.botTargetX
+            targetY = player.botTargetY
+        end
+    end
+
+    player.botWanderTimer = math.max(0, player.botWanderTimer - 1)
+    local inputX, inputY = normalize((targetX or player.x) - player.x, (targetY or player.y) - player.y)
+    player.inputX = inputX
+    player.inputY = inputY
+    player.moving = true
+    player.headingAngle = math.atan2(inputY, inputX)
+end
+
 function DuckGameScene:updateLocalInput()
     local player = self.players[self.localSlot]
     if player == nil then
@@ -577,6 +628,30 @@ function DuckGameScene:updateLocalInput()
 
     local _, acceleratedChange = pd.getCrankChange()
     local inputX, inputY = self:readCurrentInput()
+    local normalizedX, normalizedY = normalize(inputX, inputY)
+    local hasDirectionalInput = math.abs(normalizedX) > 0.001 or math.abs(normalizedY) > 0.001
+
+    if self:isAutoDuckyMode() then
+        if hasDirectionalInput then
+            self.autoDuckyInputIdleFrames = 0
+            player.inputX = normalizedX
+            player.inputY = normalizedY
+            player.moving = true
+            player.headingAngle = math.atan2(normalizedY, normalizedX)
+            return
+        end
+
+        self.autoDuckyInputIdleFrames = math.min(AUTO_DUCKY_IDLE_FRAMES, (self.autoDuckyInputIdleFrames or 0) + 1)
+        if self.autoDuckyInputIdleFrames >= AUTO_DUCKY_IDLE_FRAMES then
+            self:updateAutoDuckyInput(player)
+        else
+            player.inputX = 0
+            player.inputY = 0
+            player.moving = false
+        end
+        return
+    end
+
     if DuckGameScene.isTurnModeEnabled() then
         if math.abs(acceleratedChange) > CRANK_DRIVE_THRESHOLD then
             player.headingAngle = player.headingAngle + (acceleratedChange * TURN_MODE_CRANK_DEGREES)
@@ -603,8 +678,6 @@ function DuckGameScene:updateLocalInput()
         return
     end
 
-    local normalizedX, normalizedY = normalize(inputX, inputY)
-    local hasDirectionalInput = math.abs(normalizedX) > 0.001 or math.abs(normalizedY) > 0.001
     local crankDriving = math.abs(acceleratedChange) > CRANK_DRIVE_THRESHOLD
 
     if hasDirectionalInput then

@@ -7,6 +7,7 @@
 | Keep the game version current after every modification, set the current version to 0.1.78, update README metadata, increment by 0.0.1 for each Git commit unless told otherwise, and commit each completed change set. | Done |
 | Move the app version label from the main title screen to the intro screen and bump the game version to 0.1.79 for the commit. | Done |
 | Add an end-of-engagement rule to build and push the latest Starry Messenger build to the connected Playdate, and bump the game version to 0.1.80 for the commit. | Done |
+| Fix Smooth Sailing streak flashes and invert its colors, delay and grow Bubble Pop replacements, return Vibes to the just-left item, invert Loop Fall colors, add Auto Ducky mode, combine Dropper and Puddle Drops into Drip Drop, and bump the game version to 0.1.81. | Done |
 
 ##### In Warp Speed
 | Request | Status |

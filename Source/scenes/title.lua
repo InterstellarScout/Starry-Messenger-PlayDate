@@ -666,6 +666,16 @@ function TitleScene:setPreview(forceFresh)
                 modeId = selectedView.modeId,
                 selectionLocked = selectedView.openViewId == "vibes"
             })
+        elseif actualViewId == "dripdrop" then
+            if selectedView.modeId == "dropper" then
+                return Dropper.new(400, 240, {
+                    preview = true
+                })
+            end
+            return PuddleDrops.new(400, 240, {
+                modeId = selectedView.modeId,
+                preview = true
+            })
         elseif actualViewId == "puddledrops" then
             return PuddleDrops.new(400, 240, {
                 modeId = selectedView.modeId,

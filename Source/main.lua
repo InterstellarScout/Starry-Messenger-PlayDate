@@ -45,7 +45,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.1.80"
+local APP_VERSION <const> = "0.1.81"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -59,6 +59,14 @@ local app = {
 local buildGameTitleScene
 local buildVibesTitleScene
 local buildSplashScene
+local DRIP_DROP_MODE_DROPPER <const> = "dropper"
+
+local function getDripDropModeLabel(modeId)
+    if modeId == DRIP_DROP_MODE_DROPPER then
+        return "Dropper"
+    end
+    return PuddleDrops.getModeLabel(modeId)
+end
 
 local function buildVibesViewItems()
     local items = {
@@ -124,16 +132,16 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     { id = "fireworks", label = "Fireworks" },
     {
-        id = "puddledrops",
-        label = "Puddle Drops",
+        id = "dripdrop",
+        label = "Drip Drop",
         modes = {
             PuddleDrops.MODE_AUTO,
-            PuddleDrops.MODE_PLAYER
+            PuddleDrops.MODE_PLAYER,
+            DRIP_DROP_MODE_DROPPER
         },
         modeId = PuddleDrops.MODE_AUTO,
-        getModeLabel = PuddleDrops.getModeLabel
+        getModeLabel = getDripDropModeLabel
     },
-    { id = "dropper", label = "Dropper" },
     { id = "tiltballs", label = "Bouncy Balls" },
     { id = "wacky", label = "Wacky" },
     { id = "dimensionalsplit", label = "Dimensional Split" },
@@ -170,6 +178,7 @@ local SINGLE_VIEW_ITEMS <const> = {
         label = "Duck Game",
         modes = {
             DuckGameScene.MODE_SOLO_CENTER,
+            DuckGameScene.MODE_AUTO_DUCKY,
             DuckGameScene.MODE_SOLO_2,
             DuckGameScene.MODE_SOLO_3,
             DuckGameScene.MODE_SOLO_4
@@ -373,6 +382,13 @@ end
 local function showView(viewId, options)
     options = options or {}
     local returnViewId = options.returnViewId or viewId
+    if viewId == "dripdrop" then
+        if options.modeId == DRIP_DROP_MODE_DROPPER then
+            viewId = "dropper"
+        else
+            viewId = "puddledrops"
+        end
+    end
     logModeSelection("app", viewId)
     if viewId == "multiplayer" then
         app.session:setPlayerCount(options.modeId or 2)
@@ -455,6 +471,7 @@ local function showView(viewId, options)
                 return ViewScene.new({
                     viewId = actualViewId,
                     modeId = options.modeId,
+                    returnViewId = returnViewId,
                     effect = options.effect,
                     session = app.session,
                     onReturnToTitle = function(returnedViewId, effect)
@@ -475,6 +492,7 @@ local function showView(viewId, options)
     setScene(ViewScene.new({
         viewId = actualViewId,
         modeId = options.modeId,
+        returnViewId = returnViewId,
         effect = options.effect,
         session = app.session,
         onReturnToTitle = function(returnedViewId, effect)
