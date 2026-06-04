@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.1.81`
-- Build number: `81`
+- Version: `0.1.82`
+- Build number: `82`
 
 ## Install
 
@@ -65,7 +65,7 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Multiplayer Orbital Defense | Main | Portal-enabled Orbital Defense for 2-4 turrets. | Choose player count from the Multiplayer title entry, then coordinate turret movement, laser fire, and missiles around the shared shield. |
 | Crash Racing | Main | Multiplayer RC mode with crash racing and RC hockey options. | Pick the RC multiplayer mode from the title dial. Use crank and D-pad driving controls. `A` switches crank speed control. |
 | CRT TV | Vibe | A procedural CRT rolling-bar effect with manual and automatic bars. | `A` toggles automatic transparent rolling bars. Crank spawns and drags a manual bar up or down; idle bars slide away. |
-| Smooth Sailing | Vibe | A Playdate-optimized black-background star tunnel inspired by Warp Speed, built with bounded streak drawing for smoother motion. | Crank changes speed. Hold D-pad to steer the tunnel. `B` returns to the Vibes folder. |
+| Smooth Sailing | Vibe | A Playdate-optimized black-background star tunnel inspired by Warp Speed, built with doubled star density and bounded streak drawing for smoother motion. | Crank changes speed. Hold D-pad to steer the tunnel. `B` returns to the Vibes folder. |
 | Spiral | Vibe | A large crank-driven geometric spiral. | Crank controls signed playback speed with reverse, near-stop, and fast-forward behavior. `B` returns to the Vibes folder. |
 | Tunnel Bars | Vibe | A tunnel-like field of moving bars. | Crank controls signed playback speed. Use the Home menu `View Stats` toggle to show or hide Vibes stats. |
 | Fractal Spiral | Vibe | A denser spiral pattern built for visual texture. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
