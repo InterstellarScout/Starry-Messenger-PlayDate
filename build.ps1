@@ -1,7 +1,8 @@
 param(
     [switch]$RunSimulator,
     [switch]$InstallDevice,
-    [switch]$InstallDataDisk
+    [switch]$InstallDataDisk,
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -57,13 +58,9 @@ function Install-ToPlaydateDataDisk {
                 New-Item -ItemType Directory -Path $gamesRoot -Force | Out-Null
             }
 
-            if (Test-Path $targetDir) {
-                Remove-Item -LiteralPath $targetDir -Recurse -Force
-            }
-
             New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
-            $null = robocopy $outputDir $targetDir /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NP
+            $null = robocopy $outputDir $targetDir /MIR /FFT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP
             if ($LASTEXITCODE -gt 7) {
                 throw "robocopy failed with exit code $LASTEXITCODE"
             }
@@ -105,11 +102,17 @@ if (-not (Test-Path $pdc)) {
     throw "Playdate compiler not found at $pdc"
 }
 
-if (Test-Path $outputDir) {
-    Remove-Item -LiteralPath $outputDir -Recurse -Force
-}
+if ($SkipBuild) {
+    if (-not (Test-Path $outputDir)) {
+        throw "Cannot skip build because $outputDir does not exist."
+    }
+} else {
+    if (Test-Path $outputDir) {
+        Remove-Item -LiteralPath $outputDir -Recurse -Force
+    }
 
-& $pdc -sdkpath $sdkRoot $sourceDir $outputDir
+    & $pdc -sdkpath $sdkRoot $sourceDir $outputDir
+}
 
 if ($RunSimulator) {
     if (-not (Test-Path $simulator)) {

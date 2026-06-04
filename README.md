@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.1.82`
-- Build number: `82`
+- Version: `0.1.83`
+- Build number: `83`
 
 ## Install
 
@@ -35,6 +35,12 @@ Install through Data Disk mode as a fallback:
 
 ```powershell
 .\build.ps1 -InstallDataDisk
+```
+
+Retry a data-disk install without rebuilding when the current `StarryMessenger.pdx` bundle is already built:
+
+```powershell
+.\build.ps1 -SkipBuild -InstallDataDisk
 ```
 
 The supported generated app bundle is `StarryMessenger.pdx` in this project root. Stale test bundles such as `StarryMessenger-test.pdx` are not valid launch targets.
