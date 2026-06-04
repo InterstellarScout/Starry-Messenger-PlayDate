@@ -83,21 +83,6 @@ local function getDefaultSelectedIndex(viewItems)
     return 1
 end
 
-local function getAppVersionLabel()
-    local version = StarryMessengerAppVersion
-    if version ~= nil and version ~= "" then
-        return "v" .. tostring(version)
-    end
-
-    local metadata = pd.metadata or {}
-    version = metadata.version
-    if version == nil or version == "" then
-        return nil
-    end
-
-    return "v" .. tostring(version)
-end
-
 local function makeWarpPreview(speed)
     local preview = Starfield.newWarpSpeed(400, 240, WARP_CONFIG.previewStarCount or 320)
     preview.speed = speed or 1
@@ -1174,22 +1159,6 @@ function TitleScene:drawBottomInstructions()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
-function TitleScene:drawAppVersion()
-    if self.freeSpinActive or self.freeSpinSettling or self.freeSpinStarPreview ~= nil then
-        return
-    end
-
-    local versionLabel = getAppVersionLabel()
-    if versionLabel == nil then
-        return
-    end
-
-    gfx.setFont(self.smallFont)
-    gfx.setImageDrawMode(self:getTextDrawMode())
-    gfx.drawTextAligned(versionLabel, 392, 224, kTextAlignment.right)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
-end
-
 function TitleScene:drawTitleFireworks()
     gfx.setColor(gfx.kColorBlack)
     for _, burst in ipairs(self.titleFireworkBursts) do
@@ -1236,7 +1205,6 @@ function TitleScene:drawMenu()
         end
     end
 
-    self:drawAppVersion()
     self:drawBottomInstructions()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end

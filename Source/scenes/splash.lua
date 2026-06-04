@@ -19,6 +19,21 @@ local function drawMutedTitleOverlay()
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 end
 
+local function getAppVersionLabel()
+    local version = StarryMessengerAppVersion
+    if version ~= nil and version ~= "" then
+        return "v" .. tostring(version)
+    end
+
+    local metadata = pd.metadata or {}
+    version = metadata.version
+    if version == nil or version == "" then
+        return nil
+    end
+
+    return "v" .. tostring(version)
+end
+
 SplashScene = {}
 SplashScene.__index = SplashScene
 
@@ -84,6 +99,10 @@ function SplashScene:update()
     gfx.setFont(self.smallFont)
     gfx.drawTextAligned("Interact to show consiousness", 200, 198, kTextAlignment.center)
     gfx.drawTextAligned("and flow beyond.", 200, 214, kTextAlignment.center)
+    local versionLabel = getAppVersionLabel()
+    if versionLabel ~= nil then
+        gfx.drawTextAligned(versionLabel, 392, 224, kTextAlignment.right)
+    end
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 
     local buttonPressed = pd.buttonJustPressed(pd.kButtonA)
