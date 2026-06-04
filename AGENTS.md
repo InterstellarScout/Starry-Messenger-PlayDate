@@ -5,6 +5,7 @@
 - Update statuses as implementation, investigation, or follow-up work changes.
 - Commit and push completed changes going forward unless the user explicitly says not to.
 - Keep the game version current in `Source/main.lua`, `Source/pdxinfo`, and `README.md` after every modification. Unless the user says otherwise, increment the version by `0.0.1` for each Git commit and commit every completed change set.
+- At the end of each engagement, build the project and push the latest build to the connected Playdate so the device has current testing software. Prefer `.\build.ps1 -InstallDevice`; if USB install is unavailable, mount the data disk and use `.\build.ps1 -InstallDataDisk`.
 - Assume all new feature and behavior requests should be applied to `StarryMessenger-Playdate` first unless the user explicitly says otherwise.
 - When a change in Starry Messenger affects a corresponding standalone app, mirror the relevant update in `DuckPond`, `GifPlayer`, and `OrbitalRingDefense` as appropriate.
 - For Starry Messenger feature requests and bug fixes, run `.\build.ps1 -InstallDevice` after implementation when an unlocked Playdate is connected so the current build is compiled, uploaded, and launched on hardware. Use `.\build.ps1 -InstallDataDisk` only as the mounted-drive fallback.
