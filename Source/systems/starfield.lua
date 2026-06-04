@@ -35,13 +35,6 @@ local function roundToTenth(value)
     return math.ceil((value * 10) - 0.5) / 10
 end
 
-local function roundToInt(value)
-    if value >= 0 then
-        return math.floor(value + 0.5)
-    end
-    return math.ceil(value - 0.5)
-end
-
 local function degreesToRadians(value)
     return value * math.pi / 180
 end
@@ -229,7 +222,6 @@ local WARP_OFFSCREEN_RADIUS <const> = WARP_VISIBLE_RADIUS + 40
 local WARP_OFFSCREEN_RADIUS_SQUARED <const> = WARP_OFFSCREEN_RADIUS * WARP_OFFSCREEN_RADIUS
 local WARP_CENTER_DESPAWN_RADIUS <const> = WARP_CONFIG.centerDespawnRadius or 10
 local WARP_SPAWN_FADE_IN_FRAMES <const> = WARP_CONFIG.spawnFadeFrames or 8
-local WARP_STREAK_FADE_STEPS <const> = 10
 local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = WARP_CONFIG.inwardDespawnStartRadiusMin or 2
 local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = WARP_CONFIG.inwardDespawnStartRadiusMax or 5
 local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = WARP_CONFIG.inwardDespawnGrowthMin or 0.08
@@ -240,13 +232,6 @@ local WARP_TAPER_HIDE_SPEED_END <const> = WARP_CONFIG.taperHideSpeedEnd or 3.2
 local WARP_STAR_SIZE_PERCENT_MIN <const> = WARP_CONFIG.starSizePercentMin or -80
 local WARP_STAR_SIZE_PERCENT_MAX <const> = WARP_CONFIG.starSizePercentMax or 200
 local WARP_STAR_SIZE_PERCENT_STEP <const> = WARP_CONFIG.starSizePercentStep or 10
-local WARP_REGULATOR_MIN_STARS <const> = WARP_CONFIG.regulatorMinStars or 56
-local WARP_REGULATOR_SPEED_START <const> = WARP_CONFIG.regulatorSpeedStart or 8
-local WARP_REGULATOR_SPEED_END <const> = WARP_CONFIG.regulatorSpeedEnd or 36
-local WARP_REGULATOR_STEP_FRAMES <const> = WARP_CONFIG.regulatorStepFrames or 4
-local WARP_REGULATOR_STAR_STEP <const> = WARP_CONFIG.regulatorStarStep or 4
-local WARP_GC_STEP_FRAMES <const> = WARP_CONFIG.gcStepFrames or 30
-local WARP_GC_STEP_SIZE <const> = WARP_CONFIG.gcStepSize or 48
 
 local function randomLargeStarDelayFrames()
     return math.random(STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES, STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES)
@@ -255,7 +240,7 @@ end
 function Starfield.getModeLabel(modeId, kind)
     if kind == "fall" then
         if modeId == Starfield.MODE_INVERSE then
-            return "Inverted Star Fall"
+            return "Inverse Fall"
         end
         return "Star Fall"
     end
@@ -295,8 +280,7 @@ function Starfield.newStarFall(width, height, count, options)
     self.uniformMotion = options and options.uniformMotion == true or false
     self.uniformStarSize = options and options.uniformStarSize or 2
     self.uniformStarSpeed = options and options.uniformStarSpeed or 1
-    self.loopToOrigin = options == nil or options.loopToOrigin ~= false
-    self.disableLargeStar = options and options.disableLargeStar == true or self.loopToOrigin
+    self.disableLargeStar = options and options.disableLargeStar == true or false
 
     for i = 1, count do
         self.stars[i] = {
@@ -332,19 +316,7 @@ function Starfield.newWarpSpeed(width, height, count, options)
     self.lastSpeed = self.speed
     self.stars = {}
     self.debugFadeFrameCounter = 0
-    self.gcStepFrameCounter = 0
-    self.warpDebugSpawnCount = 0
-    self.warpDebugCenterRespawnCount = 0
-    self.warpDebugOffscreenRespawnCount = 0
-    self.warpDebugRegulatorTrimCount = 0
-    self.warpDebugRegulatorGrowCount = 0
-    self.warpDebugLastLuaKilobytes = collectgarbage("count")
-    self.warpDebugPeakLuaKilobytes = self.warpDebugLastLuaKilobytes
     self.starSizePercent = options and options.starSizePercent or 0
-    self.maxStarCount = count
-    self.activeStarCount = count
-    self.targetStarCount = count
-    self.regulatorFrameCounter = 0
 
     for i = 1, count do
         self.stars[i] = {
@@ -586,12 +558,6 @@ function Starfield:spawnFallStar(star, randomizeInsideScreen)
         star.y = worldY
         star.px = worldX
         star.py = worldY
-        if self.loopToOrigin then
-            star.originX = worldX
-            star.originY = worldY
-            star.originSize = star.size
-            star.originSpeed = star.speed
-        end
         return
     end
 
@@ -608,24 +574,6 @@ function Starfield:spawnFallStar(star, randomizeInsideScreen)
     star.y = worldY
     star.px = worldX
     star.py = worldY
-end
-
-function Starfield:resetFallStarToOrigin(star)
-    if star.originX == nil or star.originY == nil then
-        self:spawnFallStar(star, false)
-        return
-    end
-
-    star.x = star.originX
-    star.y = star.originY
-    star.px = star.originX
-    star.py = star.originY
-    if star.originSize ~= nil then
-        star.size = star.originSize
-    end
-    if star.originSpeed ~= nil then
-        star.speed = star.originSpeed
-    end
 end
 
 function Starfield:spawnLargeFallStar(randomizeInsideScreen)
@@ -670,7 +618,6 @@ end
 
 function Starfield:spawnWarpStar(star, spawnAtEdge)
     self:assignWarpStarVisuals(star)
-    self.warpDebugSpawnCount = (self.warpDebugSpawnCount or 0) + 1
     star.despawnGrowth = WARP_INWARD_DESPAWN_GROWTH_MIN + (math.random() * (WARP_INWARD_DESPAWN_GROWTH_MAX - WARP_INWARD_DESPAWN_GROWTH_MIN))
     star.spawnFadeFrames = WARP_SPAWN_FADE_IN_FRAMES
 
@@ -712,8 +659,7 @@ function Starfield:refreshWarpFieldForDirection()
         return
     end
 
-    for index = 1, self.activeStarCount do
-        local star = self.stars[index]
+    for _, star in ipairs(self.stars) do
         if self.speed < 0 then
             self:spawnWarpStar(star, true)
         else
@@ -722,46 +668,6 @@ function Starfield:refreshWarpFieldForDirection()
     end
 
     StarryLog.info("warp field refreshed for speed %.2f", self.speed)
-end
-
-function Starfield:getTargetWarpStarCount()
-    local absSpeed = math.abs(self.speed or 0)
-    if absSpeed <= WARP_REGULATOR_SPEED_START then
-        return self.maxStarCount
-    end
-
-    local ratio = clamp(
-        (absSpeed - WARP_REGULATOR_SPEED_START) / math.max(0.001, (WARP_REGULATOR_SPEED_END - WARP_REGULATOR_SPEED_START)),
-        0,
-        1
-    )
-    return roundToInt(self.maxStarCount - ((self.maxStarCount - WARP_REGULATOR_MIN_STARS) * ratio))
-end
-
-function Starfield:updateWarpStarRegulator()
-    if self.kind ~= "warp" then
-        return
-    end
-
-    self.targetStarCount = clamp(self:getTargetWarpStarCount(), WARP_REGULATOR_MIN_STARS, self.maxStarCount)
-    self.regulatorFrameCounter = (self.regulatorFrameCounter or 0) + 1
-    if self.regulatorFrameCounter < WARP_REGULATOR_STEP_FRAMES then
-        return
-    end
-
-    self.regulatorFrameCounter = 0
-    if self.activeStarCount > self.targetStarCount then
-        local nextCount = math.max(self.targetStarCount, self.activeStarCount - WARP_REGULATOR_STAR_STEP)
-        self.warpDebugRegulatorTrimCount = (self.warpDebugRegulatorTrimCount or 0) + (self.activeStarCount - nextCount)
-        self.activeStarCount = nextCount
-    elseif self.activeStarCount < self.targetStarCount then
-        local previousCount = self.activeStarCount
-        self.activeStarCount = math.min(self.targetStarCount, self.activeStarCount + WARP_REGULATOR_STAR_STEP)
-        self.warpDebugRegulatorGrowCount = (self.warpDebugRegulatorGrowCount or 0) + (self.activeStarCount - previousCount)
-        for index = previousCount + 1, self.activeStarCount do
-            self:spawnWarpStar(self.stars[index], self.speed < 0)
-        end
-    end
 end
 
 function Starfield:seedWarpStar(star, index, totalCount)
@@ -838,16 +744,12 @@ function Starfield:updateWarpStarScreenCache(star)
     local prevWorldY = self.playerCenterY + star.py
     local worldX = self.playerCenterX + star.x
     local worldY = self.playerCenterY + star.y
-    local sx1
-    local sy1
-    local sx2
-    local sy2
 
     if self.screenAngle == 0 then
-        sx1 = prevWorldX
-        sy1 = prevWorldY
-        sx2 = worldX
-        sy2 = worldY
+        star.sx1 = prevWorldX
+        star.sy1 = prevWorldY
+        star.sx2 = worldX
+        star.sy2 = worldY
     else
         local px = prevWorldX - self.centerX
         local py = prevWorldY - self.centerY
@@ -856,16 +758,11 @@ function Starfield:updateWarpStarScreenCache(star)
         local prevX, prevY = rotatePointWithTrig(px, py, self.screenCos, self.screenSin)
         local nextX, nextY = rotatePointWithTrig(x, y, self.screenCos, self.screenSin)
 
-        sx1 = self.centerX + prevX
-        sy1 = self.centerY + prevY
-        sx2 = self.centerX + nextX
-        sy2 = self.centerY + nextY
+        star.sx1 = self.centerX + prevX
+        star.sy1 = self.centerY + prevY
+        star.sx2 = self.centerX + nextX
+        star.sy2 = self.centerY + nextY
     end
-
-    star.sx1 = roundToInt(sx1)
-    star.sy1 = roundToInt(sy1)
-    star.sx2 = roundToInt(sx2)
-    star.sy2 = roundToInt(sy2)
 
     local margin = math.max(2, star.size or 1)
     local left = -margin
@@ -873,21 +770,9 @@ function Starfield:updateWarpStarScreenCache(star)
     local right = self.width + margin
     local bottom = self.height + margin
     star.headVisible = isPointInsideRect(star.sx2, star.sy2, left, top, right, bottom)
-    local streakX1, streakY1, streakX2, streakY2 =
+    star.streakX1, star.streakY1, star.streakX2, star.streakY2 =
         clipLineToRect(star.sx1, star.sy1, star.sx2, star.sy2, left, top, right, bottom)
-    if streakX1 ~= nil then
-        star.streakX1 = roundToInt(streakX1)
-        star.streakY1 = roundToInt(streakY1)
-        star.streakX2 = roundToInt(streakX2)
-        star.streakY2 = roundToInt(streakY2)
-        star.streakVisible = true
-    else
-        star.streakX1 = nil
-        star.streakY1 = nil
-        star.streakX2 = nil
-        star.streakY2 = nil
-        star.streakVisible = false
-    end
+    star.streakVisible = star.streakX1 ~= nil
 end
 
 function Starfield:getWarpStarFade(star)
@@ -897,12 +782,6 @@ function Starfield:getWarpStarFade(star)
     end
 
     return 1
-end
-
-function Starfield:getWarpStarStreakFade(star)
-    local fade = self:getWarpStarFade(star)
-    local step = math.floor((fade * WARP_STREAK_FADE_STEPS) + 0.5)
-    return clamp(step / WARP_STREAK_FADE_STEPS, 0, 1)
 end
 
 function Starfield:drawMotionStarShape(x1, y1, x2, y2, size)
@@ -1059,17 +938,9 @@ function Starfield:updateStarFall()
         local forwardProjection = (offsetX * screenDx) + (offsetY * screenDy)
 
         if radiusSquared >= boundarySquared and forwardProjection > 0 then
-            if self.loopToOrigin then
-                self:resetFallStarToOrigin(star)
-            else
-                self:spawnFallStar(star, false)
-            end
+            self:spawnFallStar(star, false)
         elseif radiusSquared >= failBoundarySquared then
-            if self.loopToOrigin then
-                self:resetFallStarToOrigin(star)
-            else
-                self:spawnFallStar(star, false)
-            end
+            self:spawnFallStar(star, false)
         end
     end
 
@@ -1127,7 +998,6 @@ function Starfield:drawStarFall()
 end
 
 function Starfield:updateWarpSpeed()
-    self:updateWarpStarRegulator()
     local driftX, driftY = vectorFromAngle(self.directionAngle)
     local signedSpeed = self.speed
     local biasX = driftX * signedSpeed * 0.08
@@ -1138,8 +1008,7 @@ function Starfield:updateWarpSpeed()
         self:refreshWarpFieldForDirection()
     end
 
-    for index = 1, self.activeStarCount do
-        local star = self.stars[index]
+    for _, star in ipairs(self.stars) do
         star.px = star.x
         star.py = star.y
 
@@ -1154,7 +1023,6 @@ function Starfield:updateWarpSpeed()
             end
 
             if self:warpStarTouchesCenterZone(star) then
-                self.warpDebugCenterRespawnCount = (self.warpDebugCenterRespawnCount or 0) + 1
                 self:spawnWarpStar(star, signedSpeed < 0)
             else
                 local worldX = (self.playerCenterX + star.x) - self.centerX
@@ -1162,7 +1030,6 @@ function Starfield:updateWarpSpeed()
                 local distanceSquared = (worldX * worldX) + (worldY * worldY)
 
                 if distanceSquared >= WARP_OFFSCREEN_RADIUS_SQUARED then
-                    self.warpDebugOffscreenRespawnCount = (self.warpDebugOffscreenRespawnCount or 0) + 1
                     self:spawnWarpStar(star, signedSpeed < 0)
                 end
             end
@@ -1176,20 +1043,13 @@ function Starfield:updateWarpSpeed()
     end
 
     self.lastSpeed = signedSpeed
-    self.gcStepFrameCounter = (self.gcStepFrameCounter or 0) + 1
-    if self.gcStepFrameCounter >= WARP_GC_STEP_FRAMES and collectgarbage ~= nil then
-        self.gcStepFrameCounter = 0
-        pcall(collectgarbage, "step", WARP_GC_STEP_SIZE)
-    end
 end
 
 function Starfield:drawWarpSpeed()
     gfx.setColor(self:getForegroundColor())
     local activeFadeCount = 0
     local unexpectedFadeCount = 0
-    local visibleStarCount = 0
-    for index = 1, self.activeStarCount do
-        local star = self.stars[index]
+    for _, star in ipairs(self.stars) do
         local fade = self:getWarpStarFade(star)
         if fade < 1 then
             activeFadeCount = activeFadeCount + 1
@@ -1200,15 +1060,8 @@ function Starfield:drawWarpSpeed()
         local dx = star.sx2 - star.sx1
         local dy = star.sy2 - star.sy1
         local lengthSquared = (dx * dx) + (dy * dy)
-        if star.streakVisible and not self.warpStyleStarFall then
-            local streakFade = self:getWarpStarStreakFade(star)
-            if streakFade < 1 then
-                gfx.setDitherPattern(streakFade, gfx.image.kDitherTypeBayer8x8)
-            end
+        if star.streakVisible and lengthSquared > 4 and not self.warpStyleStarFall then
             self:drawWarpStreak(star.streakX1, star.streakY1, star.streakX2, star.streakY2)
-            if streakFade < 1 then
-                gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
-            end
         end
         if self.warpStyleTaper then
             local length = math.sqrt(lengthSquared)
@@ -1221,45 +1074,21 @@ function Starfield:drawWarpSpeed()
             end
         end
         if star.headVisible then
-            visibleStarCount = visibleStarCount + 1
             self:drawWarpHeadScaled(star, math.max(0.35, fade))
-        elseif star.streakVisible then
-            visibleStarCount = visibleStarCount + 1
         end
     end
 
     self.debugFadeFrameCounter = self.debugFadeFrameCounter + 1
     if self.debugFadeFrameCounter >= WARP_FADE_DEBUG_INTERVAL_FRAMES then
-        local luaKilobytes = collectgarbage("count")
-        local lastLuaKilobytes = self.warpDebugLastLuaKilobytes or luaKilobytes
-        self.warpDebugPeakLuaKilobytes = math.max(self.warpDebugPeakLuaKilobytes or luaKilobytes, luaKilobytes)
         self.debugFadeFrameCounter = 0
         StarryLog.forceDebug(
-            "warp debug stars=%d/%d target=%d visible=%d spawned=%d centerRespawn=%d offscreenRespawn=%d trim=%d grow=%d speed=%.2f activeFade=%d unexpectedFade=%d luaKB=%.1f deltaKB=%.1f peakKB=%.1f gcStep=%d spawnOnly=%s",
-            self.activeStarCount,
+            "warp fade debug stars=%d speed=%.2f active=%d unexpected=%d spawnOnly=%s",
             #self.stars,
-            self.targetStarCount or self.activeStarCount,
-            visibleStarCount,
-            self.warpDebugSpawnCount or 0,
-            self.warpDebugCenterRespawnCount or 0,
-            self.warpDebugOffscreenRespawnCount or 0,
-            self.warpDebugRegulatorTrimCount or 0,
-            self.warpDebugRegulatorGrowCount or 0,
             self.speed or 0,
             activeFadeCount,
             unexpectedFadeCount,
-            luaKilobytes,
-            luaKilobytes - lastLuaKilobytes,
-            self.warpDebugPeakLuaKilobytes or luaKilobytes,
-            WARP_GC_STEP_SIZE,
             tostring(unexpectedFadeCount == 0)
         )
-        self.warpDebugSpawnCount = 0
-        self.warpDebugCenterRespawnCount = 0
-        self.warpDebugOffscreenRespawnCount = 0
-        self.warpDebugRegulatorTrimCount = 0
-        self.warpDebugRegulatorGrowCount = 0
-        self.warpDebugLastLuaKilobytes = luaKilobytes
     end
 end
 
@@ -1272,8 +1101,10 @@ function Starfield:update()
 end
 
 function Starfield:draw()
-    gfx.setColor(self:getBackgroundColor())
-    gfx.fillRect(0, 0, self.width, self.height)
+    if self.inverse then
+        gfx.setColor(gfx.kColorWhite)
+        gfx.fillRect(0, 0, self.width, self.height)
+    end
 
     if self.kind == "fall" then
         self:drawStarFall()

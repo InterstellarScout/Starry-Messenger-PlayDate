@@ -23,11 +23,15 @@ local PILEUP_MAX_SHAPES <const> = 180
 local POLYGON_COUNT <const> = 72
 local TUNNEL_BAR_COUNT <const> = 18
 local BUBBLE_MAX_COUNT <const> = 28
+local SMOOTH_STAR_COUNT <const> = 96
+local SMOOTH_MIN_SPEED <const> = -8
+local SMOOTH_MAX_SPEED <const> = 8
 local LINE_MODE_SPIN <const> = 1
 local LINE_MODE_ORBIT <const> = 2
 local LINE_MODE_DRIFT <const> = 3
 
 local EFFECTS <const> = {
+    { id = "smoothsailing", label = "Smooth Sailing" },
     { id = "spiral", label = "Spiral" },
     { id = "tunnelbars", label = "Tunnel Bars" },
     { id = "fractal", label = "Fractal Spiral" },
@@ -189,12 +193,20 @@ function VibesEffect.new(width, height, options)
     self.polygonEntries = {}
     self.microRotateImage = nil
     self.bubbles = {}
+    self.smoothStars = {}
+    self.smoothSpeed = self.preview and 1.2 or 0
+    self.smoothTargetSpeed = self.smoothSpeed
+    self.smoothDirectionX = 0
+    self.smoothDirectionY = 0
+    self.smoothDriftX = 0
+    self.smoothDriftY = 0
     self:buildLineEntries()
     self:buildLoopStars()
     self:buildTunnelBars()
     self:buildPolygonEntries()
     self:buildMicroRotateImage()
     self:seedBubbleMode(false)
+    self:buildSmoothStars()
     if self.modeId ~= nil then
         self:setEffectById(self.modeId)
     end
@@ -246,6 +258,23 @@ function VibesEffect:handlePrimaryAction()
 end
 
 function VibesEffect:handleDirectionalInput(leftPressed, rightPressed, _upHeld, _downHeld)
+    if self:getEffect().id == "smoothsailing" then
+        local steerStep = 0.22
+        if leftPressed then
+            self.smoothDirectionX = clamp((self.smoothDirectionX or 0) - steerStep, -1.2, 1.2)
+        elseif rightPressed then
+            self.smoothDirectionX = clamp((self.smoothDirectionX or 0) + steerStep, -1.2, 1.2)
+        end
+        if _upHeld then
+            self.smoothDirectionY = clamp((self.smoothDirectionY or 0) - 0.035, -1.2, 1.2)
+        elseif _downHeld then
+            self.smoothDirectionY = clamp((self.smoothDirectionY or 0) + 0.035, -1.2, 1.2)
+        else
+            self.smoothDirectionY = (self.smoothDirectionY or 0) * 0.94
+        end
+        return
+    end
+
     if self.selectionLocked then
         return
     end
@@ -265,6 +294,12 @@ end
 
 function VibesEffect:stepSpeed(direction)
     if direction == 0 then
+        return
+    end
+
+    if self:getEffect().id == "smoothsailing" then
+        self.smoothTargetSpeed = clamp((self.smoothTargetSpeed or 0) + (direction * 0.25), SMOOTH_MIN_SPEED, SMOOTH_MAX_SPEED)
+        self.speed = self.smoothTargetSpeed
         return
     end
 
@@ -338,6 +373,29 @@ function VibesEffect:buildLoopStars()
             size = 1 + math.floor(math.random() * 3),
             depth = 0.25 + (math.random() * 1.75)
         }
+    end
+end
+
+function VibesEffect:seedSmoothStar(star, randomizeDepth)
+    local angle = math.random() * TAU
+    local radius = math.sqrt(math.random()) * 1.18
+    star.x = math.cos(angle) * radius
+    star.y = math.sin(angle) * radius
+    star.z = randomizeDepth and (0.2 + (math.random() * 0.98)) or 1.18
+    star.depthSpeed = 0.65 + (math.random() * 0.85)
+    star.size = math.random() < 0.82 and 1 or 2
+    star.prevScreenX = self.width * 0.5
+    star.prevScreenY = self.height * 0.5
+    star.screenX = star.prevScreenX
+    star.screenY = star.prevScreenY
+end
+
+function VibesEffect:buildSmoothStars()
+    self.smoothStars = {}
+    for index = 1, SMOOTH_STAR_COUNT do
+        local star = {}
+        self:seedSmoothStar(star, true)
+        self.smoothStars[index] = star
     end
 end
 
@@ -566,12 +624,54 @@ function VibesEffect:updateBubbles(popMode)
     end
 end
 
+function VibesEffect:updateSmoothSailing()
+    self.smoothSpeed = (self.smoothSpeed or 0) + (((self.smoothTargetSpeed or 0) - (self.smoothSpeed or 0)) * 0.18)
+    self.smoothDriftX = ((self.smoothDriftX or 0) * 0.88) + ((self.smoothDirectionX or 0) * 0.12)
+    self.smoothDriftY = ((self.smoothDriftY or 0) * 0.88) + ((self.smoothDirectionY or 0) * 0.12)
+    self.smoothDirectionX = (self.smoothDirectionX or 0) * 0.965
+
+    local centerX = self.width * 0.5
+    local centerY = self.height * 0.5
+    local speed = self.smoothSpeed or 0
+    local travel = speed * 0.006
+
+    for _, star in ipairs(self.smoothStars) do
+        star.prevScreenX = star.screenX or centerX
+        star.prevScreenY = star.screenY or centerY
+        star.z = (star.z or 1) - (travel * (star.depthSpeed or 1))
+
+        if star.z <= 0.08 or star.z > 1.26 then
+            self:seedSmoothStar(star, speed < 0)
+        end
+
+        local z = math.max(0.08, star.z or 1)
+        local perspective = 1 / z
+        local screenX = centerX + (((star.x or 0) + (self.smoothDriftX or 0)) * perspective * 118)
+        local screenY = centerY + (((star.y or 0) + (self.smoothDriftY or 0)) * perspective * 86)
+
+        if screenX < -8 or screenX > self.width + 8 or screenY < -8 or screenY > self.height + 8 then
+            self:seedSmoothStar(star, speed < 0)
+            z = math.max(0.08, star.z or 1)
+            perspective = 1 / z
+            screenX = centerX + (((star.x or 0) + (self.smoothDriftX or 0)) * perspective * 118)
+            screenY = centerY + (((star.y or 0) + (self.smoothDriftY or 0)) * perspective * 86)
+            star.prevScreenX = screenX
+            star.prevScreenY = screenY
+        end
+
+        star.screenX = screenX
+        star.screenY = screenY
+    end
+end
+
 function VibesEffect:update()
     self.frame = self.frame + 1
     self.hudBlink = wrapPhase(self.hudBlink + 0.08)
 
     local effectId = self:getEffect().id
-    if effectId == "spiral" then
+    if effectId == "smoothsailing" then
+        self:updateSmoothSailing()
+    elseif effectId == "spiral" then
         self:updateSpiral()
     elseif effectId == "tunnelbars" then
         self:updateTunnelBars()
@@ -599,11 +699,22 @@ function VibesEffect:update()
 end
 
 function VibesEffect:usesDirectCrank()
-    return self:getEffect().id == "lines"
+    local effectId = self:getEffect().id
+    return effectId == "lines" or effectId == "smoothsailing"
+end
+
+function VibesEffect:usesHeldDirectionalInput()
+    return self:getEffect().id == "smoothsailing"
 end
 
 function VibesEffect:applyCrank(change, _acceleratedChange)
     if not self:usesDirectCrank() then
+        return
+    end
+
+    if self:getEffect().id == "smoothsailing" then
+        self.smoothTargetSpeed = clamp((self.smoothTargetSpeed or 0) + (change * 0.025), SMOOTH_MIN_SPEED, SMOOTH_MAX_SPEED)
+        self.speed = self.smoothTargetSpeed
         return
     end
 
@@ -831,6 +942,28 @@ function VibesEffect:drawMicroRotate()
     )
 end
 
+function VibesEffect:drawSmoothSailing()
+    for _, star in ipairs(self.smoothStars) do
+        local x = roundToInt(star.screenX or 0)
+        local y = roundToInt(star.screenY or 0)
+        local px = roundToInt(star.prevScreenX or x)
+        local py = roundToInt(star.prevScreenY or y)
+        local size = star.size or 1
+        local dx = x - px
+        local dy = y - py
+
+        if (dx * dx) + (dy * dy) >= 4 then
+            gfx.drawLine(px, py, x, y)
+        end
+
+        if size > 1 then
+            gfx.fillRect(x - 1, y - 1, 2, 2)
+        else
+            gfx.fillRect(x, y, 1, 1)
+        end
+    end
+end
+
 function VibesEffect:drawHud()
     if self.preview or not VibesEffect.isViewStatsEnabled() then
         return
@@ -845,6 +978,8 @@ function VibesEffect:drawHud()
     local status = string.format("Speed %.1f  %d/%d", self.speed or 0, self.effectIndex, #EFFECTS)
     if self:getEffect().id == "lines" then
         status = string.format("Mode %s  %d/%d", self:getLineModeLabel(), self.effectIndex, #EFFECTS)
+    elseif self:getEffect().id == "smoothsailing" then
+        status = string.format("Speed %.1f  %d/%d", self.smoothSpeed or 0, self.effectIndex, #EFFECTS)
     end
     gfx.drawText(status, 14, 26)
 end
@@ -855,7 +990,9 @@ function VibesEffect:draw()
     gfx.setColor(gfx.kColorBlack)
 
     local effectId = self:getEffect().id
-    if effectId == "spiral" then
+    if effectId == "smoothsailing" then
+        self:drawSmoothSailing()
+    elseif effectId == "spiral" then
         self:drawSpiral()
     elseif effectId == "tunnelbars" then
         self:drawTunnelBars()

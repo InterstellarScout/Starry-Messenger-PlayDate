@@ -4,6 +4,7 @@
 | Request | Status |
 | --- | --- |
 | Add a programmatic Playdate hardware push step for Starry Messenger feature requests and bug fixes. | Done |
+| Keep the game version current after every modification, set the current version to 0.1.78, update README metadata, increment by 0.0.1 for each Git commit unless told otherwise, and commit each completed change set. | Done |
 
 ##### In Warp Speed
 | Request | Status |

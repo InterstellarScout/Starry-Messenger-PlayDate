@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.1.0`
-- Build number: `1`
+- Version: `0.1.78`
+- Build number: `78`
 
 ## Install
 
@@ -44,7 +44,7 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Game Name | Game Type | Description | Play Instructions |
 | --- | --- | --- | --- |
 | Star Fall | Main | A falling starfield toy with normal and inverted modes. | Crank changes fall speed. D-pad steers the field. `A` opens the view and toggles speed/spin control in-game. `B` returns to the title. |
-| Warp Speed | Main | A forward-flight starfield with normal and inverse warp styles. | Crank changes star speed. D-pad steers direction. `A` opens the warp settings menu for speed, spin, star size, and style toggles. `B` returns to the title while preserving the current speed; press `B` again on the Warp title item to reset the preview. |
+| Warp Speed | Main | A forward-flight starfield with normal and inverse warp styles. Warp uses finer speed steps and lower per-frame displacement so stars glide more smoothly without increasing draw load. | Crank changes star speed. D-pad steers direction. `A` opens the warp settings menu for speed, spin, star size, and style toggles. `B` returns to the title while preserving the current speed; press `B` again on the Warp title item to reset the preview. |
 | Game of Life | Main | Conway-style cellular automata with standard, endless, recorder, and review modes. | Crank scrubs generations. `Up`/`Down` changes simulation speed. `Left`/`Right` injects cells. `A` injects a larger burst or opens selected recordings in Review mode. |
 | Fireworks | Main | A player-controlled fireworks launcher with automatic background bursts. | Crank or `Left`/`Right` moves the launcher. `Up`/`Down` changes firework type. Hold `A` to launch. |
 | Puddle Drops | Main | Ripple simulation with automatic drop waves and a player-pulse mode. | Crank changes signed ripple speed. In Player Pulse, D-pad moves the marker and `A` fires a pulse. `Left`/`Right` on the title changes modes. |
@@ -66,6 +66,7 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Multiplayer Orbital Defense | Main | Portal-enabled Orbital Defense for 2-4 turrets. | Choose player count from the Multiplayer title entry, then coordinate turret movement, laser fire, and missiles around the shared shield. |
 | Crash Racing | Main | Multiplayer RC mode with crash racing and RC hockey options. | Pick the RC multiplayer mode from the title dial. Use crank and D-pad driving controls. `A` switches crank speed control. |
 | CRT TV | Vibe | A procedural CRT rolling-bar effect with manual and automatic bars. | `A` toggles automatic transparent rolling bars. Crank spawns and drags a manual bar up or down; idle bars slide away. |
+| Smooth Sailing | Vibe | A Playdate-optimized forward star tunnel inspired by Warp Speed, built with fewer stars and simple fixed-cost drawing for smoother motion. | Crank changes speed. Hold D-pad to steer the tunnel. `B` returns to the Vibes folder. |
 | Spiral | Vibe | A large crank-driven geometric spiral. | Crank controls signed playback speed with reverse, near-stop, and fast-forward behavior. `B` returns to the Vibes folder. |
 | Tunnel Bars | Vibe | A tunnel-like field of moving bars. | Crank controls signed playback speed. Use the Home menu `View Stats` toggle to show or hide Vibes stats. |
 | Fractal Spiral | Vibe | A denser spiral pattern built for visual texture. | Crank controls signed playback speed. `B` returns to the Vibes folder. |

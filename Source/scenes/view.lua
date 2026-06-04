@@ -739,9 +739,10 @@ function ViewScene:update()
         )
     elseif self.viewId == "vibes" then
         if self.effect and self.effect.handleDirectionalInput then
+            local useHeldInput = self.effect.usesHeldDirectionalInput and self.effect:usesHeldDirectionalInput()
             self.effect:handleDirectionalInput(
-                pd.buttonJustPressed(pd.kButtonLeft),
-                pd.buttonJustPressed(pd.kButtonRight),
+                useHeldInput and pd.buttonIsPressed(pd.kButtonLeft) or pd.buttonJustPressed(pd.kButtonLeft),
+                useHeldInput and pd.buttonIsPressed(pd.kButtonRight) or pd.buttonJustPressed(pd.kButtonRight),
                 pd.buttonIsPressed(pd.kButtonUp),
                 pd.buttonIsPressed(pd.kButtonDown)
             )
