@@ -24,9 +24,8 @@ local POLYGON_COUNT <const> = 72
 local TUNNEL_BAR_COUNT <const> = 18
 local BUBBLE_MAX_COUNT <const> = 28
 local SMOOTH_STAR_COUNT <const> = 192
-local SMOOTH_MIN_SPEED <const> = -8
-local SMOOTH_MAX_SPEED <const> = 8
 local SMOOTH_MAX_STREAK_LENGTH_SQUARED <const> = 34 * 34
+local SMOOTH_CENTER_SIZE_RADIUS_SQUARED <const> = 46 * 46
 local BUBBLE_POP_RESPAWN_MIN_FRAMES <const> = 15
 local BUBBLE_POP_RESPAWN_MAX_FRAMES <const> = 150
 local BUBBLE_POP_GROW_FRAMES <const> = 18
@@ -303,7 +302,7 @@ function VibesEffect:stepSpeed(direction)
     end
 
     if self:getEffect().id == "smoothsailing" then
-        self.smoothTargetSpeed = clamp((self.smoothTargetSpeed or 0) + (direction * 0.25), SMOOTH_MIN_SPEED, SMOOTH_MAX_SPEED)
+        self.smoothTargetSpeed = (self.smoothTargetSpeed or 0) + (direction * 0.25)
         self.speed = self.smoothTargetSpeed
         return
     end
@@ -388,7 +387,8 @@ function VibesEffect:seedSmoothStar(star, randomizeDepth)
     star.y = math.sin(angle) * radius
     star.z = randomizeDepth and (0.2 + (math.random() * 0.98)) or 1.18
     star.depthSpeed = 0.65 + (math.random() * 0.85)
-    star.size = math.random() < 0.82 and 1 or 2
+    star.baseSize = math.random() < 0.82 and 1 or 2
+    star.size = star.baseSize
     star.prevScreenX = self.width * 0.5
     star.prevScreenY = self.height * 0.5
     star.screenX = star.prevScreenX
@@ -693,6 +693,14 @@ function VibesEffect:updateSmoothSailing()
             screenY = centerY + (((star.y or 0) + (self.smoothDriftY or 0)) * perspective * 86)
         end
 
+        local distanceX = screenX - centerX
+        local distanceY = screenY - centerY
+        local distanceSquared = (distanceX * distanceX) + (distanceY * distanceY)
+        local depthSizeBoost = clamp((1.26 - z) / 1.18, 0, 1)
+        local centerSizeBoost = clamp(1 - (distanceSquared / SMOOTH_CENTER_SIZE_RADIUS_SQUARED), 0, 1)
+        local sizeBoost = speed < 0 and centerSizeBoost or math.max(depthSizeBoost, centerSizeBoost * 0.55)
+        star.size = math.max(1, math.floor(((star.baseSize or 1) + (sizeBoost * 4)) + 0.5))
+
         if respawned then
             star.prevScreenX = screenX
             star.prevScreenY = screenY
@@ -756,7 +764,7 @@ function VibesEffect:applyCrank(change, _acceleratedChange)
     end
 
     if self:getEffect().id == "smoothsailing" then
-        self.smoothTargetSpeed = clamp((self.smoothTargetSpeed or 0) + (change * 0.025), SMOOTH_MIN_SPEED, SMOOTH_MAX_SPEED)
+        self.smoothTargetSpeed = (self.smoothTargetSpeed or 0) + (change * 0.025)
         self.speed = self.smoothTargetSpeed
         return
     end
