@@ -29,6 +29,12 @@ local SMOOTH_CENTER_SIZE_RADIUS_SQUARED <const> = 46 * 46
 local BUBBLE_POP_RESPAWN_MIN_FRAMES <const> = 15
 local BUBBLE_POP_RESPAWN_MAX_FRAMES <const> = 150
 local BUBBLE_POP_GROW_FRAMES <const> = 18
+local BUBBLE_POP_ANIMATION_FRAMES <const> = 12
+local BUBBLE_POP_CURSOR_SPEED <const> = 2.6
+local FRACTAL_CRANK_STEP_DEGREES <const> = 45
+local FRACTAL_MIN_ARM_COUNT <const> = 4
+local FRACTAL_START_ARM_COUNT <const> = 12
+local FRACTAL_MAX_ARM_COUNT <const> = 48
 local LINE_AUTO_IDLE_FRAMES <const> = 30 * 5
 local LINE_MODE_SPIN <const> = 1
 local LINE_MODE_ORBIT <const> = 2
@@ -178,6 +184,9 @@ function VibesEffect.new(width, height, options)
     self.barDrift = 0
     self.fractalPhase = 0
     self.fractalPulse = 0
+    self.fractalArmCount = FRACTAL_START_ARM_COUNT
+    self.fractalCrankAccumulator = 0
+    self.fractalSpinVelocity = 0
     self.lineMotionMode = LINE_MODE_SPIN
     self.lineCrankDelta = 0
     self.lineSpinSpeed = 0
@@ -201,6 +210,10 @@ function VibesEffect.new(width, height, options)
     self.microRotateImage = nil
     self.bubbles = {}
     self.pendingBubbles = {}
+    self.bubblePopBursts = {}
+    self.bubbleCursorX = self.width * 0.5
+    self.bubbleCursorY = self.height * 0.5
+    self.playerBubbleActive = false
     self.smoothStars = {}
     self.smoothSpeed = self.preview and 1.2 or 0
     self.smoothTargetSpeed = self.smoothSpeed
@@ -275,6 +288,11 @@ function VibesEffect:handleDirectionalInput(leftPressed, rightPressed, _upHeld, 
         else
             self.smoothDirectionY = (self.smoothDirectionY or 0) * 0.94
         end
+        return
+    end
+
+    if self:getEffect().id == "bubblepop" then
+        self:updateBubblePopCursor(leftPressed, rightPressed, _upHeld, _downHeld)
         return
     end
 
@@ -471,14 +489,14 @@ function VibesEffect:buildMicroRotateImage()
     self.microRotateImage = image
 end
 
-function VibesEffect:createBubble(popMode)
+function VibesEffect:createBubble(popMode, x, y, isPlayer)
     local lifetime = 30 * (1 + math.random(0, 3))
-    local radius = popMode and (5 + math.random() * 13) or (8 + math.random() * 18)
+    local radius = isPlayer and 12 or (popMode and (5 + math.random() * 13) or (8 + math.random() * 18))
     return {
-        x = math.random() * self.width,
-        y = math.random() * self.height,
-        vx = (-0.4 + (math.random() * 0.8)),
-        vy = (-0.55 + (math.random() * 1.1)),
+        x = x or (math.random() * self.width),
+        y = y or (math.random() * self.height),
+        vx = isPlayer and 0 or (-0.4 + (math.random() * 0.8)),
+        vy = isPlayer and 0 or (-0.55 + (math.random() * 1.1)),
         radius = popMode and 1 or radius,
         startRadius = radius,
         targetRadius = 2 + math.random() * 5,
@@ -486,6 +504,7 @@ function VibesEffect:createBubble(popMode)
         age = 0,
         pulseSeed = math.random() * TAU,
         growFrames = popMode and BUBBLE_POP_GROW_FRAMES or 0,
+        isPlayer = isPlayer == true,
         dead = false
     }
 end
@@ -493,6 +512,8 @@ end
 function VibesEffect:seedBubbleMode(popMode)
     self.bubbles = {}
     self.pendingBubbles = {}
+    self.bubblePopBursts = {}
+    self.playerBubbleActive = false
     for index = 1, BUBBLE_MAX_COUNT do
         self.bubbles[index] = self:createBubble(popMode)
         if popMode then
@@ -506,6 +527,69 @@ function VibesEffect:queueBubblePopRespawn()
     self.pendingBubbles[#self.pendingBubbles + 1] = {
         frames = math.random(BUBBLE_POP_RESPAWN_MIN_FRAMES, BUBBLE_POP_RESPAWN_MAX_FRAMES)
     }
+end
+
+function VibesEffect:addBubblePopBurst(x, y, radius)
+    self.bubblePopBursts[#self.bubblePopBursts + 1] = {
+        x = x,
+        y = y,
+        radius = math.max(4, radius or 8),
+        age = 0,
+        lifetime = BUBBLE_POP_ANIMATION_FRAMES,
+        spokes = 8
+    }
+end
+
+function VibesEffect:updateBubblePopBursts()
+    for index = #self.bubblePopBursts, 1, -1 do
+        local burst = self.bubblePopBursts[index]
+        burst.age = burst.age + 1
+        if burst.age >= burst.lifetime then
+            table.remove(self.bubblePopBursts, index)
+        end
+    end
+end
+
+function VibesEffect:spawnPlayerBubble()
+    if self.playerBubbleActive then
+        return
+    end
+    self.bubbles[#self.bubbles + 1] = self:createBubble(true, self.bubbleCursorX, self.bubbleCursorY, true)
+    self.playerBubbleActive = true
+end
+
+function VibesEffect:updateBubblePopCursor(leftHeld, rightHeld, upHeld, downHeld)
+    local dx = 0
+    local dy = 0
+    if leftHeld then
+        dx = dx - BUBBLE_POP_CURSOR_SPEED
+    end
+    if rightHeld then
+        dx = dx + BUBBLE_POP_CURSOR_SPEED
+    end
+    if upHeld then
+        dy = dy - BUBBLE_POP_CURSOR_SPEED
+    end
+    if downHeld then
+        dy = dy + BUBBLE_POP_CURSOR_SPEED
+    end
+    if dx == 0 and dy == 0 then
+        return
+    end
+
+    self.bubbleCursorX = clamp((self.bubbleCursorX or (self.width * 0.5)) + dx, 8, self.width - 8)
+    self.bubbleCursorY = clamp((self.bubbleCursorY or (self.height * 0.5)) + dy, 8, self.height - 8)
+    self:spawnPlayerBubble()
+
+    for _, bubble in ipairs(self.bubbles) do
+        if bubble.isPlayer then
+            bubble.x = self.bubbleCursorX
+            bubble.y = self.bubbleCursorY
+            bubble.vx = 0
+            bubble.vy = 0
+            break
+        end
+    end
 end
 
 function VibesEffect:updateSpiral()
@@ -522,9 +606,11 @@ function VibesEffect:updateTunnelBars()
 end
 
 function VibesEffect:updateFractal()
-    local phaseDelta = speedToPhaseDelta(self.speed)
+    local armBoost = math.max(0, (self.fractalArmCount or FRACTAL_START_ARM_COUNT) - FRACTAL_START_ARM_COUNT) * 0.0015
+    local phaseDelta = speedToPhaseDelta(self.speed) + (self.fractalSpinVelocity or 0) + armBoost
     self.fractalPhase = wrapPhase(self.fractalPhase + (phaseDelta * 0.85))
     self.fractalPulse = wrapPhase(self.fractalPulse + 0.024 + (math.abs(phaseDelta) * 0.18))
+    self.fractalSpinVelocity = (self.fractalSpinVelocity or 0) * 0.992
 end
 
 function VibesEffect:updateLines()
@@ -601,11 +687,17 @@ end
 
 function VibesEffect:updateBubbles(popMode)
     local speedScale = 0.2 + math.min(4.5, math.abs(speedToTravelDelta(self.speed)) * 0.05)
+    self:updateBubblePopBursts()
     for index = #self.bubbles, 1, -1 do
         local bubble = self.bubbles[index]
         bubble.age = bubble.age + 1
-        bubble.x = wrapAxis(bubble.x + (bubble.vx * speedScale), self.width)
-        bubble.y = wrapAxis(bubble.y + (bubble.vy * speedScale), self.height)
+        if bubble.isPlayer then
+            bubble.x = self.bubbleCursorX
+            bubble.y = self.bubbleCursorY
+        else
+            bubble.x = wrapAxis(bubble.x + (bubble.vx * speedScale), self.width)
+            bubble.y = wrapAxis(bubble.y + (bubble.vy * speedScale), self.height)
+        end
 
         if popMode then
             if (bubble.growFrames or 0) > 0 then
@@ -652,9 +744,15 @@ function VibesEffect:updateBubbles(popMode)
 
     if popMode then
         for index = #self.bubbles, 1, -1 do
-            if self.bubbles[index].dead then
+            local bubble = self.bubbles[index]
+            if bubble.dead then
+                self:addBubblePopBurst(bubble.x, bubble.y, bubble.radius)
                 table.remove(self.bubbles, index)
-                self:queueBubblePopRespawn()
+                if bubble.isPlayer then
+                    self.playerBubbleActive = false
+                else
+                    self:queueBubblePopRespawn()
+                end
             end
         end
 
@@ -765,11 +863,12 @@ end
 
 function VibesEffect:usesDirectCrank()
     local effectId = self:getEffect().id
-    return effectId == "lines" or effectId == "smoothsailing"
+    return effectId == "lines" or effectId == "smoothsailing" or effectId == "fractal"
 end
 
 function VibesEffect:usesHeldDirectionalInput()
-    return self:getEffect().id == "smoothsailing"
+    local effectId = self:getEffect().id
+    return effectId == "smoothsailing" or effectId == "bubblepop"
 end
 
 function VibesEffect:applyCrank(change, _acceleratedChange)
@@ -780,6 +879,19 @@ function VibesEffect:applyCrank(change, _acceleratedChange)
     if self:getEffect().id == "smoothsailing" then
         self.smoothTargetSpeed = (self.smoothTargetSpeed or 0) + (change * 0.025)
         self.speed = self.smoothTargetSpeed
+        return
+    elseif self:getEffect().id == "fractal" then
+        self.fractalSpinVelocity = clamp((self.fractalSpinVelocity or 0) + (change * 0.0008), -0.18, 0.18)
+        self.speed = clamp((self.speed or 0) + (change * 0.01), -40, 40)
+        self.fractalCrankAccumulator = (self.fractalCrankAccumulator or 0) + change
+        while self.fractalCrankAccumulator >= FRACTAL_CRANK_STEP_DEGREES do
+            self.fractalArmCount = math.min(FRACTAL_MAX_ARM_COUNT, (self.fractalArmCount or FRACTAL_START_ARM_COUNT) + 1)
+            self.fractalCrankAccumulator = self.fractalCrankAccumulator - FRACTAL_CRANK_STEP_DEGREES
+        end
+        while self.fractalCrankAccumulator <= -FRACTAL_CRANK_STEP_DEGREES do
+            self.fractalArmCount = math.max(FRACTAL_MIN_ARM_COUNT, (self.fractalArmCount or FRACTAL_START_ARM_COUNT) - 1)
+            self.fractalCrankAccumulator = self.fractalCrankAccumulator + FRACTAL_CRANK_STEP_DEGREES
+        end
         return
     end
 
@@ -811,6 +923,28 @@ function VibesEffect:drawBubbleSet(fillMode)
         else
             gfx.drawCircleAtPoint(roundToInt(bubble.x), roundToInt(bubble.y), radius)
         end
+    end
+    for _, burst in ipairs(self.bubblePopBursts) do
+        local progress = burst.age / math.max(1, burst.lifetime)
+        local radius = burst.radius + (progress * 12)
+        gfx.drawCircleAtPoint(roundToInt(burst.x), roundToInt(burst.y), roundToInt(radius))
+        for spoke = 1, burst.spokes do
+            local angle = ((spoke - 1) / burst.spokes) * TAU
+            local inner = radius * 0.45
+            local outer = radius * (0.85 + (progress * 0.35))
+            gfx.drawLine(
+                roundToInt(burst.x + (math.cos(angle) * inner)),
+                roundToInt(burst.y + (math.sin(angle) * inner)),
+                roundToInt(burst.x + (math.cos(angle) * outer)),
+                roundToInt(burst.y + (math.sin(angle) * outer))
+            )
+        end
+    end
+    if not fillMode then
+        local cursorX = roundToInt(self.bubbleCursorX or (self.width * 0.5))
+        local cursorY = roundToInt(self.bubbleCursorY or (self.height * 0.5))
+        gfx.drawLine(cursorX - 5, cursorY, cursorX + 5, cursorY)
+        gfx.drawLine(cursorX, cursorY - 5, cursorX, cursorY + 5)
     end
 end
 
@@ -849,15 +983,7 @@ function VibesEffect:drawTunnelBars()
 end
 
 function VibesEffect:getFractalArmCount()
-    local magnitude = math.abs(self.speed or 0)
-    if magnitude < 1 then
-        return 12
-    elseif magnitude < 3 then
-        return 18
-    elseif magnitude < 10 then
-        return 24
-    end
-    return 30
+    return self.fractalArmCount or FRACTAL_START_ARM_COUNT
 end
 
 function VibesEffect:drawFractal()

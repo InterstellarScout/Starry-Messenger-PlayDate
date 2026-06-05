@@ -104,6 +104,8 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Crank: change signed playback speed with a near-stop center and unlimited fast forward or reverse.",
             "Left/Right: also cycle effects.",
             "Current prototypes include CRT TV, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
+            "In Fractal Spiral, every 45 degrees of crank adds one arm; crank the opposite direction to remove one.",
+            "In Bubble Pop, D-pad moves a center-start cursor and creates a player bubble that respawns on the next D-pad move after it pops.",
             "Loop Fall is the clean-loop Star Fall prototype built from preserved random starting positions.",
             "B: return to title."
         })

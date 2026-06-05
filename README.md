@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.1.87`
-- Build number: `87`
+- Version: `0.1.88`
+- Build number: `88`
 
 ## Install
 
@@ -76,14 +76,14 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Smooth Sailing | Vibe | The original Playdate-optimized black-background star tunnel inspired by Warp Speed, with unlimited crank speed, doubled star density, deliberate high-speed streaks, and center/depth-scaled star sizes. | Crank changes speed. Hold D-pad to steer the tunnel. `B` returns to the Vibes folder. |
 | Spiral | Vibe | A large crank-driven geometric spiral. | Crank controls signed playback speed with reverse, near-stop, and fast-forward behavior. `B` returns to the Vibes folder. |
 | Tunnel Bars | Vibe | A tunnel-like field of moving bars. | Crank controls signed playback speed. Use the Home menu `View Stats` toggle to show or hide Vibes stats. |
-| Fractal Spiral | Vibe | A denser spiral pattern built for visual texture. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Fractal Spiral | Vibe | A denser spiral pattern built for visual texture, with fractal arms added or removed one at a time by crank distance. | Every 45 degrees of crank adds one arm; cranking the opposite direction removes one. More arms continue to accelerate the spin. `B` returns to the Vibes folder. |
 | Line Bloom | Vibe | A line-field effect with randomized 5-40 pixel line lengths and size-weighted spin where shorter lines rotate faster. | Crank sets and turns the line spin. `A` toggles automatic spin; idle crank input resumes auto-spin after five seconds. `B` returns to the Vibes folder. |
 | Shape Pile-Up | Vibe | A code-drawn shape accumulation and motion effect. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Loop Fall | Vibe | A black-background clean-loop Star Fall variant that preserves each star's starting position. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Polygon Storm | Vibe | A procedural polygon field with speed-driven motion. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Micro Rotate | Vibe | A full-screen micro-rotation pattern. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Cloud Bubbles | Vibe | A soft procedural bubble-cloud effect. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
-| Bubble Pop | Vibe | A bubble popping visual toy with delayed replacement bubbles that grow in from tiny starts. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
+| Bubble Pop | Vibe | A bubble popping visual toy with delayed replacement bubbles, grow-in spawns, a D-pad player bubble, and pop burst animations. | Crank controls signed playback speed. D-pad moves the cursor and spawns the player bubble; after it pops, use D-pad again to create a new one. `B` returns to the Vibes folder. |
 
 ## Home Menu
 

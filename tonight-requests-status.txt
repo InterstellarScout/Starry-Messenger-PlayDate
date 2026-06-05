@@ -14,6 +14,8 @@
 | Make Smooth Sailing draw deliberate bounded streaks at high positive and negative speeds instead of collapsing into edge dots, and bump the game version to 0.1.85. | Done |
 | Add Line Bloom variable line lengths and auto-spin, add Snake and Smoke Bloom views, move Smooth Sailing out of Vibes into Warp experimental toggles, update title spinner star behavior, and bump the game version to 0.1.86. | Done |
 | Restore the original Smooth Sailing Vibe to the Vibes screen while keeping the Warp experimental options and bump the game version to 0.1.87. | Done |
+| Add a D-pad player bubble and pop burst animation to Bubble Pop, and bump the game version to 0.1.88. | Done |
+| Change Fractal Spiral so crank distance adds or removes one arm per 45 degrees instead of jumping arm counts at speed thresholds. | Done |
 
 ##### In Warp Speed
 | Request | Status |
