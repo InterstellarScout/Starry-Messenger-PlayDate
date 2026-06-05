@@ -25,8 +25,8 @@ local TITLE_FREE_SPIN_IMMEDIATE_CHANGE <const> = TITLE_CONFIG.freeSpinImmediateC
 local TITLE_FREE_SPIN_ACCELERATION_SCALE <const> = TITLE_CONFIG.freeSpinAccelerationScale or 0.0042
 local TITLE_FREE_SPIN_DECAY <const> = TITLE_CONFIG.freeSpinDecay or 0.94
 local TITLE_FREE_SPIN_STOP_VELOCITY <const> = TITLE_CONFIG.freeSpinStopVelocity or 0.018
-local TITLE_FREE_SPIN_STAR_FADE_STEP <const> = TITLE_CONFIG.freeSpinStarFadeStep or 0.12
-local TITLE_FREE_SPIN_STAR_COUNT <const> = TITLE_CONFIG.freeSpinStarCount or 140
+local TITLE_FREE_SPIN_STAR_FADE_STEP <const> = TITLE_CONFIG.freeSpinStarFadeStep or (1 / 15)
+local TITLE_FREE_SPIN_STAR_COUNT <const> = TITLE_CONFIG.freeSpinStarCount or 50
 local TITLE_FREE_SPIN_STAR_SPEED_SCALE <const> = TITLE_CONFIG.freeSpinStarSpeedScale or 48
 local TITLE_FREE_SPIN_STAR_MIN_SPEED <const> = TITLE_CONFIG.freeSpinStarMinSpeed or 1.2
 local TITLE_FIDGET_WARP_THRESHOLD <const> = TITLE_CONFIG.fidgetWarpThreshold or 600
@@ -151,6 +151,7 @@ function TitleScene.new(config)
     self.freeSpinStarPreview = nil
     self.freeSpinStarFade = 0
     self.freeSpinStarFadeDirection = 0
+    self.freeSpinStarsPrimed = false
     self.freeSpinSpeedOverlayEnabled = false
     self.freeSpinSpeedOverlayLocked = false
     self.freeSpinLockedOverlayLabel = nil
@@ -226,6 +227,13 @@ function TitleScene:createFreeSpinStarPreview()
     preview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED
     preview.directionAngle = -90
     return preview
+end
+
+function TitleScene:ensureFreeSpinStarPreview()
+    if self.freeSpinStarPreview == nil then
+        self.freeSpinStarPreview = self:createFreeSpinStarPreview()
+        self.freeSpinStarsPrimed = true
+    end
 end
 
 function TitleScene:getFreeSpinWarpStarSizePercent(warpMetric)
@@ -313,6 +321,7 @@ function TitleScene:shutdownFreeSpinStarPreview()
     self.freeSpinStarPreview = nil
     self.freeSpinStarFade = 0
     self.freeSpinStarFadeDirection = 0
+    self.freeSpinStarsPrimed = false
     self.freeSpinSpeedOverlayEnabled = false
     self.freeSpinSpeedOverlayLocked = false
     self.freeSpinLockedOverlayLabel = nil
@@ -370,7 +379,14 @@ function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
             self.freeSpinStarFadeDirection = 0
         elseif self.freeSpinStarFade <= 0 and self.freeSpinStarFadeDirection < 0 then
             self.freeSpinStarFadeDirection = 0
-            self:shutdownFreeSpinStarPreview()
+            self.freeSpinStarFade = 0
+            self.freeSpinSpeedOverlayEnabled = false
+            self.freeSpinSpeedOverlayLocked = false
+            self.freeSpinLockedOverlayLabel = nil
+            self.freeSpinLockedOverlayValue = nil
+            self.freeSpinEffectMode = "fidget"
+            self.freeSpinWarpMetric = nil
+            self.freeSpinStarsPrimed = true
             if self.freeSpinSettling then
                 self.freeSpinSettling = false
                 self:setPreview()
@@ -379,17 +395,21 @@ function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
     end
 end
 
-function TitleScene:drawFreeSpinStarPreview()
-    if self.freeSpinStarPreview == nil or self.freeSpinStarFade <= 0 then
+function TitleScene:drawFreeSpinStarPreview(overlayOnly)
+    if self.freeSpinStarPreview == nil then
         return
     end
 
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.fillRect(0, 0, 400, 240)
+    if not overlayOnly and self.freeSpinStarFade > 0 then
+        gfx.setColor(gfx.kColorBlack)
+        gfx.fillRect(0, 0, 400, 240)
+    elseif not overlayOnly and self.freeSpinStarFade <= 0 then
+        return
+    end
     self.freeSpinStarPreview:draw()
-    if self.freeSpinStarFade < 1 then
+    if not overlayOnly and self.freeSpinStarFade < 1 then
         gfx.setColor(gfx.kColorBlack)
         gfx.setDitherPattern(1 - self.freeSpinStarFade, gfx.image.kDitherTypeBayer8x8)
         gfx.fillRect(0, 0, 400, 240)
@@ -959,7 +979,7 @@ function TitleScene:activateFreeSpin(acceleratedChange)
     self.freeSpinVelocity = self.freeSpinVelocity + ((acceleratedChange or 0) * TITLE_FREE_SPIN_ACCELERATION_SCALE)
     self.freeSpinEffectMode = "fidget"
     self.freeSpinWarpMetric = nil
-    self:switchFreeSpinEffect("fidget")
+    self:ensureFreeSpinStarPreview()
     self.freeSpinStarFade = 0
     self.freeSpinStarFadeDirection = 1
     self.freeSpinSpeedOverlayEnabled = false
@@ -1263,12 +1283,32 @@ function TitleScene:update()
 
     if pd.buttonJustPressed(pd.kButtonUp) then
         self:updateSelection(-1)
+        if self.freeSpinStarsPrimed then
+            self:ensureFreeSpinStarPreview()
+            self.freeSpinStarPreview.directionAngle = 90
+            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
+        end
     elseif pd.buttonJustPressed(pd.kButtonDown) then
         self:updateSelection(1)
+        if self.freeSpinStarsPrimed then
+            self:ensureFreeSpinStarPreview()
+            self.freeSpinStarPreview.directionAngle = -90
+            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
+        end
     elseif pd.buttonJustPressed(pd.kButtonLeft) then
         self:changeSelectedMode(-1)
+        if self.freeSpinStarsPrimed then
+            self:ensureFreeSpinStarPreview()
+            self.freeSpinStarPreview.directionAngle = 0
+            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
+        end
     elseif pd.buttonJustPressed(pd.kButtonRight) then
         self:changeSelectedMode(1)
+        if self.freeSpinStarsPrimed then
+            self:ensureFreeSpinStarPreview()
+            self.freeSpinStarPreview.directionAngle = 180
+            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
+        end
     elseif pd.buttonJustPressed(pd.kButtonB) then
         if self.previewLocked then
             if self:getSelectedView() and self:getSelectedView().id == "life" then
@@ -1283,7 +1323,7 @@ function TitleScene:update()
             self.onBack()
         end
     elseif pd.buttonJustPressed(pd.kButtonA) then
-        if self.freeSpinActive or self.freeSpinSettling or self.freeSpinStarPreview ~= nil then
+        if self.freeSpinActive or self.freeSpinSettling then
             self:toggleFreeSpinSpeedOverlay()
             return
         end
@@ -1303,6 +1343,9 @@ function TitleScene:update()
         self:drawTitleFireworks()
     end
     self:drawMenu()
+    if not self.freeSpinActive and not self.freeSpinSettling and self.freeSpinStarsPrimed then
+        self:drawFreeSpinStarPreview(true)
+    end
     self:drawFreeSpinSpeedOverlay()
     if not self.freeSpinActive and not self.freeSpinSettling then
         self:processPendingPreview()

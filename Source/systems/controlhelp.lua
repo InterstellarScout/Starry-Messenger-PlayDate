@@ -100,11 +100,27 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         })
     elseif viewId == "vibes" then
         return buildSpec("Vibes Controls", {
-            "A: cycle through the current Vibes prototypes. In Line Bloom, A cycles its motion modes.",
+            "A: cycle through the current Vibes prototypes. In Line Bloom, A toggles automatic spin.",
             "Crank: change signed playback speed with a near-stop center and unlimited fast forward or reverse.",
             "Left/Right: also cycle effects.",
-            "Current prototypes include CRT TV, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
+            "Current prototypes include CRT TV, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
             "Loop Fall is the clean-loop Star Fall prototype built from preserved random starting positions.",
+            "B: return to title."
+        })
+    elseif viewId == "snake" then
+        return buildSpec("Snake Controls", {
+            "Crank: turn the snake.",
+            "D-pad Up/Down: increase or decrease movement speed.",
+            "A: reset the snake and score.",
+            "The snake wraps around the screen and can safely run over its own tail.",
+            "B: return to title."
+        })
+    elseif viewId == "smokebloom" then
+        return buildSpec("Smoke Bloom Controls", {
+            "D-pad: move the center cursor.",
+            "Crank: adjust the billowing rotation.",
+            "A: restart the expanding line cloud from the cursor.",
+            "The symmetric wisps push against close neighbors as they bloom outward.",
             "B: return to title."
         })
     elseif viewId == "dripdrop" then

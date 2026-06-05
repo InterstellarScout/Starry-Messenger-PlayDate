@@ -99,6 +99,10 @@ function ViewScene.new(config)
         })
     elseif self.viewId == "marblemadness" then
         self.effect = MarbleMadness.new(400, 240)
+    elseif self.viewId == "snake" then
+        self.effect = SnakeGame.new(400, 240)
+    elseif self.viewId == "smokebloom" then
+        self.effect = SmokeBloom.new(400, 240)
     elseif self.viewId == "photoviewer" then
         self.effect = PhotoViewerEffect.new(400, 240)
     elseif self.viewId == "gifplayer" then
@@ -186,9 +190,20 @@ function ViewScene:getWarpMenuItems()
     return {
         {
             id = "spinControl",
-            label = "Persistent Spin",
+            label = "Spin Mode",
             checked = self.crankMode == "spin",
             kind = "toggle"
+        },
+        {
+            id = "persistentSpin",
+            label = "Persistent Spin",
+            checked = (self.rotateVelocity or 0) ~= 0,
+            kind = "toggle"
+        },
+        {
+            id = "stopSpin",
+            label = "Stop Spin",
+            kind = "button"
         },
         {
             id = "playerSpeed",
@@ -218,15 +233,27 @@ function ViewScene:getWarpMenuItems()
             kind = "slider"
         },
         {
-            id = "triangleTaper",
-            label = "Triangle Taper",
-            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("triangleTaper"),
-            kind = "toggle"
-        },
-        {
             id = "starFallStyle",
             label = "Star Fall Style",
             checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("starFallStyle"),
+            kind = "toggle"
+        },
+        {
+            id = "differentSizes",
+            label = "Different Sizes",
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("differentSizes"),
+            kind = "toggle"
+        },
+        {
+            id = "smoothEngine",
+            label = "Smooth Engine",
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("smoothEngine"),
+            kind = "toggle"
+        },
+        {
+            id = "starryTunnel",
+            label = "Starry Tunnel",
+            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("starryTunnel"),
             kind = "toggle"
         }
     }
@@ -265,6 +292,18 @@ function ViewScene:toggleWarpMenuSelection(direction)
         self.crankAccumulator = 0
         self.rotationAccumulator = 0
         StarryLog.info("crank mode changed: %s", self.crankMode)
+        return
+    elseif item.id == "persistentSpin" then
+        if (self.rotateVelocity or 0) == 0 then
+            self.rotateVelocity = 0.35
+        else
+            self.rotateVelocity = 0
+        end
+        StarryLog.info("persistent spin changed: %.2f", self.rotateVelocity)
+        return
+    elseif item.id == "stopSpin" then
+        self.rotateVelocity = 0
+        StarryLog.info("warp spin stopped")
         return
     end
 
@@ -368,6 +407,8 @@ function ViewScene:drawWarpMenu()
 
         if item.kind == "slider" then
             self:drawWarpMenuSlider(item, WARP_MENU_X + 12, rowY + 2, WARP_MENU_WIDTH - 24, index == self.warpMenuIndex)
+        elseif item.kind == "button" then
+            gfx.drawText("> " .. item.label, WARP_MENU_X + 12, rowY + 2)
         else
             local marker = item.checked and "[x]" or "[ ]"
             gfx.drawText(marker .. " " .. item.label, WARP_MENU_X + 12, rowY + 2)
@@ -622,6 +663,10 @@ function ViewScene:update()
         elseif self.viewId == "trailblazer" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "marblemadness" then
+        elseif self.viewId == "snake" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "smokebloom" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "rccar" then
             if self.effect and self.effect.toggleCrankMode then
                 self.effect:toggleCrankMode()
@@ -684,6 +729,12 @@ function ViewScene:update()
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
     elseif self.viewId == "marblemadness" then
+        self.effect:applyCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "snake" then
+        self.effect:applyCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "smokebloom" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
     elseif self.viewId == "photoviewer" then
@@ -808,6 +859,20 @@ function ViewScene:update()
             pd.buttonIsPressed(pd.kButtonDown)
         )
         self.effect:updateActionInput(pd.buttonIsPressed(pd.kButtonA))
+    elseif self.viewId == "snake" then
+        self.effect:handleDirectionalInput(
+            false,
+            false,
+            pd.buttonJustPressed(pd.kButtonUp),
+            pd.buttonJustPressed(pd.kButtonDown)
+        )
+    elseif self.viewId == "smokebloom" then
+        self.effect:handleDirectionalInput(
+            pd.buttonIsPressed(pd.kButtonLeft),
+            pd.buttonIsPressed(pd.kButtonRight),
+            pd.buttonIsPressed(pd.kButtonUp),
+            pd.buttonIsPressed(pd.kButtonDown)
+        )
     elseif self.viewId == "spaceminer" then
         self.effect:updateInput(
             pd.buttonIsPressed(pd.kButtonUp),

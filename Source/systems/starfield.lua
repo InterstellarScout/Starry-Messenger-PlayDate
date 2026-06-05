@@ -255,7 +255,10 @@ local function applyOptions(self, options)
     self.modeId = options and options.modeId or Starfield.MODE_STANDARD
     self.inverse = self.modeId == Starfield.MODE_INVERSE
     self.warpStyleTaper = options and options.warpStyleTaper == true or false
-    self.warpStyleStarFall = options and options.warpStyleStarFall == true or false
+    self.warpStyleStarFall = options and options.warpStyleStarFall ~= false
+    self.warpStyleDifferentSizes = options and options.warpStyleDifferentSizes == true or false
+    self.warpStyleSmoothEngine = options and options.warpStyleSmoothEngine == true or false
+    self.warpStyleStarryTunnel = options and options.warpStyleStarryTunnel == true or false
 end
 
 function Starfield.newStarFall(width, height, count, options)
@@ -355,6 +358,12 @@ function Starfield:isWarpStyleEnabled(optionId)
         return self.warpStyleTaper == true
     elseif optionId == "starFallStyle" then
         return self.warpStyleStarFall == true
+    elseif optionId == "differentSizes" then
+        return self.warpStyleDifferentSizes == true
+    elseif optionId == "smoothEngine" then
+        return self.warpStyleSmoothEngine == true
+    elseif optionId == "starryTunnel" then
+        return self.warpStyleStarryTunnel == true
     end
     return false
 end
@@ -365,6 +374,18 @@ function Starfield:setWarpStyleEnabled(optionId, enabled)
         self.warpStyleTaper = value
     elseif optionId == "starFallStyle" then
         self.warpStyleStarFall = value
+    elseif optionId == "differentSizes" then
+        self.warpStyleDifferentSizes = value
+    elseif optionId == "smoothEngine" then
+        self.warpStyleSmoothEngine = value
+        if value then
+            self.warpStyleStarFall = true
+        end
+    elseif optionId == "starryTunnel" then
+        self.warpStyleStarryTunnel = value
+        if value then
+            self.warpStyleStarFall = true
+        end
     end
 end
 
@@ -864,7 +885,15 @@ function Starfield:drawWarpHead(star)
 end
 
 function Starfield:drawWarpHeadScaled(star, scale)
-    local visibleSize = math.max(1, math.floor((star.size * scale) + 0.5))
+    local sizeBoost = 1
+    if self.warpStyleDifferentSizes then
+        local dx = (self.playerCenterX + star.x) - self.centerX
+        local dy = (self.playerCenterY + star.y) - self.centerY
+        local distance = math.sqrt((dx * dx) + (dy * dy))
+        local centerRatio = clamp(1 - (distance / WARP_VISIBLE_RADIUS), 0, 1)
+        sizeBoost = 1 + (centerRatio * 9)
+    end
+    local visibleSize = math.max(1, math.floor((star.size * scale * sizeBoost) + 0.5))
     local offset = math.floor(visibleSize * 0.5)
 
     if self.warpStyleStarFall then
@@ -1013,7 +1042,12 @@ function Starfield:updateWarpSpeed()
         star.py = star.y
 
         if signedSpeed ~= 0 then
-            local scaleFactor = clamp(1 + (signedSpeed * 0.03 * star.speed), 0.05, 8)
+            local speedScale = signedSpeed
+            if self.warpStyleSmoothEngine or self.warpStyleStarryTunnel then
+                local magnitude = math.abs(signedSpeed)
+                speedScale = (signedSpeed < 0 and -1 or 1) * (0.5 + (math.log(magnitude + 1) * 1.55))
+            end
+            local scaleFactor = clamp(1 + (speedScale * 0.03 * star.speed), 0.05, 8)
             star.x = (star.x * scaleFactor) + biasX
             star.y = (star.y * scaleFactor) + biasY
 

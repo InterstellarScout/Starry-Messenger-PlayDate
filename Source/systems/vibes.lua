@@ -29,12 +29,12 @@ local SMOOTH_CENTER_SIZE_RADIUS_SQUARED <const> = 46 * 46
 local BUBBLE_POP_RESPAWN_MIN_FRAMES <const> = 15
 local BUBBLE_POP_RESPAWN_MAX_FRAMES <const> = 150
 local BUBBLE_POP_GROW_FRAMES <const> = 18
+local LINE_AUTO_IDLE_FRAMES <const> = 30 * 5
 local LINE_MODE_SPIN <const> = 1
 local LINE_MODE_ORBIT <const> = 2
 local LINE_MODE_DRIFT <const> = 3
 
 local EFFECTS <const> = {
-    { id = "smoothsailing", label = "Smooth Sailing" },
     { id = "spiral", label = "Spiral" },
     { id = "tunnelbars", label = "Tunnel Bars" },
     { id = "fractal", label = "Fractal Spiral" },
@@ -179,6 +179,9 @@ function VibesEffect.new(width, height, options)
     self.fractalPulse = 0
     self.lineMotionMode = LINE_MODE_SPIN
     self.lineCrankDelta = 0
+    self.lineSpinSpeed = 0
+    self.lineAutoSpinEnabled = false
+    self.lineCrankIdleFrames = LINE_AUTO_IDLE_FRAMES
     self.lineSpinRotation = 0
     self.lineOrbitAngle = 0
     self.lineOrbitDirection = chooseRandomDirectionSign()
@@ -244,13 +247,8 @@ end
 function VibesEffect:handlePrimaryAction()
     if self.selectionLocked then
         if self:getEffect().id == "lines" then
-            self.lineMotionMode = self.lineMotionMode + 1
-            if self.lineMotionMode > LINE_MODE_DRIFT then
-                self.lineMotionMode = LINE_MODE_SPIN
-            end
-            if self.lineMotionMode == LINE_MODE_ORBIT then
-                self.lineOrbitDirection = chooseRandomDirectionSign()
-            end
+            self.lineAutoSpinEnabled = not self.lineAutoSpinEnabled
+            self.lineCrankIdleFrames = LINE_AUTO_IDLE_FRAMES
         end
         return
     end
@@ -338,6 +336,7 @@ function VibesEffect:buildLineEntries()
             local moveAngle = math.random() * TAU
             local dx = x - centerX
             local dy = y - centerY
+            local length = 5 + (math.random() * 35)
             self.lineEntries[sequence] = {
                 x = x,
                 y = y,
@@ -351,7 +350,8 @@ function VibesEffect:buildLineEntries()
                 moveSpeed = 0.65 + (math.random() * 1.45),
                 spinDirection = chooseRandomDirectionSign(),
                 sizeBase = baseSize,
-                length = 8 + (baseSize * 11)
+                length = length,
+                lengthRatio = clamp((length - 5) / 35, 0, 1)
             }
         end
     end
@@ -527,21 +527,34 @@ function VibesEffect:updateFractal()
 end
 
 function VibesEffect:updateLines()
-    if self.lineMotionMode ~= LINE_MODE_DRIFT then
+    local spinDelta = self.lineCrankDelta or 0
+    if math.abs(spinDelta) > 0.0001 then
+        self.lineCrankIdleFrames = 0
+        self.lineSpinSpeed = (self.lineSpinSpeed or 0) + (spinDelta * 0.16)
+    else
+        self.lineCrankIdleFrames = math.min(LINE_AUTO_IDLE_FRAMES, (self.lineCrankIdleFrames or 0) + 1)
+        if self.lineAutoSpinEnabled or self.lineCrankIdleFrames >= LINE_AUTO_IDLE_FRAMES then
+            spinDelta = self.lineSpinSpeed or 0
+        end
+    end
+
+    self.lineCrankDelta = 0
+    if math.abs(spinDelta) <= 0.0001 then
         return
     end
 
-    local movementScale = self.lineCrankDelta * 22
-    if math.abs(movementScale) <= 0.0001 then
-        return
-    end
-
+    self.lineSpinSpeed = clamp((self.lineSpinSpeed or 0) * 0.992, -0.22, 0.22)
     for _, entry in ipairs(self.lineEntries) do
-        entry.x = entry.x + (entry.moveX * entry.moveSpeed * movementScale)
-        entry.y = entry.y + (entry.moveY * entry.moveSpeed * movementScale)
-        local margin = math.max(12, (entry.length or 16) * 0.65)
-        if entry.x < -margin or entry.x > self.width + margin or entry.y < -margin or entry.y > self.height + margin then
-            self:respawnLineEntry(entry)
+        local sizeSpeed = 1.75 - (entry.lengthRatio or 0.5)
+        entry.angle = wrapPhase(entry.angle + (spinDelta * sizeSpeed * entry.spinDirection))
+        if self.lineAutoSpinEnabled or self.lineCrankIdleFrames >= LINE_AUTO_IDLE_FRAMES then
+            local driftScale = math.abs(spinDelta) * 9
+            entry.x = entry.x + (entry.moveX * entry.moveSpeed * driftScale)
+            entry.y = entry.y + (entry.moveY * entry.moveSpeed * driftScale)
+            local margin = math.max(12, (entry.length or 16) * 0.65)
+            if entry.x < -margin or entry.x > self.width + margin or entry.y < -margin or entry.y > self.height + margin then
+                self:respawnLineEntry(entry)
+            end
         end
     end
 end
@@ -771,21 +784,16 @@ function VibesEffect:applyCrank(change, _acceleratedChange)
 
     local normalizedChange = math.rad(change)
     self.lineCrankDelta = normalizedChange
-    self.lineSpinRotation = self.lineSpinRotation + normalizedChange
-    if self.lineMotionMode == LINE_MODE_SPIN then
-        return
-    elseif self.lineMotionMode == LINE_MODE_ORBIT then
-        self.lineOrbitAngle = self.lineOrbitAngle + (normalizedChange * self.lineOrbitDirection)
-    end
+    self.lineCrankIdleFrames = 0
 end
 
 function VibesEffect:getLineModeLabel()
-    if self.lineMotionMode == LINE_MODE_ORBIT then
-        return "Orbit"
-    elseif self.lineMotionMode == LINE_MODE_DRIFT then
-        return "Drift"
+    if self.lineAutoSpinEnabled then
+        return "Auto"
+    elseif (self.lineCrankIdleFrames or 0) >= LINE_AUTO_IDLE_FRAMES then
+        return "Idle Auto"
     end
-    return "Spin"
+    return "Crank"
 end
 
 function VibesEffect:drawBubbleSet(fillMode)
@@ -888,19 +896,9 @@ function VibesEffect:drawLines()
     local centerX = self.width * 0.5
     local centerY = self.height * 0.5
     for _, entry in ipairs(self.lineEntries) do
-        local lineCenterX = entry.baseX
-        local lineCenterY = entry.baseY
+        local lineCenterX = entry.x
+        local lineCenterY = entry.y
         local lineAngle = entry.angle
-
-        if self.lineMotionMode == LINE_MODE_SPIN then
-            lineAngle = entry.angle + self.lineSpinRotation
-        elseif self.lineMotionMode == LINE_MODE_ORBIT then
-            lineCenterX, lineCenterY = rotateAroundCenter(entry.baseX, entry.baseY, centerX, centerY, self.lineOrbitAngle)
-            lineAngle = entry.angle + self.lineOrbitAngle
-        else
-            lineCenterX = entry.x
-            lineCenterY = entry.y
-        end
 
         local halfLengthX = math.cos(lineAngle) * entry.length * 0.5
         local halfLengthY = math.sin(lineAngle) * entry.length * 0.5
@@ -1037,7 +1035,7 @@ function VibesEffect:drawHud()
     gfx.drawText(self:getEffectLabel(), 14, 12)
     local status = string.format("Speed %.1f  %d/%d", self.speed or 0, self.effectIndex, #EFFECTS)
     if self:getEffect().id == "lines" then
-        status = string.format("Mode %s  %d/%d", self:getLineModeLabel(), self.effectIndex, #EFFECTS)
+        status = string.format("%s  %.2f", self:getLineModeLabel(), self.lineSpinSpeed or 0)
     elseif self:getEffect().id == "smoothsailing" then
         status = string.format("Speed %.1f  %d/%d", self.smoothSpeed or 0, self.effectIndex, #EFFECTS)
     end

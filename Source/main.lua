@@ -25,6 +25,8 @@ import "systems/tiltballs"
 import "systems/photoviewer"
 import "systems/trailblazer"
 import "systems/marblemadness"
+import "systems/snakegame"
+import "systems/smokebloom"
 import "systems/vibes"
 import "systems/puddledrops"
 import "systems/dropper"
@@ -45,7 +47,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.1.85"
+local APP_VERSION <const> = "0.1.86"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -160,6 +162,8 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = TrailBlazer.getModeLabel
     },
     { id = "marblemadness", label = "Marble Madness" },
+    { id = "snake", label = "Snake" },
+    { id = "smokebloom", label = "Smoke Bloom" },
     { id = "photoviewer", label = "Photo Viewer" },
     { id = "gifplayer", label = "Gif Player" },
     {
