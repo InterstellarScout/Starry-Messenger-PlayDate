@@ -152,6 +152,7 @@ function TitleScene.new(config)
     self.freeSpinStarFade = 0
     self.freeSpinStarFadeDirection = 0
     self.freeSpinStarsPrimed = false
+    self.freeSpinStarImpulseFrames = 0
     self.freeSpinSpeedOverlayEnabled = false
     self.freeSpinSpeedOverlayLocked = false
     self.freeSpinLockedOverlayLabel = nil
@@ -234,6 +235,17 @@ function TitleScene:ensureFreeSpinStarPreview()
         self.freeSpinStarPreview = self:createFreeSpinStarPreview()
         self.freeSpinStarsPrimed = true
     end
+end
+
+function TitleScene:pulseFreeSpinStars(directionAngle)
+    if not self.freeSpinStarsPrimed then
+        return
+    end
+
+    self:ensureFreeSpinStarPreview()
+    self.freeSpinStarPreview.directionAngle = directionAngle
+    self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
+    self.freeSpinStarImpulseFrames = 10
 end
 
 function TitleScene:getFreeSpinWarpStarSizePercent(warpMetric)
@@ -322,6 +334,7 @@ function TitleScene:shutdownFreeSpinStarPreview()
     self.freeSpinStarFade = 0
     self.freeSpinStarFadeDirection = 0
     self.freeSpinStarsPrimed = false
+    self.freeSpinStarImpulseFrames = 0
     self.freeSpinSpeedOverlayEnabled = false
     self.freeSpinSpeedOverlayLocked = false
     self.freeSpinLockedOverlayLabel = nil
@@ -332,6 +345,16 @@ end
 
 function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
     if self.freeSpinStarPreview == nil then
+        return
+    end
+
+    if not self.freeSpinActive and self.freeSpinStarsPrimed and not self.freeSpinSettling and self.freeSpinStarFadeDirection == 0 then
+        if (self.freeSpinStarImpulseFrames or 0) > 0 then
+            self.freeSpinStarImpulseFrames = self.freeSpinStarImpulseFrames - 1
+        else
+            self.freeSpinStarPreview.speed = 0
+        end
+        self.freeSpinStarPreview:update()
         return
     end
 
@@ -387,6 +410,10 @@ function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
             self.freeSpinEffectMode = "fidget"
             self.freeSpinWarpMetric = nil
             self.freeSpinStarsPrimed = true
+            self.freeSpinStarImpulseFrames = 0
+            if self.freeSpinStarPreview ~= nil then
+                self.freeSpinStarPreview.speed = 0
+            end
             if self.freeSpinSettling then
                 self.freeSpinSettling = false
                 self:setPreview()
@@ -1074,11 +1101,13 @@ function TitleScene:updateCrank(change, acceleratedChange)
     while self.crankAccumulator >= TITLE_CRANK_BUMP_THRESHOLD do
         self:updateSelection(1)
         self.crankAccumulator = self.crankAccumulator - TITLE_CRANK_BUMP_THRESHOLD
+        self:pulseFreeSpinStars(-90)
     end
 
     while self.crankAccumulator <= -TITLE_CRANK_BUMP_THRESHOLD do
         self:updateSelection(-1)
         self.crankAccumulator = self.crankAccumulator + TITLE_CRANK_BUMP_THRESHOLD
+        self:pulseFreeSpinStars(90)
     end
 end
 
@@ -1200,7 +1229,7 @@ end
 
 function TitleScene:drawMenu()
     gfx.setFont(self.smallFont)
-    if not self.freeSpinActive and self.freeSpinStarPreview == nil then
+    if not self.freeSpinActive then
         drawMutedTitleOverlay(TITLE_CONFIG.overlayDither or 0.5)
     end
     local selectedView = self:getSelectedView()
@@ -1283,32 +1312,16 @@ function TitleScene:update()
 
     if pd.buttonJustPressed(pd.kButtonUp) then
         self:updateSelection(-1)
-        if self.freeSpinStarsPrimed then
-            self:ensureFreeSpinStarPreview()
-            self.freeSpinStarPreview.directionAngle = 90
-            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
-        end
+        self:pulseFreeSpinStars(90)
     elseif pd.buttonJustPressed(pd.kButtonDown) then
         self:updateSelection(1)
-        if self.freeSpinStarsPrimed then
-            self:ensureFreeSpinStarPreview()
-            self.freeSpinStarPreview.directionAngle = -90
-            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
-        end
+        self:pulseFreeSpinStars(-90)
     elseif pd.buttonJustPressed(pd.kButtonLeft) then
         self:changeSelectedMode(-1)
-        if self.freeSpinStarsPrimed then
-            self:ensureFreeSpinStarPreview()
-            self.freeSpinStarPreview.directionAngle = 0
-            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
-        end
+        self:pulseFreeSpinStars(0)
     elseif pd.buttonJustPressed(pd.kButtonRight) then
         self:changeSelectedMode(1)
-        if self.freeSpinStarsPrimed then
-            self:ensureFreeSpinStarPreview()
-            self.freeSpinStarPreview.directionAngle = 180
-            self.freeSpinStarPreview.speed = TITLE_FREE_SPIN_STAR_MIN_SPEED * 2.4
-        end
+        self:pulseFreeSpinStars(180)
     elseif pd.buttonJustPressed(pd.kButtonB) then
         if self.previewLocked then
             if self:getSelectedView() and self:getSelectedView().id == "life" then
@@ -1342,10 +1355,10 @@ function TitleScene:update()
     if not self.freeSpinActive and self:shouldShowTitleFireworks() then
         self:drawTitleFireworks()
     end
-    self:drawMenu()
     if not self.freeSpinActive and not self.freeSpinSettling and self.freeSpinStarsPrimed then
         self:drawFreeSpinStarPreview(true)
     end
+    self:drawMenu()
     self:drawFreeSpinSpeedOverlay()
     if not self.freeSpinActive and not self.freeSpinSettling then
         self:processPendingPreview()
