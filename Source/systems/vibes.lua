@@ -19,6 +19,10 @@ local SPIRAL_TURN_COUNT <const> = 5.4
 local LOOP_STAR_COUNT <const> = 180
 local LINE_GROUP_COUNT <const> = 10
 local LINES_PER_GROUP <const> = 50
+local LINE_LENGTH_MIN <const> = 10
+local LINE_LENGTH_MAX <const> = 50
+local LINE_LENGTH_RANGE <const> = LINE_LENGTH_MAX - LINE_LENGTH_MIN
+local LINE_ANGLE_BUCKET_COUNT <const> = 160
 local PILEUP_MAX_SHAPES <const> = 180
 local POLYGON_COUNT <const> = 72
 local TUNNEL_BAR_COUNT <const> = 18
@@ -114,6 +118,19 @@ end
 
 local function chooseRandomDirectionSign()
     return math.random() > 0.5 and 1 or -1
+end
+
+local LINE_ANGLE_LOOKUP <const> = {}
+for index = 1, LINE_ANGLE_BUCKET_COUNT do
+    local angle = ((index - 1) / LINE_ANGLE_BUCKET_COUNT) * TAU
+    LINE_ANGLE_LOOKUP[index] = {
+        x = math.cos(angle),
+        y = math.sin(angle)
+    }
+end
+
+local function getLineAngleBucket(angle)
+    return (math.floor((wrapPhase(angle) / TAU) * LINE_ANGLE_BUCKET_COUNT) % LINE_ANGLE_BUCKET_COUNT) + 1
 end
 
 local function speedToPhaseDelta(speed)
@@ -355,7 +372,7 @@ function VibesEffect:buildLineEntries()
             local moveAngle = math.random() * TAU
             local dx = x - centerX
             local dy = y - centerY
-            local length = 5 + (math.random() * 35)
+            local length = LINE_LENGTH_MIN + (math.random() * LINE_LENGTH_RANGE)
             self.lineEntries[sequence] = {
                 x = x,
                 y = y,
@@ -370,7 +387,10 @@ function VibesEffect:buildLineEntries()
                 spinDirection = chooseRandomDirectionSign(),
                 sizeBase = baseSize,
                 length = length,
-                lengthRatio = clamp((length - 5) / 35, 0, 1)
+                halfLength = length * 0.5,
+                cullMargin = math.ceil((length * 0.5) + 2),
+                lengthRatio = clamp((length - LINE_LENGTH_MIN) / LINE_LENGTH_RANGE, 0, 1),
+                angleBucket = getLineAngleBucket(angle)
             }
         end
     end
@@ -632,8 +652,10 @@ function VibesEffect:updateLines()
 
     self.lineSpinSpeed = clamp((self.lineSpinSpeed or 0) * 0.992, -0.22, 0.22)
     for _, entry in ipairs(self.lineEntries) do
-        local sizeSpeed = 1.75 - (entry.lengthRatio or 0.5)
+        local sizeSpeed = entry.sizeSpeed or (1.75 - (entry.lengthRatio or 0.5))
+        entry.sizeSpeed = sizeSpeed
         entry.angle = wrapPhase(entry.angle + (spinDelta * sizeSpeed * entry.spinDirection))
+        entry.angleBucket = getLineAngleBucket(entry.angle)
         if self.lineAutoSpinEnabled or self.lineCrankIdleFrames >= LINE_AUTO_IDLE_FRAMES then
             local driftScale = math.abs(spinDelta) * 9
             entry.x = entry.x + (entry.moveX * entry.moveSpeed * driftScale)
@@ -1020,21 +1042,24 @@ function VibesEffect:drawFractal()
 end
 
 function VibesEffect:drawLines()
-    local centerX = self.width * 0.5
-    local centerY = self.height * 0.5
+    local width = self.width
+    local height = self.height
     for _, entry in ipairs(self.lineEntries) do
         local lineCenterX = entry.x
         local lineCenterY = entry.y
-        local lineAngle = entry.angle
-
-        local halfLengthX = math.cos(lineAngle) * entry.length * 0.5
-        local halfLengthY = math.sin(lineAngle) * entry.length * 0.5
-        gfx.drawLine(
-            roundToInt(lineCenterX - halfLengthX),
-            roundToInt(lineCenterY - halfLengthY),
-            roundToInt(lineCenterX + halfLengthX),
-            roundToInt(lineCenterY + halfLengthY)
-        )
+        local margin = entry.cullMargin or 26
+        if lineCenterX >= -margin and lineCenterX <= width + margin and lineCenterY >= -margin and lineCenterY <= height + margin then
+            local direction = LINE_ANGLE_LOOKUP[entry.angleBucket or 1]
+            local halfLength = entry.halfLength or ((entry.length or LINE_LENGTH_MIN) * 0.5)
+            local halfLengthX = direction.x * halfLength
+            local halfLengthY = direction.y * halfLength
+            gfx.drawLine(
+                roundToInt(lineCenterX - halfLengthX),
+                roundToInt(lineCenterY - halfLengthY),
+                roundToInt(lineCenterX + halfLengthX),
+                roundToInt(lineCenterY + halfLengthY)
+            )
+        end
     end
 end
 

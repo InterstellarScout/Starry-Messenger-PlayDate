@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.1.88`
-- Build number: `88`
+- Version: `0.1.89`
+- Build number: `89`
 
 ## Install
 
@@ -77,7 +77,7 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Spiral | Vibe | A large crank-driven geometric spiral. | Crank controls signed playback speed with reverse, near-stop, and fast-forward behavior. `B` returns to the Vibes folder. |
 | Tunnel Bars | Vibe | A tunnel-like field of moving bars. | Crank controls signed playback speed. Use the Home menu `View Stats` toggle to show or hide Vibes stats. |
 | Fractal Spiral | Vibe | A denser spiral pattern built for visual texture, with fractal arms added or removed one at a time by crank distance. | Every 45 degrees of crank adds one arm; cranking the opposite direction removes one. More arms continue to accelerate the spin. `B` returns to the Vibes folder. |
-| Line Bloom | Vibe | A line-field effect with randomized 5-40 pixel line lengths and size-weighted spin where shorter lines rotate faster. | Crank sets and turns the line spin. `A` toggles automatic spin; idle crank input resumes auto-spin after five seconds. `B` returns to the Vibes folder. |
+| Line Bloom | Vibe | A line-field effect with randomized 10-50 pixel line lengths and size-weighted spin where shorter lines rotate faster. | Crank sets and turns the line spin. `A` toggles automatic spin; idle crank input resumes auto-spin after five seconds. `B` returns to the Vibes folder. |
 | Shape Pile-Up | Vibe | A code-drawn shape accumulation and motion effect. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Loop Fall | Vibe | A black-background clean-loop Star Fall variant that preserves each star's starting position. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
 | Polygon Storm | Vibe | A procedural polygon field with speed-driven motion. | Crank controls signed playback speed. `B` returns to the Vibes folder. |
