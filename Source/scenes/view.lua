@@ -52,6 +52,7 @@ function ViewScene.new(config)
     self.fireworkHoldFrames = 0
     self.warpMenuOpen = false
     self.warpMenuIndex = 1
+    self.starryTunnelDirectionLocked = false
     self.entryOverlayFrames = 0
 
     if config.effect then
@@ -231,12 +232,6 @@ function ViewScene:getWarpMenuItems()
             maxValue = WARP_CONFIG.starSizePercentMax or 200,
             displayFormat = "%+d%%",
             kind = "slider"
-        },
-        {
-            id = "starFallStyle",
-            label = "Star Fall Style",
-            checked = self.effect and self.effect.isWarpStyleEnabled and self.effect:isWarpStyleEnabled("starFallStyle"),
-            kind = "toggle"
         },
         {
             id = "differentSizes",
@@ -522,12 +517,67 @@ function ViewScene:updateStarfieldDirection()
         inputX = inputX + 1
     end
 
+    if self.viewId == "warp"
+        and self.effect
+        and self.effect.isWarpStyleEnabled
+        and self.effect:isWarpStyleEnabled("starryTunnel")
+        and self.effect.setStarryTunnelInput then
+        if inputX == 0 and inputY == 0 then
+            if not self.starryTunnelDirectionLocked then
+                self.effect:setStarryTunnelInput(0, 0, false)
+            end
+        else
+            self.effect:setStarryTunnelInput(inputX, inputY, self.starryTunnelDirectionLocked)
+        end
+        return
+    end
+
     if inputX == 0 and inputY == 0 then
         return
     end
 
     local steerStep = math.min(12, math.max(2.5, 2.5 + (math.abs(self.effect.speed or 0) * 1.5)))
     self.effect:steerDirectionToward(inputX, inputY, steerStep)
+end
+
+function ViewScene:getWarpDpadInput()
+    local inputX = 0
+    local inputY = 0
+
+    if pd.buttonIsPressed(pd.kButtonUp) then
+        inputY = inputY - 1
+    end
+    if pd.buttonIsPressed(pd.kButtonDown) then
+        inputY = inputY + 1
+    end
+    if pd.buttonIsPressed(pd.kButtonLeft) then
+        inputX = inputX - 1
+    end
+    if pd.buttonIsPressed(pd.kButtonRight) then
+        inputX = inputX + 1
+    end
+
+    return inputX, inputY
+end
+
+function ViewScene:tryToggleStarryTunnelDirectionHold()
+    if self.viewId ~= "warp"
+        or self.effect == nil
+        or self.effect.isWarpStyleEnabled == nil
+        or not self.effect:isWarpStyleEnabled("starryTunnel")
+        or self.effect.setStarryTunnelInput == nil then
+        return false
+    end
+
+    local inputX, inputY = self:getWarpDpadInput()
+    if inputX == 0 and inputY == 0 then
+        return false
+    end
+
+    self.starryTunnelDirectionLocked = not self.starryTunnelDirectionLocked
+    self.effect:setStarryTunnelInput(inputX, inputY, self.starryTunnelDirectionLocked)
+    StarryLog.info("starry tunnel direction hold: %s", tostring(self.starryTunnelDirectionLocked))
+    return true
 end
 
 function ViewScene:updatePersistentSpin()
@@ -619,7 +669,8 @@ function ViewScene:update()
     end
 
     if self.viewId == "warp" and aJustPressed then
-        if self.warpMenuOpen then
+        if self:tryToggleStarryTunnelDirectionHold() then
+        elseif self.warpMenuOpen then
             self:toggleWarpMenuSelection()
         else
             self.warpMenuOpen = true

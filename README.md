@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.1.91`
-- Build number: `91`
+- Version: `0.1.92`
+- Build number: `92`
 
 ## Install
 
@@ -50,7 +50,7 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 | Game Name | Game Type | Description | Play Instructions |
 | --- | --- | --- | --- |
 | Star Fall | Main | A falling starfield toy with normal and inverted modes. | Crank changes fall speed. D-pad steers the field. `A` opens the view and toggles speed/spin control in-game. `B` returns to the title. |
-| Warp Speed | Main | A forward-flight starfield with normal and inverse warp styles, Star Fall Style enabled by default, plus Smooth Engine, Starry Tunnel, and Different Sizes toggles in the settings menu. Smooth Engine and Starry Tunnel now route through the Smooth Sailing-style depth star model. | Crank changes star speed. D-pad steers direction. `A` opens the warp settings menu for speed, spin, star size, and style toggles. `B` returns to the title while preserving the current speed; press `B` again on the Warp title item to reset the preview. |
+| Warp Speed | Main | A forward-flight starfield with normal and inverse warp styles, plus Smooth Engine, Starry Tunnel, and Different Sizes toggles in the settings menu. Smooth Engine and Starry Tunnel route through the Smooth Sailing-style depth star model. | Crank changes star speed. D-pad steers direction. In Starry Tunnel, D-pad bends the tunnel opposite the pressed direction and returns to neutral on release; hold D-pad and press `A` to lock or unlock that direction. `A` otherwise opens the warp settings menu. `B` returns to the title while preserving the current speed; press `B` again on the Warp title item to reset the preview. |
 | Game of Life | Main | Conway-style cellular automata with standard, endless, recorder, and review modes. | Crank scrubs generations. `Up`/`Down` changes simulation speed. `Left`/`Right` injects cells. `A` injects a larger burst or opens selected recordings in Review mode. |
 | Fireworks | Main | A player-controlled fireworks launcher with automatic background bursts. | Crank or `Left`/`Right` moves the launcher. `Up`/`Down` changes firework type. Hold `A` to launch. |
 | Drip Drop | Main | Ripple and leak-plugging modes that combine Drop Waves, Player Pulse, and Dropper under one title entry. | `Left`/`Right` on the title changes modes. Drop Waves/Player Pulse use crank speed and optional D-pad marker control; Dropper uses D-pad movement and `A` to plug leaks. |

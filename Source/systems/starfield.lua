@@ -326,6 +326,11 @@ function Starfield.newWarpSpeed(width, height, count, options)
     self.smoothWarpSpeed = self.speed
     self.smoothWarpDriftX = 0
     self.smoothWarpDriftY = 0
+    self.starryTunnelInputX = 0
+    self.starryTunnelInputY = 0
+    self.starryTunnelLockedX = 0
+    self.starryTunnelLockedY = 0
+    self.starryTunnelInputLocked = false
 
     for i = 1, count do
         self.stars[i] = {
@@ -394,6 +399,12 @@ function Starfield:setWarpStyleEnabled(optionId, enabled)
         if value then
             self.warpStyleStarFall = true
             self:ensureSmoothWarpStars()
+        else
+            self.starryTunnelInputX = 0
+            self.starryTunnelInputY = 0
+            self.starryTunnelLockedX = 0
+            self.starryTunnelLockedY = 0
+            self.starryTunnelInputLocked = false
         end
     end
 end
@@ -486,6 +497,27 @@ function Starfield:ensureSmoothWarpStars()
     if self.smoothWarpStars == nil or #self.smoothWarpStars == 0 then
         self:buildSmoothWarpStars(#self.stars)
     end
+end
+
+function Starfield:setStarryTunnelInput(inputX, inputY, locked)
+    if not self.warpStyleStarryTunnel then
+        return
+    end
+
+    local magnitude = math.sqrt((inputX * inputX) + (inputY * inputY))
+    if magnitude > 1 then
+        inputX = inputX / magnitude
+        inputY = inputY / magnitude
+    end
+
+    self.starryTunnelInputLocked = locked == true
+    if self.starryTunnelInputLocked then
+        self.starryTunnelLockedX = inputX
+        self.starryTunnelLockedY = inputY
+    end
+
+    self.starryTunnelInputX = inputX
+    self.starryTunnelInputY = inputY
 end
 
 function Starfield:stepSpeed(direction)
@@ -1132,10 +1164,21 @@ function Starfield:updateSmoothWarpSpeed()
     self:ensureSmoothWarpStars()
     self.smoothWarpSpeed = (self.smoothWarpSpeed or 0) + (((self.speed or 0) - (self.smoothWarpSpeed or 0)) * 0.18)
 
-    local directionX, directionY = vectorFromAngle(self.directionAngle)
     local steerScale = self.warpStyleStarryTunnel and 0.42 or 0.28
-    self.smoothWarpDriftX = ((self.smoothWarpDriftX or 0) * 0.88) + (directionX * steerScale * 0.12)
-    self.smoothWarpDriftY = ((self.smoothWarpDriftY or 0) * 0.88) + (directionY * steerScale * 0.12)
+    local targetDriftX
+    local targetDriftY
+    if self.warpStyleStarryTunnel then
+        local inputX = self.starryTunnelInputLocked and (self.starryTunnelLockedX or 0) or (self.starryTunnelInputX or 0)
+        local inputY = self.starryTunnelInputLocked and (self.starryTunnelLockedY or 0) or (self.starryTunnelInputY or 0)
+        targetDriftX = -inputX * steerScale
+        targetDriftY = -inputY * steerScale
+    else
+        local directionX, directionY = vectorFromAngle(self.directionAngle)
+        targetDriftX = directionX * steerScale
+        targetDriftY = directionY * steerScale
+    end
+    self.smoothWarpDriftX = ((self.smoothWarpDriftX or 0) * 0.82) + (targetDriftX * 0.18)
+    self.smoothWarpDriftY = ((self.smoothWarpDriftY or 0) * 0.82) + (targetDriftY * 0.18)
 
     local centerX = self.centerX
     local centerY = self.centerY
