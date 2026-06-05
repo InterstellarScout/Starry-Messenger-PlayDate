@@ -35,6 +35,7 @@ local LINE_MODE_ORBIT <const> = 2
 local LINE_MODE_DRIFT <const> = 3
 
 local EFFECTS <const> = {
+    { id = "smoothsailing", label = "Smooth Sailing" },
     { id = "spiral", label = "Spiral" },
     { id = "tunnelbars", label = "Tunnel Bars" },
     { id = "fractal", label = "Fractal Spiral" },

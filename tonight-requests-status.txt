@@ -13,6 +13,7 @@
 | Remove Smooth Sailing's speed clamp, scale star size by center/depth proximity for forward and inward motion, and bump the game version to 0.1.84. | Done |
 | Make Smooth Sailing draw deliberate bounded streaks at high positive and negative speeds instead of collapsing into edge dots, and bump the game version to 0.1.85. | Done |
 | Add Line Bloom variable line lengths and auto-spin, add Snake and Smoke Bloom views, move Smooth Sailing out of Vibes into Warp experimental toggles, update title spinner star behavior, and bump the game version to 0.1.86. | Done |
+| Restore the original Smooth Sailing Vibe to the Vibes screen while keeping the Warp experimental options and bump the game version to 0.1.87. | Done |
 
 ##### In Warp Speed
 | Request | Status |

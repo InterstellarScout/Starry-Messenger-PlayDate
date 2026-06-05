@@ -103,7 +103,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "A: cycle through the current Vibes prototypes. In Line Bloom, A toggles automatic spin.",
             "Crank: change signed playback speed with a near-stop center and unlimited fast forward or reverse.",
             "Left/Right: also cycle effects.",
-            "Current prototypes include CRT TV, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
+            "Current prototypes include CRT TV, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
             "Loop Fall is the clean-loop Star Fall prototype built from preserved random starting positions.",
             "B: return to title."
         })
