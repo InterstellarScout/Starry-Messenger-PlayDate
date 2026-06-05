@@ -18,6 +18,7 @@
 | Change Fractal Spiral so crank distance adds or removes one arm per 45 degrees instead of jumping arm counts at speed thresholds. | Done |
 | Update Line Bloom to 10-50 px lines and optimize line rendering with cached angle directions, precomputed lengths, and offscreen culling; bump the game version to 0.1.89. | Done |
 | Keep the title menu transparent dark overlay visible after spinner mode is triggered, stop settled spinner stars from drifting, and bump the game version to 0.1.90. | Done |
+| Route Warp Speed's Smooth Engine and Starry Tunnel toggles through a Smooth Sailing-style depth star model, and bump the game version to 0.1.91. | Done |
 
 ##### In Warp Speed
 | Request | Status |

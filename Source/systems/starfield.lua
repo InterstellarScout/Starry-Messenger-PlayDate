@@ -232,6 +232,8 @@ local WARP_TAPER_HIDE_SPEED_END <const> = WARP_CONFIG.taperHideSpeedEnd or 3.2
 local WARP_STAR_SIZE_PERCENT_MIN <const> = WARP_CONFIG.starSizePercentMin or -80
 local WARP_STAR_SIZE_PERCENT_MAX <const> = WARP_CONFIG.starSizePercentMax or 200
 local WARP_STAR_SIZE_PERCENT_STEP <const> = WARP_CONFIG.starSizePercentStep or 10
+local WARP_SMOOTH_MAX_STREAK_LENGTH <const> = WARP_CONFIG.smoothMaxStreakLength or 52
+local WARP_SMOOTH_CENTER_SIZE_RADIUS_SQUARED <const> = (WARP_CONFIG.smoothCenterSizeRadius or 46) * (WARP_CONFIG.smoothCenterSizeRadius or 46)
 
 local function randomLargeStarDelayFrames()
     return math.random(STAR_FALL_LARGE_STAR_MIN_DELAY_FRAMES, STAR_FALL_LARGE_STAR_MAX_DELAY_FRAMES)
@@ -320,6 +322,10 @@ function Starfield.newWarpSpeed(width, height, count, options)
     self.stars = {}
     self.debugFadeFrameCounter = 0
     self.starSizePercent = options and options.starSizePercent or 0
+    self.smoothWarpStars = {}
+    self.smoothWarpSpeed = self.speed
+    self.smoothWarpDriftX = 0
+    self.smoothWarpDriftY = 0
 
     for i = 1, count do
         self.stars[i] = {
@@ -335,6 +341,7 @@ function Starfield.newWarpSpeed(width, height, count, options)
         }
         self:seedWarpStar(self.stars[i], i, count)
     end
+    self:buildSmoothWarpStars(count)
 
     return self
 end
@@ -380,11 +387,13 @@ function Starfield:setWarpStyleEnabled(optionId, enabled)
         self.warpStyleSmoothEngine = value
         if value then
             self.warpStyleStarFall = true
+            self:ensureSmoothWarpStars()
         end
     elseif optionId == "starryTunnel" then
         self.warpStyleStarryTunnel = value
         if value then
             self.warpStyleStarFall = true
+            self:ensureSmoothWarpStars()
         end
     end
 end
@@ -442,6 +451,41 @@ function Starfield:assignWarpStarVisuals(star)
     local normalizedSpeed = clamp((star.speed - 0.25) / 1.15, 0, 1)
     star.baseSize = 1 + math.floor(normalizedSpeed * 3.2)
     star.size = self:getWarpDisplayedSize(star.baseSize)
+end
+
+function Starfield:usesSmoothWarpEngine()
+    return self.kind == "warp" and (self.warpStyleSmoothEngine == true or self.warpStyleStarryTunnel == true)
+end
+
+function Starfield:seedSmoothWarpStar(star, randomizeDepth)
+    local angle = math.random() * (math.pi * 2)
+    local radius = math.sqrt(math.random()) * 1.18
+    star.x = math.cos(angle) * radius
+    star.y = math.sin(angle) * radius
+    star.z = randomizeDepth and (0.2 + (math.random() * 0.98)) or 1.18
+    star.depthSpeed = 0.65 + (math.random() * 0.85)
+    star.baseSize = math.random() < 0.82 and 1 or 2
+    star.size = star.baseSize
+    star.prevScreenX = self.centerX
+    star.prevScreenY = self.centerY
+    star.screenX = self.centerX
+    star.screenY = self.centerY
+    star.trailVisible = false
+end
+
+function Starfield:buildSmoothWarpStars(count)
+    self.smoothWarpStars = {}
+    for index = 1, count do
+        local star = {}
+        self:seedSmoothWarpStar(star, true)
+        self.smoothWarpStars[index] = star
+    end
+end
+
+function Starfield:ensureSmoothWarpStars()
+    if self.smoothWarpStars == nil or #self.smoothWarpStars == 0 then
+        self:buildSmoothWarpStars(#self.stars)
+    end
 end
 
 function Starfield:stepSpeed(direction)
@@ -1027,6 +1071,11 @@ function Starfield:drawStarFall()
 end
 
 function Starfield:updateWarpSpeed()
+    if self:usesSmoothWarpEngine() then
+        self:updateSmoothWarpSpeed()
+        return
+    end
+
     local driftX, driftY = vectorFromAngle(self.directionAngle)
     local signedSpeed = self.speed
     local biasX = driftX * signedSpeed * 0.08
@@ -1079,7 +1128,76 @@ function Starfield:updateWarpSpeed()
     self.lastSpeed = signedSpeed
 end
 
+function Starfield:updateSmoothWarpSpeed()
+    self:ensureSmoothWarpStars()
+    self.smoothWarpSpeed = (self.smoothWarpSpeed or 0) + (((self.speed or 0) - (self.smoothWarpSpeed or 0)) * 0.18)
+
+    local directionX, directionY = vectorFromAngle(self.directionAngle)
+    local steerScale = self.warpStyleStarryTunnel and 0.42 or 0.28
+    self.smoothWarpDriftX = ((self.smoothWarpDriftX or 0) * 0.88) + (directionX * steerScale * 0.12)
+    self.smoothWarpDriftY = ((self.smoothWarpDriftY or 0) * 0.88) + (directionY * steerScale * 0.12)
+
+    local centerX = self.centerX
+    local centerY = self.centerY
+    local speed = self.smoothWarpSpeed or 0
+    local travel = speed * 0.006
+
+    for _, star in ipairs(self.smoothWarpStars) do
+        local previousScreenX = star.screenX or centerX
+        local previousScreenY = star.screenY or centerY
+        star.prevScreenX = star.screenX or centerX
+        star.prevScreenY = star.screenY or centerY
+        star.z = (star.z or 1) - (travel * (star.depthSpeed or 1))
+
+        local respawned = false
+        if star.z <= 0.08 or star.z > 1.26 then
+            self:seedSmoothWarpStar(star, speed < 0)
+            respawned = true
+        end
+
+        local z = math.max(0.08, star.z or 1)
+        local perspective = 1 / z
+        local screenX = centerX + (((star.x or 0) + (self.smoothWarpDriftX or 0)) * perspective * 118)
+        local screenY = centerY + (((star.y or 0) + (self.smoothWarpDriftY or 0)) * perspective * 86)
+
+        if screenX < -8 or screenX > self.width + 8 or screenY < -8 or screenY > self.height + 8 then
+            self:seedSmoothWarpStar(star, speed < 0)
+            respawned = true
+            z = math.max(0.08, star.z or 1)
+            perspective = 1 / z
+            screenX = centerX + (((star.x or 0) + (self.smoothWarpDriftX or 0)) * perspective * 118)
+            screenY = centerY + (((star.y or 0) + (self.smoothWarpDriftY or 0)) * perspective * 86)
+        end
+
+        local distanceX = screenX - centerX
+        local distanceY = screenY - centerY
+        local distanceSquared = (distanceX * distanceX) + (distanceY * distanceY)
+        local depthSizeBoost = clamp((1.26 - z) / 1.18, 0, 1)
+        local centerSizeBoost = clamp(1 - (distanceSquared / WARP_SMOOTH_CENTER_SIZE_RADIUS_SQUARED), 0, 1)
+        local styleSizeBoost = self.warpStyleDifferentSizes and centerSizeBoost or 0
+        local sizeBoost = speed < 0 and math.max(centerSizeBoost, styleSizeBoost) or math.max(depthSizeBoost, centerSizeBoost * 0.55, styleSizeBoost)
+        star.size = math.max(1, math.floor(((star.baseSize or 1) + (sizeBoost * 4)) + 0.5))
+
+        if respawned then
+            star.prevScreenX = screenX
+            star.prevScreenY = screenY
+            star.trailVisible = false
+        else
+            star.prevScreenX = previousScreenX
+            star.prevScreenY = previousScreenY
+            star.trailVisible = true
+        end
+        star.screenX = screenX
+        star.screenY = screenY
+    end
+end
+
 function Starfield:drawWarpSpeed()
+    if self:usesSmoothWarpEngine() then
+        self:drawSmoothWarpSpeed()
+        return
+    end
+
     gfx.setColor(self:getForegroundColor())
     local activeFadeCount = 0
     local unexpectedFadeCount = 0
@@ -1123,6 +1241,38 @@ function Starfield:drawWarpSpeed()
             unexpectedFadeCount,
             tostring(unexpectedFadeCount == 0)
         )
+    end
+end
+
+function Starfield:drawSmoothWarpSpeed()
+    gfx.setColor(self:getForegroundColor())
+    local speedMagnitude = math.abs(self.smoothWarpSpeed or 0)
+    local speedTrailBoost = math.min(WARP_SMOOTH_MAX_STREAK_LENGTH, 10 + (speedMagnitude * 2.4))
+    for _, star in ipairs(self.smoothWarpStars or {}) do
+        local x = math.floor((star.screenX or 0) + 0.5)
+        local y = math.floor((star.screenY or 0) + 0.5)
+        local px = math.floor((star.prevScreenX or x) + 0.5)
+        local py = math.floor((star.prevScreenY or y) + 0.5)
+        local size = star.size or 1
+        local dx = x - px
+        local dy = y - py
+        local distanceSquared = (dx * dx) + (dy * dy)
+
+        if star.trailVisible and distanceSquared >= 4 then
+            local distance = math.sqrt(distanceSquared)
+            local drawLength = math.min(distance, speedTrailBoost)
+            local unitX = dx / distance
+            local unitY = dy / distance
+            local tailX = x - (unitX * drawLength)
+            local tailY = y - (unitY * drawLength)
+            gfx.drawLine(math.floor(tailX + 0.5), math.floor(tailY + 0.5), x, y)
+        end
+
+        if size > 1 then
+            gfx.fillRect(x - 1, y - 1, math.min(4, size), math.min(4, size))
+        else
+            gfx.fillRect(x, y, 1, 1)
+        end
     end
 end
 
