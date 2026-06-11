@@ -1720,7 +1720,7 @@ function GameOfLife:draw()
 
     self:drawScrubLimitWarning()
 
-    if self.recordingEnabled and not self.preview then
+    if self.recordingEnabled and not self.preview and (not UIState or UIState.isShown()) then
         gfx.setImageDrawMode(gfx.kDrawModeInverted)
         gfx.drawText(string.format("REC %d", self.recordingFrame), 10, 8)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)

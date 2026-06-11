@@ -209,7 +209,7 @@ function PhotoViewerEffect:drawImage()
 end
 
 function PhotoViewerEffect:drawInfo()
-    if not self.showInfo then
+    if not self.showInfo or (UIState and not UIState.isShown()) then
         return
     end
 
@@ -233,7 +233,7 @@ function PhotoViewerEffect:drawInfo()
 end
 
 function PhotoViewerEffect:drawStatus()
-    if self.statusMessage == nil then
+    if self.statusMessage == nil or (UIState and not UIState.isShown()) then
         return
     end
     gfx.setImageDrawMode(gfx.kDrawModeInverted)

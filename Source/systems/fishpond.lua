@@ -561,6 +561,14 @@ function FishPond:spawnSchoolFish()
     return true
 end
 
+function FishPond:handleAddFishInput()
+    if self.preview or self.modeId == FishPond.MODE_TANK then
+        return false
+    end
+
+    return self:spawnSchoolFish()
+end
+
 function FishPond:findBubbleIndex(targetBubble)
     for index, bubble in ipairs(self.bubbles) do
         if bubble == targetBubble then
@@ -965,7 +973,7 @@ function FishPond:drawFish(fish)
 end
 
 function FishPond:drawHud()
-    if self.preview then
+    if self.preview or (UIState and not UIState.isShown()) then
         return
     end
 

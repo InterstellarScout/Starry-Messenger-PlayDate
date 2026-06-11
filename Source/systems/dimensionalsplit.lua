@@ -113,11 +113,12 @@ function DimensionalSplit:applySubdivisionStep(direction)
     local stepSize = self:getCellSizeStep(direction)
     local nextCellSize = clamp(self.cellSize - (direction * stepSize), 1, self.maxCellSize)
     if nextCellSize == self.cellSize then
-        return
+        return false
     end
 
     self.cellSize = nextCellSize
     self:regenerateGrid()
+    return true
 end
 
 function DimensionalSplit:applyCrank(change)
@@ -128,8 +129,12 @@ function DimensionalSplit:applyCrank(change)
     self.crankAccumulator = self.crankAccumulator + change
     while math.abs(self.crankAccumulator) >= CRANK_STEP_THRESHOLD do
         local direction = self.crankAccumulator > 0 and 1 or -1
-        self:applySubdivisionStep(direction)
+        local changed = self:applySubdivisionStep(direction)
         self.crankAccumulator = self.crankAccumulator - (CRANK_STEP_THRESHOLD * direction)
+        if not changed then
+            self.crankAccumulator = 0
+            break
+        end
     end
 end
 

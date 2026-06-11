@@ -11,6 +11,8 @@ import "CoreLibs/sprites"
 import "gameconfig"
 import "systems/log"
 import "systems/starfield"
+import "systems/starrytop"
+import "systems/uistate"
 import "systems/gameoflife"
 import "systems/lavalamp"
 import "systems/fireworks"
@@ -27,6 +29,7 @@ import "systems/trailblazer"
 import "systems/marblemadness"
 import "systems/snakegame"
 import "systems/smokebloom"
+import "systems/touchinggrass"
 import "systems/vibes"
 import "systems/puddledrops"
 import "systems/dropper"
@@ -47,7 +50,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.1.92"
+local APP_VERSION <const> = "0.1.98"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -77,6 +80,32 @@ local function buildVibesViewItems()
             label = "CRT TV",
             openViewId = "crttv",
             controlViewId = "crttv"
+        },
+        {
+            id = "smokebloom_billowing",
+            label = "Billowing Smoke",
+            modeId = SmokeBloom.MODE_BILLOWING,
+            openViewId = "smokebloom",
+            controlViewId = "smokebloom"
+        },
+        {
+            id = "smokebloom_raising",
+            label = "Raising Smoke",
+            modeId = SmokeBloom.MODE_RAISING,
+            openViewId = "smokebloom",
+            controlViewId = "smokebloom"
+        },
+        {
+            id = "dropper",
+            label = "Dropper",
+            openViewId = "dropper",
+            controlViewId = "dropper"
+        },
+        {
+            id = "dimensionalsplit",
+            label = "Dimensional Split",
+            openViewId = "dimensionalsplit",
+            controlViewId = "dimensionalsplit"
         }
     }
 
@@ -112,6 +141,7 @@ local SINGLE_VIEW_ITEMS <const> = {
             return Starfield.getModeLabel(modeId, "warp")
         end
     },
+    { id = "starrytop", label = "Starry Top" },
     {
         id = "multiplayer",
         label = "Multiplayer",
@@ -137,33 +167,45 @@ local SINGLE_VIEW_ITEMS <const> = {
         id = "dripdrop",
         label = "Drip Drop",
         modes = {
-            PuddleDrops.MODE_AUTO,
-            PuddleDrops.MODE_PLAYER,
-            DRIP_DROP_MODE_DROPPER
+            PuddleDrops.MODE_STANDARD,
+            PuddleDrops.MODE_INVERSE
         },
-        modeId = PuddleDrops.MODE_AUTO,
+        modeId = PuddleDrops.MODE_STANDARD,
         getModeLabel = getDripDropModeLabel
     },
     { id = "tiltballs", label = "Bouncy Balls" },
-    { id = "wacky", label = "Wacky" },
-    { id = "dimensionalsplit", label = "Dimensional Split" },
+    {
+        id = "wacky",
+        label = "Wacky",
+        modes = {
+            WackyInflatable.MODE_STANDARD,
+            WackyInflatable.MODE_CRAZY_FAMILY
+        },
+        modeId = WackyInflatable.MODE_STANDARD,
+        getModeLabel = WackyInflatable.getModeLabel
+    },
     {
         id = "spaceminer",
         label = "Space Miner"
     },
     {
         id = "trailblazer",
-        label = "Trail Blazer",
-        modes = {
-            TrailBlazer.MODE_FLOW,
-            TrailBlazer.MODE_DRIVE
-        },
+        label = "Marble Run",
         modeId = TrailBlazer.MODE_FLOW,
         getModeLabel = TrailBlazer.getModeLabel
     },
     { id = "marblemadness", label = "Marble Madness" },
-    { id = "snake", label = "Snake" },
-    { id = "smokebloom", label = "Smoke Bloom" },
+    { id = "touchinggrass", label = "Touching Grass" },
+    {
+        id = "snake",
+        label = "Snake",
+        modes = {
+            SnakeGame.MODE_STANDARD,
+            SnakeGame.MODE_COMPETITIVE
+        },
+        modeId = SnakeGame.MODE_STANDARD,
+        getModeLabel = SnakeGame.getModeLabel
+    },
     { id = "photoviewer", label = "Photo Viewer" },
     { id = "gifplayer", label = "Gif Player" },
     {
@@ -642,6 +684,12 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
         refreshActiveSceneAudio()
     end)
 
+    if activeViewId ~= nil then
+        menu:addCheckmarkMenuItem("Show UI", UIState.isShown(), function(value)
+            UIState.setShown(value)
+        end)
+    end
+
     if activeViewId == "fishpond" then
         menu:addCheckmarkMenuItem("Fish Spawn Mode", FishPond.isSpawnModeEnabled(), function(value)
             FishPond.setSpawnModeEnabled(value)
@@ -667,7 +715,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
     end
 
     if activeViewId == "trailblazer" then
-        menu:addCheckmarkMenuItem("Trailblazer Controls", TrailBlazer.isControlsHintEnabled(), function(value)
+        menu:addCheckmarkMenuItem("Marble Run Controls", TrailBlazer.isControlsHintEnabled(), function(value)
             TrailBlazer.setControlsHintEnabled(value)
             if app.scene and app.scene.viewId == "trailblazer" and app.scene.effect and app.scene.effect.refreshMenuSettings then
                 app.scene.effect:refreshMenuSettings()

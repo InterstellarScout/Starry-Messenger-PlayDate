@@ -1207,6 +1207,10 @@ function DuckGameScene:drawLobby()
 end
 
 function DuckGameScene:drawHudFromState(state)
+    if UIState and not UIState.isShown() then
+        return
+    end
+
     gfx.setFont(self.smallFont)
     gfx.setColor(gfx.kColorBlack)
     local currentChickCount = 0

@@ -85,11 +85,15 @@ function ViewScene.new(config)
     elseif self.viewId == "tiltballs" then
         self.effect = TiltBalls.new(400, 240)
     elseif self.viewId == "wacky" then
-        self.effect = WackyInflatable.new(400, 240)
+        self.effect = WackyInflatable.new(400, 240, {
+            modeId = self.modeId
+        })
     elseif self.viewId == "dimensionalsplit" then
         self.effect = DimensionalSplit.new(400, 240, {
             preview = false
         })
+    elseif self.viewId == "starrytop" then
+        self.effect = StarryTop.new(400, 240)
     elseif self.viewId == "spaceminer" then
         self.effect = SpaceMiner.new(400, 240, {
             modeId = self.modeId
@@ -100,10 +104,16 @@ function ViewScene.new(config)
         })
     elseif self.viewId == "marblemadness" then
         self.effect = MarbleMadness.new(400, 240)
+    elseif self.viewId == "touchinggrass" then
+        self.effect = TouchingGrass.new(400, 240)
     elseif self.viewId == "snake" then
-        self.effect = SnakeGame.new(400, 240)
+        self.effect = SnakeGame.new(400, 240, {
+            modeId = self.modeId
+        })
     elseif self.viewId == "smokebloom" then
-        self.effect = SmokeBloom.new(400, 240)
+        self.effect = SmokeBloom.new(400, 240, {
+            modeId = self.modeId
+        })
     elseif self.viewId == "photoviewer" then
         self.effect = PhotoViewerEffect.new(400, 240)
     elseif self.viewId == "gifplayer" then
@@ -690,7 +700,7 @@ function ViewScene:update()
                 StarryLog.info("life repopulated via A button")
             end
         elseif self.viewId == "fireworks" then
-            self.effect:launchFromLauncher()
+            self.effect:stepSelectedStyle(-1)
         elseif self.viewId == "crttv" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "vibes" then
@@ -703,6 +713,8 @@ function ViewScene:update()
             self.effect:handlePrimaryAction()
         elseif self.viewId == "dimensionalsplit" then
             self.effect:handlePrimaryAction()
+        elseif self.viewId == "starrytop" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "photoviewer" then
@@ -710,6 +722,7 @@ function ViewScene:update()
         elseif self.viewId == "wacky" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "spaceminer" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "fishpond" then
         elseif self.viewId == "trailblazer" then
             self.effect:handlePrimaryAction()
@@ -717,6 +730,8 @@ function ViewScene:update()
         elseif self.viewId == "snake" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "smokebloom" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "touchinggrass" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "rccar" then
             if self.effect and self.effect.toggleCrankMode then
@@ -745,8 +760,9 @@ function ViewScene:update()
         if math.abs(change) > 0.01 then
             self.effect:moveLauncher(change)
         end
-        if pd.buttonIsPressed(pd.kButtonA) then
-            if pd.buttonJustPressed(pd.kButtonA) then
+        if pd.buttonIsPressed(pd.kButtonUp) then
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                self.effect:launchFromLauncher()
                 self.fireworkHoldFrames = 0
             else
                 self.fireworkHoldFrames = self.fireworkHoldFrames + 1
@@ -770,6 +786,9 @@ function ViewScene:update()
     elseif self.viewId == "dimensionalsplit" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
+    elseif self.viewId == "starrytop" then
+        self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
     elseif self.viewId == "spaceminer" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
@@ -780,6 +799,9 @@ function ViewScene:update()
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
     elseif self.viewId == "marblemadness" then
+        self.effect:applyCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "touchinggrass" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
     elseif self.viewId == "snake" then
@@ -832,10 +854,8 @@ function ViewScene:update()
         if pd.buttonIsPressed(pd.kButtonRight) then
             self.effect:moveLauncher(2.5)
         end
-        if pd.buttonJustPressed(pd.kButtonUp) then
-            self.effect:stepSelectedStyle(-1)
-        elseif pd.buttonJustPressed(pd.kButtonDown) then
-            self.effect:stepSelectedStyle(1)
+        if pd.buttonJustPressed(pd.kButtonDown) then
+            self.effect:spawnShootingStar()
         end
     elseif self.viewId == "gifplayer" then
         self.effect:updateDirectionalInput(
@@ -870,6 +890,17 @@ function ViewScene:update()
                 pd.buttonIsPressed(pd.kButtonRight),
                 pd.buttonIsPressed(pd.kButtonUp),
                 pd.buttonIsPressed(pd.kButtonDown)
+            )
+        end
+    elseif self.viewId == "starrytop" then
+        if self.effect and self.effect.handleDirectionalInput then
+            self.effect:handleDirectionalInput(
+                pd.buttonIsPressed(pd.kButtonLeft),
+                pd.buttonIsPressed(pd.kButtonRight),
+                pd.buttonIsPressed(pd.kButtonUp),
+                pd.buttonIsPressed(pd.kButtonDown),
+                pd.buttonJustPressed(pd.kButtonLeft),
+                pd.buttonJustPressed(pd.kButtonRight)
             )
         end
     elseif self.viewId == "photoviewer" then
@@ -910,10 +941,21 @@ function ViewScene:update()
             pd.buttonIsPressed(pd.kButtonDown)
         )
         self.effect:updateActionInput(pd.buttonIsPressed(pd.kButtonA))
+    elseif self.viewId == "touchinggrass" then
+        self.effect:handleDirectionalInput(
+            pd.buttonIsPressed(pd.kButtonLeft),
+            pd.buttonIsPressed(pd.kButtonRight),
+            pd.buttonIsPressed(pd.kButtonUp),
+            pd.buttonIsPressed(pd.kButtonDown)
+        )
     elseif self.viewId == "snake" then
         self.effect:handleDirectionalInput(
-            false,
-            false,
+            pd.buttonIsPressed(pd.kButtonLeft),
+            pd.buttonIsPressed(pd.kButtonRight),
+            pd.buttonIsPressed(pd.kButtonUp),
+            pd.buttonIsPressed(pd.kButtonDown),
+            pd.buttonJustPressed(pd.kButtonLeft),
+            pd.buttonJustPressed(pd.kButtonRight),
             pd.buttonJustPressed(pd.kButtonUp),
             pd.buttonJustPressed(pd.kButtonDown)
         )
@@ -929,19 +971,19 @@ function ViewScene:update()
             pd.buttonIsPressed(pd.kButtonUp),
             pd.buttonIsPressed(pd.kButtonDown),
             pd.buttonIsPressed(pd.kButtonLeft),
-            pd.buttonJustPressed(pd.kButtonRight)
+            pd.buttonJustPressed(pd.kButtonRight),
+            pd.buttonJustPressed(pd.kButtonA)
         )
     elseif self.viewId == "fishpond" then
         local inputX = 0
         local inputY = 0
-        self.effect:updateActionInput(pd.buttonJustPressed(pd.kButtonA), pd.buttonIsPressed(pd.kButtonA))
+        local bubbleJustPressed = pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonUp)
+        local bubbleHeld = pd.buttonIsPressed(pd.kButtonA) or pd.buttonIsPressed(pd.kButtonUp)
+        self.effect:updateActionInput(bubbleJustPressed, bubbleHeld)
+        if pd.buttonJustPressed(pd.kButtonDown) and self.effect.handleAddFishInput then
+            self.effect:handleAddFishInput()
+        end
         if self.effect.modeId ~= FishPond.MODE_TANK then
-            if pd.buttonIsPressed(pd.kButtonUp) then
-                inputY = inputY - 1
-            end
-            if pd.buttonIsPressed(pd.kButtonDown) then
-                inputY = inputY + 1
-            end
             if pd.buttonIsPressed(pd.kButtonLeft) then
                 inputX = inputX - 1
             end
@@ -982,7 +1024,7 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self:applySpeedStep(-1)
         end
-    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "vibes" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "dimensionalsplit" or self.viewId == "dropper" or self.viewId == "spaceminer" then
+    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "vibes" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "dimensionalsplit" or self.viewId == "starrytop" or self.viewId == "dropper" or self.viewId == "spaceminer" then
     elseif self.viewId ~= "lava" then
         if self.effect and self.effect.steerDirectionToward then
             self:updateStarfieldDirection()

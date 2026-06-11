@@ -50,12 +50,15 @@ local EFFECTS <const> = {
     { id = "tunnelbars", label = "Tunnel Bars" },
     { id = "fractal", label = "Fractal Spiral" },
     { id = "lines", label = "Line Bloom" },
-    { id = "pileup", label = "Shape Pile-Up" },
     { id = "loopfall", label = "Loop Fall" },
     { id = "polygonstorm", label = "Polygon Storm" },
     { id = "microrotate", label = "Micro Rotate" },
     { id = "bubblecloud", label = "Cloud Bubbles" },
     { id = "bubblepop", label = "Bubble Pop" }
+}
+
+local GRAVEYARD_EFFECTS <const> = {
+    { id = "pileup", label = "Shape Pile-Up" }
 }
 
 local function buildCatalogItems()
@@ -165,6 +168,21 @@ function VibesEffect.getCatalogItems()
     return buildCatalogItems()
 end
 
+function VibesEffect.getGraveyardCatalogItems()
+    local items = {}
+    for index, effect in ipairs(GRAVEYARD_EFFECTS) do
+        items[index] = {
+            id = "graveyard_" .. effect.id,
+            label = effect.label,
+            modeId = effect.id,
+            openViewId = "vibes",
+            controlViewId = "vibes",
+            hidden = true
+        }
+    end
+    return items
+end
+
 function VibesEffect.isViewStatsEnabled()
     return VibesEffect.viewStatsEnabled == true
 end
@@ -175,6 +193,11 @@ end
 
 function VibesEffect.getEffectLabelById(effectId)
     for _, effect in ipairs(EFFECTS) do
+        if effect.id == effectId then
+            return effect.label
+        end
+    end
+    for _, effect in ipairs(GRAVEYARD_EFFECTS) do
         if effect.id == effectId then
             return effect.label
         end
@@ -335,9 +358,15 @@ function VibesEffect:stepSpeed(direction)
         return
     end
 
-    if self:getEffect().id == "smoothsailing" then
+    local effectId = self:getEffect().id
+    if effectId == "smoothsailing" then
         self.smoothTargetSpeed = (self.smoothTargetSpeed or 0) + (direction * 0.25)
         self.speed = self.smoothTargetSpeed
+        return
+    end
+
+    if effectId == "loopfall" or effectId == "inversefall" then
+        self.speed = roundToInt(self.speed or 0) + direction
         return
     end
 
@@ -669,7 +698,7 @@ function VibesEffect:updateLines()
 end
 
 function VibesEffect:updateLoopFall()
-    local travelDelta = speedToTravelDelta(self.speed)
+    local travelDelta = self.speed or 0
     self.loopOffset = self.loopOffset + travelDelta
 end
 

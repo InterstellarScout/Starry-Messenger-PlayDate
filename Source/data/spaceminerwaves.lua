@@ -24,10 +24,11 @@ Configurable wave entities today:
 - `seeker`: direct pursuit enemy ship
 - `escaper`: evasive enemy ship
 - `striker`: strafing enemy ship that fires missiles
+- `asteroid`/`astroid`: asteroid chunk; optional `asteroidStage`/`stage` selects 0-3
+- `enemyMissile`/`enemy-missile`/`missile`: direct enemy missile
+- `heatSeekingEnemyMissile`/`homingMissile`: enemy missile that steers toward the player
 
-Other Space Miner entities that exist in the view but are not wave-spawned here:
-- asteroid chunks (4 breakup stages)
-- enemy missiles
+Other Space Miner entities that exist in the view but are not directly wave-spawned here:
 - player missile
 - explosion rings
 - decor stars/shapes
@@ -36,8 +37,11 @@ Other Space Miner entities that exist in the view but are not wave-spawned here:
 SpaceMinerWaveConfig = {
     entityTypes = {
         seeker = "Direct pursuit ship that accelerates straight toward the player.",
-        escaper = "Evasive ship that avoids the player, asteroids, and incoming missiles.",
-        striker = "Fast strafing ship that tracks the player and fires missiles."
+        escaper = "Evasive ship that lingers near the edge of the player view while avoiding threats.",
+        striker = "Fast strafing ship that tracks the player and fires missiles.",
+        asteroid = "Asteroid chunk. Optional asteroidStage/stage controls breakup stage 0-3.",
+        enemyMissile = "Direct enemy missile spawned from the entry side.",
+        heatSeekingEnemyMissile = "Enemy missile spawned from the entry side that steers toward the player."
     },
     stages = {
         {
@@ -56,7 +60,14 @@ SpaceMinerWaveConfig = {
                 timestamp = "2:00:00"
             },
             entries = {
-                { timestamp = "2:00:00", entityType = "seeker", quantity = 4, entryDegrees = 0 }
+                { timestamp = "2:00:00", entityType = "seeker", quantity = 2, entryDegrees = 0 },
+				{ timestamp = "2:00:00", entityType = "seeker", quantity = 2, entryDegrees = 90 },
+				{ timestamp = "2:00:00", entityType = "seeker", quantity = 2, entryDegrees = 180 },
+				{ timestamp = "2:00:00", entityType = "seeker", quantity = 2, entryDegrees = 270 },
+				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 0 },
+				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 90 },
+				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 180 },
+				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 270 }
             }
         },
         {
@@ -69,7 +80,12 @@ SpaceMinerWaveConfig = {
                 delay = "0:00:00"
             },
             entries = {
-                { offset = "0:00:00", entityType = "seeker", quantity = 8, entryDegrees = 0 }
+                { offset = "0:00:00", entityType = "seeker", quantity = 4, entryDegrees = 0 },
+				{ offset = "0:05:00", entityType = "seeker", quantity = 4, entryDegrees = 90 },
+				{ offset = "0:05:00", entityType = "seeker", quantity = 4, entryDegrees = 0 },
+				{ offset = "0:05:00", entityType = "seeker", quantity = 4, entryDegrees = 90 },
+				{ offset = "0:05:00", entityType = "seeker", quantity = 4, entryDegrees = 0 },
+				{ offset = "0:05:00", entityType = "seeker", quantity = 4, entryDegrees = 90 }
             }
         },
         {
@@ -82,7 +98,8 @@ SpaceMinerWaveConfig = {
                 delay = "0:00:00"
             },
             entries = {
-                { offset = "0:00:00", entityType = "seeker", quantity = 16, entryDegrees = 0 }
+                { offset = "0:00:00", entityType = "seeker", quantity = 16, entryDegrees = 0 },
+				{ offset = "0:20:00", entityType = "seeker", quantity = 16, entryDegrees = 90 }
             }
         },
         {

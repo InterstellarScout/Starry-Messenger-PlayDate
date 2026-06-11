@@ -6,6 +6,8 @@ local WACKY_CONFIG <const> = GameConfig and GameConfig.wacky or {}
 
 WackyInflatable = {}
 WackyInflatable.__index = WackyInflatable
+WackyInflatable.MODE_STANDARD = "standard"
+WackyInflatable.MODE_CRAZY_FAMILY = "crazyfamily"
 
 local SEGMENT_COUNT <const> = WACKY_CONFIG.segmentCount or 10
 local BODY_LENGTH <const> = WACKY_CONFIG.bodyLength or 116
@@ -19,6 +21,7 @@ local ARM_SEGMENT_LENGTHS <const> = {
 }
 local PREVIEW_EXTENDED_FRAMES <const> = WACKY_CONFIG.previewExtendedFrames or 30
 local PREVIEW_SETTLE_INFLATION <const> = WACKY_CONFIG.previewSettleInflation or 0.12
+local PREVIEW_AUTO_CRANK_FRAMES <const> = 15
 local MAX_CRANK_BOOST <const> = WACKY_CONFIG.maxCrankBoost or 1.3
 local BODY_GRAVITY <const> = WACKY_CONFIG.bodyGravity or 0.52
 local BODY_DRAG <const> = WACKY_CONFIG.bodyDrag or 0.992
@@ -32,12 +35,37 @@ local CRANK_FLAIL_VERTICAL_SCALE <const> = WACKY_CONFIG.crankFlailVerticalScale 
 local CRANK_FLAIL_HORIZONTAL_SCALE <const> = WACKY_CONFIG.crankFlailHorizontalScale or 1.25
 local BODY_SWEEP_LIMIT <const> = WACKY_CONFIG.bodySweepLimit or 170
 local CRANK_IDLE_FRAMES <const> = WACKY_CONFIG.crankIdleFrames or 7
+local AUTO_CRANK_IDLE_FRAMES <const> = WACKY_CONFIG.autoCrankIdleFrames or 150
+local AUTO_CRANK_DELAY_MIN_FRAMES <const> = WACKY_CONFIG.autoCrankDelayMinFrames or 6
+local AUTO_CRANK_DELAY_MAX_FRAMES <const> = WACKY_CONFIG.autoCrankDelayMaxFrames or 30
+local AUTO_CRANK_QUARTER_TURN <const> = WACKY_CONFIG.autoCrankQuarterTurn or 90
 local REVERSE_GRAVITY_SCALE <const> = WACKY_CONFIG.reverseGravityScale or 2.6
 local GRAVITY_BOOST_DECAY <const> = WACKY_CONFIG.gravityBoostDecay or 0.08
 local FALLING_SURPRISE_SPEED <const> = WACKY_CONFIG.fallingSurpriseSpeed or 1.35
+local PARTY_TRIGGER_MOVES <const> = WACKY_CONFIG.partyTriggerMoves or 5
+local PARTY_RAPID_WINDOW_FRAMES <const> = WACKY_CONFIG.partyRapidWindowFrames or 18
+local PARTY_IDLE_FRAMES <const> = WACKY_CONFIG.partyIdleFrames or 30
+local PARTY_MIN_CRANK_STRENGTH <const> = WACKY_CONFIG.partyMinCrankStrength or 2.5
+local PARTY_DISCO_HIDDEN_Y <const> = -28
+local PARTY_DISCO_VISIBLE_Y <const> = 32
+local PARTY_DISCO_RADIUS <const> = 17
+local PARTY_BACKGROUND_DITHER <const> = 0.12
+local REACH_TRIGGER_FRAMES <const> = WACKY_CONFIG.reachTriggerFrames or 150
+local REACH_UPWARD_GAP_FRAMES <const> = WACKY_CONFIG.reachUpwardGapFrames or 4
+local REACH_DARKEN_DITHER <const> = WACKY_CONFIG.reachDarkenDither or 0.3
+local REACH_STAR_COUNT <const> = WACKY_CONFIG.reachStarCount or 44
+local REACH_MIN_CRANK_STRENGTH <const> = WACKY_CONFIG.reachMinCrankStrength or 1.2
+local WORM_TRIGGER_FRAMES <const> = WACKY_CONFIG.wormTriggerFrames or 150
+local WORM_DIRECTION_GAP_FRAMES <const> = WACKY_CONFIG.wormDirectionGapFrames or 4
+local WORM_MIN_CRANK_STRENGTH <const> = WACKY_CONFIG.wormMinCrankStrength or 1.2
+local WORM_HORIZON_Y_RATIO <const> = WACKY_CONFIG.wormHorizonYRatio or 0.25
 local HAT_GROUND_DRAG <const> = WACKY_CONFIG.hatGroundDrag or 0.988
 local HAT_GROUND_ROLL_DRAG <const> = WACKY_CONFIG.hatGroundRollDrag or 0.982
 local HAT_BOUNCE <const> = WACKY_CONFIG.hatBounce or 0.16
+local FAMILY_CONSTRAINT_PASSES <const> = 5
+local MOM_HAIR_COUNT <const> = 13
+local MOM_HAIR_JOINTS <const> = 5
+local MOM_HAIR_CONSTRAINT_PASSES <const> = 3
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -47,6 +75,13 @@ local function clamp(value, minValue, maxValue)
         return maxValue
     end
     return value
+end
+
+function WackyInflatable.getModeLabel(modeId)
+    if modeId == WackyInflatable.MODE_CRAZY_FAMILY then
+        return "Wacky Family"
+    end
+    return "Wacky Classic"
 end
 
 local function sign(value)
@@ -76,6 +111,17 @@ local function pointDistance(x1, y1, x2, y2)
     return math.sqrt((dx * dx) + (dy * dy))
 end
 
+local function wrapPhase(value)
+    local tau = math.pi * 2
+    while value < 0 do
+        value = value + tau
+    end
+    while value >= tau do
+        value = value - tau
+    end
+    return value
+end
+
 local function makeArm(direction)
     return {
         direction = direction,
@@ -88,13 +134,114 @@ local function makeArm(direction)
     }
 end
 
+local function makeFamilyPoint(x, y)
+    return {
+        x = x,
+        y = y,
+        prevX = x,
+        prevY = y
+    }
+end
+
+local function makeDetachedPiece(kind, x, y, side, scale)
+    return {
+        kind = kind,
+        x = x,
+        y = y,
+        prevX = x - ((side or 1) * 0.5),
+        prevY = y - 0.8,
+        rotation = 0,
+        angularVelocity = (side or 1) * 0.06,
+        side = side or 1,
+        scale = scale or 1,
+        attached = true
+    }
+end
+
+local function getMomHairRoot(member, hair, headCenterX, headCenterY)
+    local radius = HEAD_RADIUS * member.scale * 0.92
+    return headCenterX + (math.cos(hair.rootAngle) * radius),
+        headCenterY + (math.sin(hair.rootAngle) * radius)
+end
+
+local function makeCrazyFamilyMember(role, baseX, baseY, scale, hangDirection)
+    hangDirection = hangDirection or -1
+    local segmentCount = SEGMENT_COUNT
+    local segmentLength = (BODY_LENGTH * scale) / segmentCount
+    local member = {
+        role = role,
+        baseX = baseX,
+        baseY = baseY,
+        scale = scale,
+        segmentCount = segmentCount,
+        segmentLength = segmentLength,
+        phase = math.random() * math.pi * 2,
+        lift = 0.2,
+        reverseGravityBoost = 0,
+        isFalling = false,
+        flopSide = role == "mom" and -1 or 1,
+        points = {},
+        hairAttached = true,
+        accessories = {}
+    }
+
+    for index = 1, segmentCount + 1 do
+        local y = baseY + (hangDirection * (index - 1) * segmentLength)
+        local x = baseX + (math.sin(index * 0.45) * 2 * scale)
+        member.points[index] = makeFamilyPoint(x, y)
+    end
+
+    if role == "mom" then
+        member.hair = {}
+        local headCenterX = baseX
+        local headCenterY = baseY + (hangDirection * BODY_LENGTH * scale) - (10 * scale)
+        for index = 1, MOM_HAIR_COUNT do
+            local t = (index - 1) / math.max(1, MOM_HAIR_COUNT - 1)
+            local rootAngle = math.pi + (math.pi * t)
+            local side = t < 0.5 and -1 or 1
+            local length = (18 + (math.sin(t * math.pi) * 24) + (math.random() * 8)) * scale
+            local rootX = headCenterX + (math.cos(rootAngle) * HEAD_RADIUS * scale * 0.92)
+            local rootY = headCenterY + (math.sin(rootAngle) * HEAD_RADIUS * scale * 0.92)
+            local hangAngle = rootAngle + (side * 0.55)
+            local hair = {
+                side = side,
+                length = length,
+                rootAngle = rootAngle,
+                phase = math.random() * math.pi * 2,
+                segmentLength = length / math.max(1, MOM_HAIR_JOINTS - 1),
+                points = {}
+            }
+            for jointIndex = 1, MOM_HAIR_JOINTS do
+                local jointT = (jointIndex - 1) / math.max(1, MOM_HAIR_JOINTS - 1)
+                local x = rootX + (math.cos(hangAngle) * length * jointT * 0.55)
+                local y = rootY + math.max(0, math.sin(hangAngle) * length * jointT)
+                hair.points[jointIndex] = makeFamilyPoint(x, y)
+            end
+            hair.x = hair.points[#hair.points].x
+            hair.y = hair.points[#hair.points].y
+            member.hair[index] = hair
+        end
+    elseif role == "girl" then
+        local headBaseY = baseY + (hangDirection * BODY_LENGTH * scale)
+        member.accessories[#member.accessories + 1] = makeDetachedPiece("pigtail", baseX - (14 * scale), headBaseY, -1, scale)
+        member.accessories[#member.accessories + 1] = makeDetachedPiece("pigtail", baseX + (14 * scale), headBaseY, 1, scale)
+        member.accessories[#member.accessories + 1] = makeDetachedPiece("bow", baseX - ((HEAD_RADIUS + 8) * scale), headBaseY - (6 * scale), -1, scale)
+        member.accessories[#member.accessories + 1] = makeDetachedPiece("bow", baseX + ((HEAD_RADIUS + 8) * scale), headBaseY - (6 * scale), 1, scale)
+    end
+
+    return member
+end
+
 function WackyInflatable.new(width, height, options)
     local self = setmetatable({}, WackyInflatable)
     self.width = width
     self.height = height
     self.preview = options and options.preview == true or false
+    self.modeId = options and options.modeId or WackyInflatable.MODE_STANDARD
     self.baseX = math.floor(width * 0.5)
-    self.baseY = height - 18
+    self.normalBaseY = height - 18
+    self.wormBaseY = math.floor(height * WORM_HORIZON_Y_RATIO)
+    self.baseY = self.normalBaseY
     self.segmentLength = BODY_LENGTH / SEGMENT_COUNT
     self.inflation = 1
     self.targetInflation = self.preview and 1 or 0.16
@@ -104,9 +251,29 @@ function WackyInflatable.new(width, height, options)
     self.crankLift = 0
     self.reverseGravityBoost = 0
     self.crankIdleFrames = CRANK_IDLE_FRAMES
+    self.lastUserCrankFrame = -AUTO_CRANK_IDLE_FRAMES
+    self.nextAutoCrankFrame = nil
+    self.autoCrankDirection = 1
     self.lastCrankDirection = 1
     self.collapseMode = false
     self.isFalling = false
+    self.partyMode = false
+    self.partyVisualAmount = 0
+    self.partyMotionCount = 0
+    self.partyLastDirection = 0
+    self.partyLastMotionFrame = -PARTY_IDLE_FRAMES
+    self.partyRayPhase = 0
+    self.reachForStarsMode = false
+    self.reachVisualAmount = 0
+    self.reachUpwardFrames = 0
+    self.reachLastUpwardFrame = -REACH_UPWARD_GAP_FRAMES
+    self.reachStars = self:makeReachStars()
+    self.wormMode = false
+    self.wormVisualAmount = 0
+    self.wormDownwardFrames = 0
+    self.wormUpwardFrames = 0
+    self.wormLastDownwardFrame = -WORM_DIRECTION_GAP_FRAMES
+    self.wormLastUpwardFrame = -WORM_DIRECTION_GAP_FRAMES
     self.hat = {
         attached = true,
         x = self.baseX,
@@ -121,7 +288,9 @@ function WackyInflatable.new(width, height, options)
         makeArm(-1),
         makeArm(1)
     }
+    self.familyMembers = {}
     self:resetBodyPose(true)
+    self:resetCrazyFamily()
     return self
 end
 
@@ -132,6 +301,7 @@ function WackyInflatable:setPreview(isPreview)
         self.inflation = 1
         self.targetInflation = 1
         self:resetBodyPose(true)
+        self:resetCrazyFamily()
     end
 end
 
@@ -139,17 +309,20 @@ function WackyInflatable:activate()
 end
 
 function WackyInflatable:shutdown()
+    self.partyMode = false
+    self.reachForStarsMode = false
 end
 
 function WackyInflatable:resetBodyPose(fullyExtended)
     self.bodyPoints = {}
+    local wormDirection = self.wormVisualAmount > 0.5 and 1 or -1
     for index = 1, SEGMENT_COUNT + 1 do
-        local y = self.baseY - ((index - 1) * self.segmentLength)
+        local y = self.baseY + (wormDirection * (index - 1) * self.segmentLength)
         local x = self.baseX
         if not fullyExtended then
             local collapseT = (index - 1) / SEGMENT_COUNT
             x = x + (self.flopSide * collapseT * 36)
-            y = y + (collapseT * collapseT * 24)
+            y = y - (wormDirection * collapseT * collapseT * 24)
         end
         self.bodyPoints[index] = {
             x = x,
@@ -171,11 +344,142 @@ function WackyInflatable:resetBodyPose(fullyExtended)
     self.hat.angularVelocity = 0
 end
 
-function WackyInflatable:applyCrank(change, acceleratedChange)
+function WackyInflatable:resetCrazyFamily()
+    local hangDirection = self.wormVisualAmount > 0.5 and 1 or -1
+    self.familyMembers = {
+        makeCrazyFamilyMember("mom", self.baseX - 118, self.baseY, 0.75, hangDirection),
+        makeCrazyFamilyMember("girl", self.baseX + 92, self.baseY, 0.5, hangDirection)
+    }
+end
+
+function WackyInflatable:isCrazyFamilyMode()
+    return self.modeId == WackyInflatable.MODE_CRAZY_FAMILY
+end
+
+function WackyInflatable:setWormMode(enabled)
+    self.wormMode = enabled == true
+    self.wormVisualAmount = self.wormMode and 1 or 0
+    self.baseY = self.wormMode and self.wormBaseY or self.normalBaseY
+    self.wormDownwardFrames = 0
+    self.wormUpwardFrames = 0
+    self.reachForStarsMode = false
+    self.reachVisualAmount = 0
+    self.reachUpwardFrames = 0
+    self:resetBodyPose(true)
+    self:resetCrazyFamily()
+end
+
+function WackyInflatable:makeReachStars()
+    local stars = {}
+    for index = 1, REACH_STAR_COUNT do
+        stars[index] = {
+            x = math.random(8, math.max(8, self.width - 8)),
+            y = math.random(8, math.max(8, self.height - 28)),
+            phase = math.random() * math.pi * 2,
+            speed = 0.09 + (math.random() * 0.08),
+            size = math.random(1, 3)
+        }
+    end
+    return stars
+end
+
+function WackyInflatable:scheduleNextAutoCrank()
+    self.nextAutoCrankFrame = self.frame + math.random(AUTO_CRANK_DELAY_MIN_FRAMES, AUTO_CRANK_DELAY_MAX_FRAMES)
+end
+
+function WackyInflatable:updatePartyTrigger(direction, strength, automated)
+    if automated or self.preview or direction == 0 or strength < PARTY_MIN_CRANK_STRENGTH then
+        return
+    end
+
+    local framesSinceMotion = self.frame - (self.partyLastMotionFrame or -PARTY_IDLE_FRAMES)
+    if framesSinceMotion > PARTY_RAPID_WINDOW_FRAMES or self.partyLastDirection == 0 then
+        self.partyMotionCount = 1
+    elseif direction ~= self.partyLastDirection then
+        self.partyMotionCount = (self.partyMotionCount or 1) + 1
+    end
+
+    self.partyLastDirection = direction
+    self.partyLastMotionFrame = self.frame
+
+    if self.partyMotionCount >= PARTY_TRIGGER_MOVES then
+        self.partyMode = true
+    end
+end
+
+function WackyInflatable:updateReachTrigger(direction, strength, automated)
+    if automated or self.preview or self.wormMode then
+        return
+    end
+
+    if direction > 0 and strength >= REACH_MIN_CRANK_STRENGTH then
+        local framesSinceUpward = self.frame - (self.reachLastUpwardFrame or -REACH_UPWARD_GAP_FRAMES)
+        if framesSinceUpward <= REACH_UPWARD_GAP_FRAMES then
+            self.reachUpwardFrames = (self.reachUpwardFrames or 0) + 1
+        else
+            self.reachUpwardFrames = 1
+        end
+        self.reachLastUpwardFrame = self.frame
+
+        if self.reachUpwardFrames >= REACH_TRIGGER_FRAMES then
+            self.reachForStarsMode = true
+        end
+    else
+        self.reachUpwardFrames = 0
+    end
+end
+
+function WackyInflatable:updateWormTrigger(direction, strength, automated)
+    if automated or self.preview or direction == 0 or strength < WORM_MIN_CRANK_STRENGTH then
+        return
+    end
+
+    if direction < 0 and not self.wormMode then
+        local framesSinceDownward = self.frame - (self.wormLastDownwardFrame or -WORM_DIRECTION_GAP_FRAMES)
+        if framesSinceDownward <= WORM_DIRECTION_GAP_FRAMES then
+            self.wormDownwardFrames = (self.wormDownwardFrames or 0) + 1
+        else
+            self.wormDownwardFrames = 1
+        end
+        self.wormLastDownwardFrame = self.frame
+        self.wormUpwardFrames = 0
+
+        if self.wormDownwardFrames >= WORM_TRIGGER_FRAMES then
+            self:setWormMode(true)
+        end
+        return
+    end
+
+    if direction > 0 and self.wormMode then
+        local framesSinceUpward = self.frame - (self.wormLastUpwardFrame or -WORM_DIRECTION_GAP_FRAMES)
+        if framesSinceUpward <= WORM_DIRECTION_GAP_FRAMES then
+            self.wormUpwardFrames = (self.wormUpwardFrames or 0) + 1
+        else
+            self.wormUpwardFrames = 1
+        end
+        self.wormLastUpwardFrame = self.frame
+
+        if self.wormUpwardFrames >= WORM_TRIGGER_FRAMES then
+            self:setWormMode(false)
+            self.reachUpwardFrames = 0
+            self.reachLastUpwardFrame = self.frame
+        end
+        return
+    end
+
+    if direction > 0 then
+        self.wormDownwardFrames = 0
+    elseif direction < 0 then
+        self.wormUpwardFrames = 0
+    end
+end
+
+function WackyInflatable:applyCrank(change, acceleratedChange, automated)
     local strength = math.abs(acceleratedChange or 0) + (math.abs(change or 0) * 0.8)
     if strength <= 0.01 then
         return
     end
+    automated = automated == true
 
     if not self.hat.attached then
         self.hat.attached = true
@@ -187,6 +491,13 @@ function WackyInflatable:applyCrank(change, acceleratedChange)
         self.lastCrankDirection = direction
         self.flopSide = direction
     end
+    if not automated and not self.preview then
+        self.lastUserCrankFrame = self.frame
+        self.nextAutoCrankFrame = nil
+    end
+    self:updatePartyTrigger(direction, strength, automated)
+    self:updateWormTrigger(direction, strength, automated)
+    self:updateReachTrigger(direction, strength, automated)
     self.crankIdleFrames = 0
 
     local boost = clamp(strength * 0.03, 0.08, MAX_CRANK_BOOST)
@@ -207,6 +518,10 @@ function WackyInflatable:applyCrank(change, acceleratedChange)
         local verticalDirection = direction < 0 and -0.65 or 1
         point.prevY = point.prevY + (impulse * CRANK_FLAIL_VERTICAL_SCALE * heightFactor * verticalDirection)
         point.prevX = point.prevX - (direction * pairDirection * impulse * CRANK_FLAIL_HORIZONTAL_SCALE * heightFactor)
+    end
+
+    if self:isCrazyFamilyMode() then
+        self:applyCrazyFamilyImpulse(direction, impulse)
     end
 end
 
@@ -257,6 +572,340 @@ function WackyInflatable:updateHat(topPoint)
         self.hat.prevX = self.hat.x + (velocityX * HAT_BOUNCE)
         self.hat.angularVelocity = -self.hat.angularVelocity * 0.7
     end
+end
+
+function WackyInflatable:applyCrazyFamilyImpulse(direction, impulse)
+    for _, member in ipairs(self.familyMembers or {}) do
+        member.flopSide = direction
+        if direction < 0 then
+            member.lift = math.max(0, (member.lift or 0) - (impulse * 0.08))
+            member.reverseGravityBoost = clamp((member.reverseGravityBoost or 0) + (impulse * 0.16), 0, REVERSE_GRAVITY_SCALE)
+        else
+            member.lift = clamp((member.lift or 0) + (impulse * 0.1), 0, 1.1)
+            member.reverseGravityBoost = math.max(0, (member.reverseGravityBoost or 0) - (impulse * 0.05))
+        end
+        for index = 2, #member.points do
+            local point = member.points[index]
+            local heightFactor = (index - 1) / member.segmentCount
+            local pairDirection = index % 2 == 0 and -1 or 1
+            local verticalDirection = direction < 0 and -0.65 or 1
+            local verticalScale = 0.75 + (member.scale * 0.25)
+            point.prevY = point.prevY + (impulse * CRANK_FLAIL_VERTICAL_SCALE * heightFactor * verticalDirection * verticalScale)
+            point.prevX = point.prevX - (direction * pairDirection * impulse * CRANK_FLAIL_HORIZONTAL_SCALE * heightFactor * member.scale * 1.25)
+        end
+        if member.role == "mom" and member.hairAttached then
+            for _, hair in ipairs(member.hair or {}) do
+                for jointIndex = 2, #(hair.points or {}) do
+                    local joint = hair.points[jointIndex]
+                    local jointT = (jointIndex - 1) / math.max(1, #hair.points - 1)
+                    joint.prevX = joint.prevX - (direction * impulse * hair.side * jointT * 0.9)
+                    joint.prevY = joint.prevY + (impulse * jointT * (direction < 0 and -0.6 or 1.0))
+                end
+            end
+        elseif member.role == "girl" then
+            for _, piece in ipairs(member.accessories or {}) do
+                if piece.kind == "bow" and not piece.attached then
+                    piece.attached = true
+                    piece.angularVelocity = 0
+                end
+            end
+        end
+    end
+end
+
+function WackyInflatable:updateDetachedPiece(piece, groundY)
+    local velocityX = (piece.x - piece.prevX) * HAT_GROUND_DRAG
+    local velocityY = (piece.y - piece.prevY) * HAT_GROUND_DRAG
+    piece.prevX = piece.x
+    piece.prevY = piece.y
+    piece.x = piece.x + velocityX
+    piece.y = piece.y + velocityY + (BODY_GRAVITY * 0.85)
+    piece.rotation = (piece.rotation or 0) + (piece.angularVelocity or 0)
+    piece.angularVelocity = (piece.angularVelocity or 0) * 0.99
+
+    if piece.y > groundY then
+        piece.y = groundY
+        piece.prevY = piece.y + (velocityY * HAT_BOUNCE)
+        piece.prevX = piece.x - (velocityX * HAT_GROUND_ROLL_DRAG)
+        piece.angularVelocity = (piece.angularVelocity or 0) + (velocityX * 0.012)
+    end
+    piece.x = clamp(piece.x, 8, self.width - 8)
+end
+
+function WackyInflatable:updateCrazyFamilyMember(member)
+    member.phase = wrapPhase(member.phase + 0.08)
+    member.lift = math.max(0.05, (member.lift or 0) - 0.02)
+    member.reverseGravityBoost = math.max(0, (member.reverseGravityBoost or 0) - GRAVITY_BOOST_DECAY)
+    local sway = math.sin(member.phase) * BODY_SWAY_SCALE * member.scale * 1.8
+    local gravityScale = 1 + (member.reverseGravityBoost or 0)
+
+    for index = 2, #member.points do
+        local point = member.points[index]
+        local velocityX = (point.x - point.prevX) * BODY_DRAG
+        local velocityY = (point.y - point.prevY) * BODY_DRAG
+        local normalizedIndex = (index - 1) / member.segmentCount
+        point.prevX = point.x
+        point.prevY = point.y
+        point.x = point.x + velocityX + (sway * normalizedIndex)
+        point.y = point.y + velocityY + (BODY_GRAVITY * gravityScale * (1.08 - (member.scale * 0.18))) - ((member.lift or 0) * BODY_LIFT_SCALE * normalizedIndex)
+    end
+
+    for _ = 1, FAMILY_CONSTRAINT_PASSES do
+        local base = member.points[1]
+        base.x = member.baseX
+        base.y = member.baseY
+        base.prevX = member.baseX
+        base.prevY = member.baseY
+        for index = 1, #member.points - 1 do
+            local a = member.points[index]
+            local b = member.points[index + 1]
+            local dx = b.x - a.x
+            local dy = b.y - a.y
+            local distance = math.max(0.0001, math.sqrt((dx * dx) + (dy * dy)))
+            local difference = (distance - member.segmentLength) / distance
+            if index == 1 then
+                b.x = b.x - (dx * difference)
+                b.y = b.y - (dy * difference)
+            else
+                local adjustX = dx * difference * 0.5
+                local adjustY = dy * difference * 0.5
+                a.x = a.x + adjustX
+                a.y = a.y + adjustY
+                b.x = b.x - adjustX
+                b.y = b.y - adjustY
+            end
+        end
+
+        for index = 2, #member.points do
+            local point = member.points[index]
+            point.x = clamp(point.x, member.baseX - (BODY_SWEEP_LIMIT * member.scale), member.baseX + (BODY_SWEEP_LIMIT * member.scale))
+            if self.wormVisualAmount > 0.5 then
+                if point.y < member.baseY + 2 then
+                    point.y = member.baseY + 2
+                    point.prevY = point.y - ((point.prevY - point.y) * COLLAPSE_GROUND_BOUNCE)
+                end
+            elseif point.y > member.baseY - 2 then
+                point.y = member.baseY - 2
+                point.prevY = point.y + ((point.y - point.prevY) * COLLAPSE_GROUND_BOUNCE)
+            end
+        end
+    end
+
+    local topPoint = member.points[#member.points]
+    local headRadius = HEAD_RADIUS * member.scale
+    local headCenterY = topPoint.y - (10 * member.scale)
+    member.isFalling = (topPoint.y - topPoint.prevY) > (FALLING_SURPRISE_SPEED * math.max(0.45, member.scale))
+    local headHitGround = self.wormVisualAmount <= 0.5 and (headCenterY + headRadius) >= (member.baseY - 2)
+    if headHitGround and member.role == "girl" then
+        for _, piece in ipairs(member.accessories or {}) do
+            if piece.kind == "bow" and piece.attached then
+                piece.attached = false
+                piece.prevX = piece.x - ((topPoint.x - topPoint.prevX) * 1.2)
+                piece.prevY = piece.y - ((topPoint.y - topPoint.prevY) * 1.2)
+                piece.angularVelocity = piece.side * 0.15
+            end
+        end
+    end
+
+    self:updateCrazyFamilyAccessories(member)
+end
+
+function WackyInflatable:updateCrazyFamilyAccessories(member)
+    local topPoint = member.points[#member.points]
+    local scale = member.scale
+    local headCenterX = topPoint.x
+    local headCenterY = topPoint.y - (10 * scale)
+    if member.role == "mom" then
+        for _, hair in ipairs(member.hair or {}) do
+            local rootX, rootY = getMomHairRoot(member, hair, headCenterX, headCenterY)
+            local phase = (member.phase or 0) + hair.phase
+            local points = hair.points or {}
+            if points[1] ~= nil then
+                points[1].x = rootX
+                points[1].y = rootY
+                points[1].prevX = rootX
+                points[1].prevY = rootY
+            end
+
+            for jointIndex = 2, #points do
+                local joint = points[jointIndex]
+                local jointT = (jointIndex - 1) / math.max(1, #points - 1)
+                local velocityX = (joint.x - joint.prevX) * 0.94
+                local velocityY = (joint.y - joint.prevY) * 0.94
+                joint.prevX = joint.x
+                joint.prevY = joint.y
+                joint.x = joint.x + velocityX + (math.sin((phase * 1.9) + jointIndex) * 0.9 * scale * jointT)
+                joint.y = joint.y + velocityY + (BODY_GRAVITY * 0.46 * scale) + (math.cos((phase * 1.15) + jointIndex) * 0.45 * scale * jointT)
+            end
+
+            for _ = 1, MOM_HAIR_CONSTRAINT_PASSES do
+                if points[1] ~= nil then
+                    points[1].x = rootX
+                    points[1].y = rootY
+                end
+                for jointIndex = 1, #points - 1 do
+                    local a = points[jointIndex]
+                    local b = points[jointIndex + 1]
+                    local dx = b.x - a.x
+                    local dy = b.y - a.y
+                    local distance = math.max(0.001, math.sqrt((dx * dx) + (dy * dy)))
+                    local difference = (distance - hair.segmentLength) / distance
+                    if jointIndex == 1 then
+                        b.x = b.x - (dx * difference)
+                        b.y = b.y - (dy * difference)
+                    else
+                        local adjustX = dx * difference * 0.5
+                        local adjustY = dy * difference * 0.5
+                        a.x = a.x + adjustX
+                        a.y = a.y + adjustY
+                        b.x = b.x - adjustX
+                        b.y = b.y - adjustY
+                    end
+                end
+            end
+
+            local tip = points[#points]
+            if tip ~= nil then
+                hair.x = tip.x
+                hair.y = tip.y
+            end
+        end
+        return
+    end
+
+    for _, piece in ipairs(member.accessories or {}) do
+        if piece.attached then
+            piece.prevX = piece.x
+            piece.prevY = piece.y
+            if piece.kind == "pigtail" then
+                piece.x = headCenterX + (piece.side * 12 * scale)
+                piece.y = headCenterY - (3 * scale) + (math.sin((member.phase or 0) * 2.2 + piece.side) * 3 * scale)
+            else
+                piece.x = headCenterX + (piece.side * (HEAD_RADIUS + 7) * scale)
+                piece.y = headCenterY - (9 * scale)
+            end
+        else
+            self:updateDetachedPiece(piece, member.baseY - 3)
+        end
+    end
+end
+
+function WackyInflatable:updateCrazyFamily()
+    if not self:isCrazyFamilyMode() then
+        return
+    end
+
+    for _, member in ipairs(self.familyMembers or {}) do
+        self:updateCrazyFamilyMember(member)
+    end
+end
+
+function WackyInflatable:updateFamilyHorizons()
+    for _, member in ipairs(self.familyMembers or {}) do
+        member.baseY = self.baseY
+    end
+end
+
+function WackyInflatable:translateByY(deltaY)
+    if math.abs(deltaY) < 0.001 then
+        return
+    end
+
+    for _, point in ipairs(self.bodyPoints or {}) do
+        point.y = point.y + deltaY
+        point.prevY = point.prevY + deltaY
+    end
+
+    self.hat.y = self.hat.y + deltaY
+    self.hat.prevY = self.hat.prevY + deltaY
+
+    for _, member in ipairs(self.familyMembers or {}) do
+        for _, point in ipairs(member.points or {}) do
+            point.y = point.y + deltaY
+            point.prevY = point.prevY + deltaY
+        end
+        for _, hair in ipairs(member.hair or {}) do
+            for _, point in ipairs(hair.points or {}) do
+                point.y = point.y + deltaY
+                point.prevY = point.prevY + deltaY
+            end
+        end
+        for _, piece in ipairs(member.accessories or {}) do
+            piece.y = piece.y + deltaY
+            piece.prevY = piece.prevY + deltaY
+        end
+    end
+end
+
+function WackyInflatable:updatePartyMode()
+    if self.partyMode and (self.frame - (self.partyLastMotionFrame or 0)) > PARTY_IDLE_FRAMES then
+        self.partyMode = false
+        self.partyMotionCount = 0
+        self.partyLastDirection = 0
+    end
+
+    local targetAmount = self.partyMode and 1 or 0
+    self.partyVisualAmount = self.partyVisualAmount + ((targetAmount - self.partyVisualAmount) * 0.18)
+    if self.partyVisualAmount < 0.01 then
+        self.partyVisualAmount = 0
+    end
+    self.partyRayPhase = wrapPhase((self.partyRayPhase or 0) + (0.11 + (self.partyVisualAmount * 0.12)))
+end
+
+function WackyInflatable:updateReachForStarsMode()
+    if self.reachForStarsMode and (self.frame - (self.reachLastUpwardFrame or 0)) > PARTY_IDLE_FRAMES then
+        self.reachForStarsMode = false
+        self.reachUpwardFrames = 0
+    end
+
+    if self.wormMode then
+        self.reachForStarsMode = false
+        self.reachUpwardFrames = 0
+    end
+
+    local targetAmount = self.reachForStarsMode and 1 or 0
+    self.reachVisualAmount = self.reachVisualAmount + ((targetAmount - self.reachVisualAmount) * 0.14)
+    if self.reachVisualAmount < 0.01 then
+        self.reachVisualAmount = 0
+    end
+end
+
+function WackyInflatable:updateWormMode()
+    local targetAmount = self.wormMode and 1 or 0
+    self.wormVisualAmount = self.wormVisualAmount + ((targetAmount - self.wormVisualAmount) * 0.055)
+    if self.wormVisualAmount < 0.01 then
+        self.wormVisualAmount = 0
+    elseif self.wormVisualAmount > 0.99 then
+        self.wormVisualAmount = 1
+    end
+    local previousBaseY = self.baseY
+    self.baseY = lerp(self.normalBaseY, self.wormBaseY, self.wormVisualAmount)
+    self:translateByY(self.baseY - previousBaseY)
+    self:updateFamilyHorizons()
+end
+
+function WackyInflatable:updateAutoCrank()
+    if self.preview then
+        return
+    end
+
+    if (self.frame - (self.lastUserCrankFrame or 0)) < AUTO_CRANK_IDLE_FRAMES then
+        self.nextAutoCrankFrame = nil
+        return
+    end
+
+    if self.nextAutoCrankFrame == nil then
+        self:scheduleNextAutoCrank()
+        return
+    end
+
+    if self.frame < self.nextAutoCrankFrame then
+        return
+    end
+
+    self.autoCrankDirection = -(self.autoCrankDirection or 1)
+    self:applyCrank(AUTO_CRANK_QUARTER_TURN * self.autoCrankDirection, AUTO_CRANK_QUARTER_TURN * self.autoCrankDirection, true)
+    self:scheduleNextAutoCrank()
 end
 
 function WackyInflatable:handlePrimaryAction()
@@ -350,7 +999,14 @@ function WackyInflatable:constrainBodyLengths()
             end
 
             point.x = clamp(point.x, self.baseX - BODY_SWEEP_LIMIT, self.baseX + BODY_SWEEP_LIMIT)
-            if point.y > (self.baseY - 2) then
+            if self.wormVisualAmount > 0.5 then
+                if point.y < (self.baseY + 2) then
+                    local penetration = (self.baseY + 2) - point.y
+                    point.y = self.baseY + 2
+                    local bounce = allowCollapse and COLLAPSE_GROUND_BOUNCE or BODY_GROUND_BOUNCE
+                    point.prevY = point.y - (penetration * bounce)
+                end
+            elseif point.y > (self.baseY - 2) then
                 local penetration = point.y - (self.baseY - 2)
                 point.y = self.baseY - 2
                 local bounce = allowCollapse and COLLAPSE_GROUND_BOUNCE or BODY_GROUND_BOUNCE
@@ -524,11 +1180,218 @@ function WackyInflatable:drawHead(topPoint)
     gfx.drawLine(headCenterX + 14, headCenterY - 16, headCenterX + 10, headCenterY - 16)
 end
 
+function WackyInflatable:drawFamilyTube(member)
+    for index = 1, #member.points - 1 do
+        local a = member.points[index]
+        local b = member.points[index + 1]
+        local width = math.max(2, TUBE_WIDTH * member.scale * (0.55 + (0.3 * (index / #member.points))))
+        gfx.drawLine(a.x - (width * 0.5), a.y, b.x - (width * 0.5), b.y)
+        gfx.drawLine(a.x + (width * 0.5), a.y, b.x + (width * 0.5), b.y)
+        if index % 2 == 0 then
+            gfx.drawLine(a.x - (width * 0.5), a.y, a.x + (width * 0.5), a.y)
+        end
+    end
+end
+
+function WackyInflatable:drawDetachedPiece(piece)
+    local scale = piece.scale or 1
+    if piece.kind == "bow" then
+        local size = math.max(2, 8 * scale)
+        gfx.drawLine(piece.x, piece.y, piece.x - (piece.side * size), piece.y - size)
+        gfx.drawLine(piece.x, piece.y, piece.x - (piece.side * size), piece.y + size)
+        gfx.drawLine(piece.x, piece.y, piece.x + (piece.side * size), piece.y - size)
+        gfx.drawLine(piece.x, piece.y, piece.x + (piece.side * size), piece.y + size)
+    else
+        local radius = math.max(2, 9 * scale)
+        gfx.drawCircleAtPoint(piece.x, piece.y, radius)
+        gfx.drawLine(piece.x, piece.y - radius, piece.x + (piece.side * radius), piece.y + radius)
+    end
+end
+
+function WackyInflatable:drawFamilyHair(member, headCenterX, headCenterY)
+    if member.role == "mom" then
+        for _, hair in ipairs(member.hair or {}) do
+            local points = hair.points or {}
+            for jointIndex = 1, #points - 1 do
+                local a = points[jointIndex]
+                local b = points[jointIndex + 1]
+                gfx.drawLine(a.x, a.y, b.x, b.y)
+                if jointIndex % 2 == 1 then
+                    gfx.drawLine(a.x + (hair.side * 1.2), a.y + 1, b.x + (hair.side * 2.2), b.y + (1.5 * member.scale))
+                end
+            end
+        end
+        return
+    end
+
+    for _, piece in ipairs(member.accessories or {}) do
+        self:drawDetachedPiece(piece)
+    end
+end
+
+function WackyInflatable:drawFamilyMember(member)
+    local topPoint = member.points[#member.points]
+    local shoulderPoint = member.points[math.max(2, math.floor(#member.points * 0.62))]
+    local scale = member.scale
+    local headCenterX = topPoint.x
+    local headCenterY = topPoint.y - (10 * scale)
+    local headRadius = math.max(4, HEAD_RADIUS * scale)
+
+    self:drawHorizonAnchor(member.baseX, member.baseY, 10 * scale, 8 * scale)
+    self:drawFamilyTube(member)
+
+    local armLength = ARM_LENGTH * scale
+    for _, side in ipairs({ -1, 1 }) do
+        local phase = (member.phase or 0) + side
+        local handX = shoulderPoint.x + (side * armLength * 0.75) + (math.sin(phase * 1.8) * armLength * 0.35)
+        local handY = shoulderPoint.y + (math.cos(phase) * armLength * 0.5)
+        gfx.drawLine(shoulderPoint.x, shoulderPoint.y, handX, handY)
+        gfx.fillCircleAtPoint(handX, handY, math.max(1, 3 * scale))
+    end
+
+    self:drawFamilyHair(member, headCenterX, headCenterY)
+    gfx.drawCircleAtPoint(headCenterX, headCenterY, headRadius)
+    gfx.fillCircleAtPoint(headCenterX - (5 * scale), headCenterY - (3 * scale), math.max(1, 2 * scale))
+    gfx.fillCircleAtPoint(headCenterX + (5 * scale), headCenterY - (3 * scale), math.max(1, 2 * scale))
+
+    if member.isFalling then
+        local mouthRadius = math.max(2, 4 * scale)
+        gfx.drawCircleAtPoint(headCenterX, headCenterY + (6 * scale), mouthRadius)
+        gfx.fillCircleAtPoint(headCenterX, headCenterY + (6 * scale), math.max(1, mouthRadius * 0.45))
+    else
+        gfx.drawLine(headCenterX - (5 * scale), headCenterY + (4 * scale), headCenterX, headCenterY + (6 * scale))
+        gfx.drawLine(headCenterX, headCenterY + (6 * scale), headCenterX + (5 * scale), headCenterY + (4 * scale))
+    end
+end
+
+function WackyInflatable:drawCrazyFamily()
+    if not self:isCrazyFamilyMode() then
+        return
+    end
+
+    for _, member in ipairs(self.familyMembers or {}) do
+        self:drawFamilyMember(member)
+    end
+end
+
+function WackyInflatable:drawHorizonAnchor(x, y, halfWidth, supportLength)
+    local angle = math.pi * (self.wormVisualAmount or 0)
+    local dx = math.cos(angle) * halfWidth
+    local dy = math.sin(angle) * halfWidth
+    local supportX = -math.sin(angle) * supportLength
+    local supportY = math.cos(angle) * supportLength
+    gfx.drawLine(x - dx, y - dy, x + dx, y + dy)
+    gfx.drawLine(x, y, x + supportX, y + supportY)
+end
+
+function WackyInflatable:drawWormHorizon()
+    if (self.wormVisualAmount or 0) <= 0 then
+        return
+    end
+
+    gfx.setDitherPattern(0.45, gfx.image.kDitherTypeBayer8x8)
+    gfx.drawLine(0, self.baseY, self.width, self.baseY)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+end
+
+function WackyInflatable:drawPartyBackground()
+    if (self.partyVisualAmount or 0) <= 0 and (self.reachVisualAmount or 0) <= 0 then
+        gfx.clear(gfx.kColorWhite)
+        return
+    end
+
+    local greyFlash = math.floor(self.frame / 6) % 2 == 0
+    gfx.clear(gfx.kColorWhite)
+    local reachAmount = self.reachVisualAmount or 0
+    if reachAmount > 0 then
+        gfx.setColor(gfx.kColorBlack)
+        gfx.setDitherPattern(REACH_DARKEN_DITHER * reachAmount, gfx.image.kDitherTypeBayer8x8)
+        gfx.fillRect(0, 0, self.width, self.height)
+        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    end
+    if greyFlash then
+        gfx.setColor(gfx.kColorBlack)
+        gfx.setDitherPattern(PARTY_BACKGROUND_DITHER, gfx.image.kDitherTypeBayer8x8)
+        gfx.fillRect(0, 0, self.width, self.height)
+        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    end
+end
+
+function WackyInflatable:drawReachStars()
+    local amount = self.reachVisualAmount or 0
+    if amount <= 0 then
+        return
+    end
+
+    gfx.setColor(gfx.kColorBlack)
+    for _, star in ipairs(self.reachStars or {}) do
+        local twinkle = (math.sin((self.frame * star.speed) + star.phase) + 1) * 0.5
+        if twinkle > (1 - (0.82 * amount)) then
+            local x = star.x
+            local y = star.y
+            local size = star.size
+            gfx.drawLine(x - size, y, x + size, y)
+            gfx.drawLine(x, y - size, x, y + size)
+            if twinkle > 0.82 then
+                gfx.fillRect(x, y, 1, 1)
+            end
+        end
+    end
+end
+
+function WackyInflatable:drawDiscoParty()
+    local amount = self.partyVisualAmount or 0
+    if amount <= 0 then
+        return
+    end
+
+    local centerX = math.floor(self.width * 0.5)
+    local centerY = lerp(PARTY_DISCO_HIDDEN_Y, PARTY_DISCO_VISIBLE_Y, amount)
+    local phase = self.partyRayPhase or 0
+    local rayLength = 210 * amount
+
+    gfx.setColor(gfx.kColorBlack)
+    for index = 1, 12 do
+        local angle = phase + ((index - 1) * math.pi / 6)
+        local endX = centerX + (math.cos(angle) * rayLength)
+        local endY = centerY + (math.sin(angle) * rayLength)
+        if index % 2 == 0 then
+            gfx.setDitherPattern(0.35, gfx.image.kDitherTypeBayer8x8)
+            gfx.setLineWidth(3)
+        else
+            gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+            gfx.setLineWidth(1)
+        end
+        gfx.drawLine(centerX, centerY, endX, endY)
+    end
+
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setLineWidth(1)
+    gfx.fillCircleAtPoint(centerX, centerY, PARTY_DISCO_RADIUS)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawLine(centerX - PARTY_DISCO_RADIUS + 3, centerY - 5, centerX + PARTY_DISCO_RADIUS - 3, centerY - 5)
+    gfx.drawLine(centerX - PARTY_DISCO_RADIUS + 2, centerY + 4, centerX + PARTY_DISCO_RADIUS - 2, centerY + 4)
+    gfx.drawLine(centerX - 6, centerY - PARTY_DISCO_RADIUS + 2, centerX - 6, centerY + PARTY_DISCO_RADIUS - 2)
+    gfx.drawLine(centerX + 6, centerY - PARTY_DISCO_RADIUS + 2, centerX + 6, centerY + PARTY_DISCO_RADIUS - 2)
+    gfx.fillCircleAtPoint(centerX - 6, centerY - 5, 2)
+    gfx.fillCircleAtPoint(centerX + 7, centerY + 4, 2)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawLine(centerX, 0, centerX, centerY - PARTY_DISCO_RADIUS)
+end
+
 function WackyInflatable:update()
     self.frame = self.frame + 1
+    if self.preview and self.frame % PREVIEW_AUTO_CRANK_FRAMES == 1 then
+        self:applyCrank(18, 18)
+    end
+    self:updateAutoCrank()
+    self:updateWormMode()
     self:updateBodyPhysics()
     self:updateArmPhysics()
     self:updateHat(self.bodyPoints[#self.bodyPoints])
+    self:updateCrazyFamily()
+    self:updatePartyMode()
+    self:updateReachForStarsMode()
 end
 
 function WackyInflatable:draw()
@@ -536,12 +1399,15 @@ function WackyInflatable:draw()
     local topPoint = points[#points]
     local shoulderPoint = points[math.max(3, math.floor(#points * 0.62))]
 
-    gfx.clear(gfx.kColorWhite)
+    self:drawPartyBackground()
     gfx.setColor(gfx.kColorBlack)
+    self:drawReachStars()
+    self:drawDiscoParty()
+    self:drawWormHorizon()
 
-    gfx.drawLine(self.baseX - 12, self.baseY + 4, self.baseX + 12, self.baseY + 4)
-    gfx.drawLine(self.baseX, self.baseY, self.baseX, self.baseY + 8)
+    self:drawHorizonAnchor(self.baseX, self.baseY, 12, 8)
 
+    self:drawCrazyFamily()
     self:drawTube(points)
     self:drawArm(shoulderPoint.x, shoulderPoint.y, shoulderPoint.angle - 1.2, self.arms[1])
     self:drawArm(shoulderPoint.x, shoulderPoint.y, shoulderPoint.angle + 1.2, self.arms[2])

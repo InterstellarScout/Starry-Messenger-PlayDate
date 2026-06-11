@@ -15,12 +15,13 @@ FireworksShow = {}
 FireworksShow.__index = FireworksShow
 
 -- Development tuning limits. Raise carefully on hardware.
-local MAX_ACTIVE_SPARKS <const> = FIREWORKS_CONFIG.maxActiveSparks or 200
+local MAX_ACTIVE_SPARKS <const> = FIREWORKS_CONFIG.maxActiveSparks or 150
 local MAX_SPARKS_PER_FIREWORK <const> = FIREWORKS_CONFIG.maxSparksPerFirework or 56
 local SPARK_LIFESPAN_MIN <const> = FIREWORKS_CONFIG.sparkLifespanMin or 18
 local SPARK_LIFESPAN_MAX <const> = FIREWORKS_CONFIG.sparkLifespanMax or 34
 local AUTO_LAUNCH_INTERVAL_MIN <const> = FIREWORKS_CONFIG.autoLaunchIntervalMin or 3
 local AUTO_LAUNCH_INTERVAL_MAX <const> = FIREWORKS_CONFIG.autoLaunchIntervalMax or 10
+local AUTO_LAUNCH_QUEUE_SIZE <const> = FIREWORKS_CONFIG.autoLaunchQueueSize or 3
 local MAX_EXPLOSION_HEIGHT_PERCENT <const> = FIREWORKS_CONFIG.maxExplosionHeightPercent or 0.95
 local MIN_EXPLOSION_HEIGHT_PERCENT <const> = FIREWORKS_CONFIG.minExplosionHeightPercent or 0.58
 local BACKGROUND_STAR_COUNT <const> = FIREWORKS_CONFIG.backgroundStarCount or 20
@@ -75,9 +76,11 @@ function FireworksShow.new(width, height, options)
     self.launcherX = width / 2
     self.shells = {}
     self.sparks = {}
+    self.shootingStars = {}
     self.autoLaunchTimer = 0
+    self.autoLaunchTimers = {}
     self.backgroundPhase = math.random() * TAU
-    self.styleOrder = { "standard", "willow", "grasser" }
+    self.styleOrder = { "auto", "standard", "willow", "grasser" }
     self.selectedStyleIndex = 1
     self.backgroundStars = {}
     for index = 1, BACKGROUND_STAR_COUNT do
@@ -89,7 +92,7 @@ function FireworksShow.new(width, height, options)
             size = math.random() < 0.18 and 2 or 1
         }
     end
-    self:resetAutoLaunchTimer()
+    self:resetAutoLaunchQueue()
     return self
 end
 
@@ -99,6 +102,14 @@ end
 
 function FireworksShow:resetAutoLaunchTimer()
     self.autoLaunchTimer = randomRange(AUTO_LAUNCH_INTERVAL_MIN, AUTO_LAUNCH_INTERVAL_MAX)
+end
+
+function FireworksShow:resetAutoLaunchQueue()
+    self.autoLaunchTimers = {}
+    for index = 1, AUTO_LAUNCH_QUEUE_SIZE do
+        self.autoLaunchTimers[index] = randomRange(AUTO_LAUNCH_INTERVAL_MIN, AUTO_LAUNCH_INTERVAL_MAX)
+    end
+    self:resetAutoLaunchTimer()
 end
 
 function FireworksShow:moveLauncher(delta)
@@ -133,7 +144,9 @@ function FireworksShow:stepSelectedStyle(direction)
 end
 
 function FireworksShow:getStyleLabel(style)
-    if style == "willow" then
+    if style == "auto" then
+        return "Auto"
+    elseif style == "willow" then
         return "Willow"
     elseif style == "grasser" then
         return "Grasser"
@@ -143,7 +156,7 @@ function FireworksShow:getStyleLabel(style)
 end
 
 function FireworksShow:getRandomStyle()
-    return self.styleOrder[math.random(1, #self.styleOrder)]
+    return self.styleOrder[math.random(2, #self.styleOrder)]
 end
 
 function FireworksShow:spawnShell(x, style)
@@ -165,7 +178,30 @@ function FireworksShow:spawnShell(x, style)
 end
 
 function FireworksShow:launchFromLauncher()
-    self:spawnShell(self:getWrappedLauncherX(), self:getSelectedStyle())
+    local style = self:getSelectedStyle()
+    if style == "auto" then
+        style = self:getRandomStyle()
+    end
+    self:spawnShell(self:getWrappedLauncherX(), style)
+end
+
+function FireworksShow:spawnShootingStar()
+    local fromLeft = math.random() < 0.5
+    local x = fromLeft and randomRange(-12, self.width * 0.22) or randomRange(self.width * 0.78, self.width + 12)
+    local star = {
+        x = x,
+        y = randomRange(6, self.height * 0.18),
+        vx = (fromLeft and 1 or -1) * randomRange(2.6, 4.2),
+        vy = -randomRange(0.6, 1.8),
+        gravity = randomRange(0.11, 0.18),
+        size = randomRange(2.8, 4.8),
+        style = self:getSelectedStyle() == "auto" and self:getRandomStyle() or self:getSelectedStyle(),
+        popY = randomRange(self.height * 0.28, self.height * 0.5),
+        trail = {},
+        trailLimit = 20
+    }
+
+    self.shootingStars[#self.shootingStars + 1] = star
 end
 
 function FireworksShow:spawnAutoFirework()
@@ -284,6 +320,23 @@ function FireworksShow:updateShells()
     end
 end
 
+function FireworksShow:updateShootingStars()
+    for index = #self.shootingStars, 1, -1 do
+        local star = self.shootingStars[index]
+        addTrailPoint(star)
+        star.x = star.x + star.vx
+        star.y = star.y + star.vy
+        star.vy = star.vy + star.gravity
+
+        if star.y >= star.popY and star.vy > 0 then
+            self:explodeShell(star)
+            table.remove(self.shootingStars, index)
+        elseif star.x < -30 or star.x > self.width + 30 or star.y > self.height * 0.62 then
+            table.remove(self.shootingStars, index)
+        end
+    end
+end
+
 function FireworksShow:updateSparks()
     for index = #self.sparks, 1, -1 do
         local spark = self.sparks[index]
@@ -308,14 +361,20 @@ end
 
 function FireworksShow:update()
     self.backgroundPhase = self.backgroundPhase + 0.02
-    self.autoLaunchTimer = self.autoLaunchTimer - (1 / 30)
 
-    if self.autoLaunchTimer <= 0 then
-        self:spawnAutoFirework()
-        self:resetAutoLaunchTimer()
+    if self.autoLaunchTimers == nil or #self.autoLaunchTimers == 0 then
+        self:resetAutoLaunchQueue()
+    end
+    for index = 1, #self.autoLaunchTimers do
+        self.autoLaunchTimers[index] = self.autoLaunchTimers[index] - (1 / 30)
+        if self.autoLaunchTimers[index] <= 0 then
+            self:spawnAutoFirework()
+            self.autoLaunchTimers[index] = randomRange(AUTO_LAUNCH_INTERVAL_MIN, AUTO_LAUNCH_INTERVAL_MAX)
+        end
     end
 
     self:updateShells()
+    self:updateShootingStars()
     self:updateSparks()
 end
 
@@ -339,6 +398,17 @@ function FireworksShow:drawShell(shell)
     self:drawCircle(shell.x, shell.y, shell.size, true)
 end
 
+function FireworksShow:drawShootingStar(star)
+    for index = 2, #star.trail do
+        local previous = star.trail[index - 1]
+        local point = star.trail[index]
+        gfx.drawLine(previous.x, previous.y, point.x, point.y)
+    end
+
+    self:drawCircle(star.x, star.y, star.size, true)
+    self:drawCircle(star.x, star.y, star.size * 1.7, false)
+end
+
 function FireworksShow:drawSpark(spark)
     for index = 2, #spark.trail do
         local previous = spark.trail[index - 1]
@@ -353,10 +423,46 @@ function FireworksShow:drawSpark(spark)
     self:drawCircle(spark.x, spark.y, spark.size * 0.6, true)
 end
 
-function FireworksShow:drawLauncherAt(x)
-    local baseY = self.height - 8
+function FireworksShow:drawAutoLauncherAt(x, baseY)
     gfx.fillRect(x - 5, baseY - 8, 10, 8)
     gfx.drawLine(x, baseY - 8, x, baseY - 14)
+end
+
+function FireworksShow:drawStandardLauncherAt(x, baseY)
+    gfx.fillRect(x - 6, baseY - 7, 12, 7)
+    gfx.drawRect(x - 4, baseY - 14, 8, 8)
+    gfx.drawLine(x, baseY - 18, x, baseY - 14)
+end
+
+function FireworksShow:drawWillowLauncherAt(x, baseY)
+    gfx.fillRect(x - 7, baseY - 5, 14, 5)
+    gfx.drawLine(x, baseY - 5, x, baseY - 20)
+    gfx.drawLine(x, baseY - 18, x - 7, baseY - 11)
+    gfx.drawLine(x, baseY - 18, x + 7, baseY - 11)
+    gfx.drawLine(x - 4, baseY - 15, x - 10, baseY - 10)
+    gfx.drawLine(x + 4, baseY - 15, x + 10, baseY - 10)
+end
+
+function FireworksShow:drawGrasserLauncherAt(x, baseY)
+    gfx.fillRect(x - 8, baseY - 5, 16, 5)
+    gfx.drawLine(x - 9, baseY - 5, x - 2, baseY - 17)
+    gfx.drawLine(x, baseY - 5, x, baseY - 19)
+    gfx.drawLine(x + 9, baseY - 5, x + 2, baseY - 17)
+    gfx.drawLine(x - 5, baseY - 8, x + 5, baseY - 8)
+end
+
+function FireworksShow:drawLauncherAt(x)
+    local baseY = self.height - 8
+    local style = self:getSelectedStyle()
+    if style == "willow" then
+        self:drawWillowLauncherAt(x, baseY)
+    elseif style == "grasser" then
+        self:drawGrasserLauncherAt(x, baseY)
+    elseif style == "standard" then
+        self:drawStandardLauncherAt(x, baseY)
+    else
+        self:drawAutoLauncherAt(x, baseY)
+    end
 end
 
 function FireworksShow:drawLauncher()
@@ -379,13 +485,13 @@ function FireworksShow:drawSky()
 end
 
 function FireworksShow:drawHud()
-    if self.preview then
+    if self.preview or (UIState and not UIState.isShown()) then
         return
     end
 
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawText("Fireworks", 10, 8)
-    gfx.drawText(string.format("Shells %d  Sparks %d/%d", #self.shells, #self.sparks, MAX_ACTIVE_SPARKS), 10, 24)
+    gfx.drawText(string.format("Shells %d  Sparks %d/%d", #self.shells + #self.shootingStars, #self.sparks, MAX_ACTIVE_SPARKS), 10, 24)
     gfx.drawText("Type: " .. self:getStyleLabel(self:getSelectedStyle()), 10, 40)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
@@ -395,6 +501,10 @@ function FireworksShow:draw()
 
     for _, shell in ipairs(self.shells) do
         self:drawShell(shell)
+    end
+
+    for _, star in ipairs(self.shootingStars) do
+        self:drawShootingStar(star)
     end
 
     for _, spark in ipairs(self.sparks) do

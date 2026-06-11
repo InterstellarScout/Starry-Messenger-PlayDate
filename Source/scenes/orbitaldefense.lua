@@ -792,6 +792,10 @@ function OrbitalDefenseScene:drawWorld(state)
 end
 
 function OrbitalDefenseScene:drawHud(state)
+    if UIState and not UIState.isShown() then
+        return
+    end
+
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     local title = self.multiplayer and ("Orbital Defense  " .. tostring(self.playerCount) .. "P") or "Orbital Defense"
     local elapsedFrames = state.elapsedFrames or 0

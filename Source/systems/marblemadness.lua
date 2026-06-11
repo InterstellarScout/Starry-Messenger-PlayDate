@@ -325,7 +325,7 @@ function MarbleMadness:drawMarble(marble)
 end
 
 function MarbleMadness:drawHud()
-    if self.preview then
+    if self.preview or (UIState and not UIState.isShown()) then
         return
     end
     gfx.setImageDrawMode(gfx.kDrawModeInverted)

@@ -84,8 +84,11 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         return buildSpec("Fireworks Controls", {
             "Crank: move the launcher left and right.",
             "D-pad Left/Right: move the launcher left and right.",
-            "D-pad Up/Down: change the player firework type.",
-            "Hold A: repeatedly launch the selected firework.",
+            "Hold D-pad Up: repeatedly launch the selected firework.",
+            "D-pad Down: launch a shooting star that arcs across the upper sky and bursts.",
+            "A: change the player firework type, including the default Auto mode.",
+            "Auto randomly picks one of the available firework types for each launch.",
+            "The launcher shape changes to match the selected firework type.",
             "B: return to title.",
             "Random fireworks still launch automatically in the background."
         })
@@ -98,74 +101,76 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "The title preview now uses cached CRT playback frames that pre-render during startup.",
             "B: return to title."
         })
+    elseif viewId == "starrytop" then
+        return buildSpec("Starry Top Controls", {
+            "Crank: step center rotation through 3, 2, 1, 0.9 down to 0 and into reverse, then continue faster without a cap.",
+            "Left/Right: decrease or increase the separate warp speed.",
+            "Up/Down: move through the same rotating stars forward or backward using the current warp speed.",
+            "A: lock or unlock controls while keeping the current motion running.",
+            "B: return to title."
+        })
     elseif viewId == "vibes" then
         return buildSpec("Vibes Controls", {
             "A: cycle through the current Vibes prototypes. In Line Bloom, A toggles automatic spin.",
             "Crank: change signed playback speed with a near-stop center and unlimited fast forward or reverse.",
+            "Loop Fall uses whole-number speed steps only, such as -3, -2, -1, 0, 1, 2, 3, with no cap.",
             "Left/Right: also cycle effects.",
-            "Current prototypes include CRT TV, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Shape Pile-Up, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
+            "Current prototypes include CRT TV, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, and Bubble Pop.",
             "In Fractal Spiral, every 45 degrees of crank adds one arm; crank the opposite direction to remove one.",
             "In Bubble Pop, D-pad moves a center-start cursor and creates a player bubble that respawns on the next D-pad move after it pops.",
             "Loop Fall is the clean-loop Star Fall prototype built from preserved random starting positions.",
             "B: return to title."
         })
     elseif viewId == "snake" then
-        return buildSpec("Snake Controls", {
-            "Crank: turn the snake.",
-            "D-pad Up/Down: increase or decrease movement speed.",
+        local lines = {
+            "Crank: turn the snake when D-pad direction is not held.",
+            "D-pad: steer directly, including diagonals.",
+            "Tap the D-pad direction you are already moving to bump forward.",
             "A: reset the snake and score.",
-            "The snake wraps around the screen and can safely run over its own tail.",
-            "B: return to title."
-        })
+            "The snake wraps around the screen and can safely run over its own tail."
+        }
+        if modeId == SnakeGame.MODE_COMPETITIVE then
+            lines[#lines + 1] = "Competitive starts with 2 food, queues up to 3, and respawns food after 0.5-5 seconds."
+            lines[#lines + 1] = "Bumping in Competitive drops food behind you when there is room."
+            lines[#lines + 1] = "Head into the rival body and you lose; make the rival head touch your body and the rival loses."
+        end
+        lines[#lines + 1] = "Left/Right on the title wheel: switch Snake modes."
+        lines[#lines + 1] = "B: return to title."
+        return buildSpec("Snake Controls", lines)
     elseif viewId == "smokebloom" then
-        return buildSpec("Smoke Bloom Controls", {
+        if modeId == SmokeBloom.MODE_RAISING then
+            return buildSpec("Raising Smoke Controls", {
+                "D-pad: move the center smoke source.",
+                "Crank: accelerate the smoke movement upward.",
+                "A: move the bottom smoke source to a new random point and restart the smoke.",
+                "B: return to title."
+            })
+        end
+        return buildSpec("Billowing Smoke Controls", {
             "D-pad: move the center cursor.",
             "Crank: adjust the billowing rotation.",
-            "A: restart the expanding line cloud from the cursor.",
+            "A: restart the expanding full-screen line cloud from the cursor.",
             "The symmetric wisps push against close neighbors as they bloom outward.",
             "B: return to title."
         })
     elseif viewId == "dripdrop" then
-        if modeId == "dropper" then
-            return buildSpec("Dropper Controls", {
-                "D-pad: move the white stone around the black water.",
-                "Crank: change speed with the same near-stop and larger-step ladder used by Warp Speed.",
-                "A: flash outward from the stone. The flash starts tiny and expands to a random size between 3 and 25 before turning into bright rings.",
-                "Bubble leaks rise in 20x20 clusters. Plug them with your flash before they burst into more ripples.",
-                "Left/Right on the title wheel: switch Drip Drop modes.",
-                "B: return to title."
-            })
-        elseif modeId == PuddleDrops.MODE_PLAYER then
-            return buildSpec("Player Pulse Controls", {
-                "A: spawn a pulse from the player marker. The droplet starts tiny and expands to a random size between 3 and 25 before turning into rings.",
-                "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
-                "D-pad: move the player marker in all four directions.",
-                "Left/Right on the title wheel: switch Drip Drop modes.",
-                "B: return to title."
-            })
-        end
-
         return buildSpec("Drop Waves Controls", {
-            "Random drop points spawn ripple circles that expand in layered bands.",
+            "Left/Right on the title wheel: switch between Drop Waves and Inverse Drops.",
+            "Random drops queue every 0.5-5 seconds and stop at 8 so one player drop stays reserved.",
+            "D-pad: move the player dropper in all four directions.",
+            "A: add a player drip from the dropper when the shared wave pool has space.",
+            "Up to 3 pieces of water debris queue in after 3-10 seconds and drift away from waves.",
             "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
-            "Left/Right on the title wheel: switch Drip Drop modes.",
             "B: return to title."
         })
     elseif viewId == "puddledrops" then
-        if modeId == PuddleDrops.MODE_PLAYER then
-            return buildSpec("Player Pulse Controls", {
-                "A: spawn a pulse from the player marker. The droplet starts tiny and expands to a random size between 3 and 25 before turning into rings.",
-                "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
-                "D-pad: move the player marker in all four directions.",
-                "Left/Right on the title wheel: switch between Drop Waves and Player Pulse.",
-                "B: return to title."
-            })
-        end
-
         return buildSpec("Drop Waves Controls", {
-            "Random drop points spawn ripple circles that expand in layered bands.",
+            "Random drops queue every 0.5-5 seconds and stop at 8 so one player drop stays reserved.",
+            "D-pad: move the player dropper in all four directions.",
+            "A: add a player drip from the dropper when the shared wave pool has space.",
+            "Up to 3 pieces of water debris queue in after 3-10 seconds and drift away from waves.",
             "Crank: change signed ripple speed with near-stop, reverse, and fast forward behavior.",
-            "Left/Right on the title wheel: switch between Drop Waves and Player Pulse.",
+            "Left/Right on the title wheel: switch between Drop Waves and Inverse Drops.",
             "B: return to title."
         })
     elseif viewId == "dropper" then
@@ -174,6 +179,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Crank: change speed with the same near-stop and larger-step ladder used by Warp Speed.",
             "A: flash outward from the stone. The flash starts tiny and expands to a random size between 3 and 25 before turning into bright rings.",
             "Bubble leaks rise in 20x20 clusters. Plug them with your flash before they burst into more ripples.",
+            "Dropper limits active leaks and keeps ripple rings capped to 50 visible wave lines.",
             "Depth is the cumulative total of plugged leaks saved across runs, while Run tracks this session.",
             "B: return to title."
         })
@@ -189,18 +195,26 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         return buildSpec("Dimensional Split Controls", {
             "The screen is divided into squares that each blink independently between black and white.",
             "Each square uses a random blink interval between 0.1 seconds and 5 seconds.",
-            "Crank: subdivide into a different grid density and regenerate the whole pattern.",
+            "Crank: subdivide into a different grid density without wrapping past the minimum or maximum.",
             "A: randomize every square's color and blink timing again.",
             "B: return to title."
         })
     elseif viewId == "wacky" then
-        return buildSpec("Wacky Controls", {
+        local title = modeId == WackyInflatable.MODE_CRAZY_FAMILY and "Crazy Family Controls" or "Wacky Controls"
+        local lines = {
             "Crank forward to fling the tube figure upward. Crank backward to help gravity yank it back down faster.",
             "A: toggle between the normal rigid body mode and a pile-up mode that lets the limbs collapse over each other once the crank is idle.",
             "In pile-up mode, Wacky can heap on the ground instead of always falling as one stiff stack.",
-            "The preview starts fully extended, then collapses into its idle wobble on purpose.",
-            "B: return to title."
-        })
+            "The title preview auto-bumps the crank forward every half second; live play uses only player input.",
+            "Left/Right on the title wheel: switch Wacky modes."
+        }
+        if modeId == WackyInflatable.MODE_CRAZY_FAMILY then
+            lines[#lines + 1] = "Crazy Family uses full-joint smaller bodies so mom and girl fling upward, pull downward, and drop like the main Wacky."
+            lines[#lines + 1] = "Mom has upper-head jointed hair and uses the same smile and falling O-face as the girl."
+            lines[#lines + 1] = "The girl's bows detach after she lands, then jump back to her head on the next crank."
+        end
+        lines[#lines + 1] = "B: return to title."
+        return buildSpec(title, lines)
     elseif viewId == "spaceminer" then
         return buildSpec("Space Miner Controls", {
             "Crank: turn the ship. Space Miner Compact Turn in the Home menu switches between full 360 steering and a tighter turn window.",
@@ -208,16 +222,24 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Turn 360 now lightly brakes on its own and snaps to a stop once your drift falls under a low speed threshold.",
             "Hold Left: fire the laser drill straight ahead to mine asteroids or burn enemy ships.",
             "Press Right: launch a missile. Press Right again while one is active to detonate it early, like Orbital Defense.",
+            "A popup introduces the controls for 5 seconds or until first input.",
+            "The bottom dashboard always shows Shields, ore as O, enemies as E, total score, the ship indicator, and 10 hull blocks.",
+            "Show UI only toggles the top-left status text.",
             "Asteroids split into two smaller chunks three times, so mining escalates into denser debris fields.",
+            "Enemies use arrival steering to keep chasing after fly-bys, and enemy missiles detonate at twice the shield radius.",
             "Each combat wave now flashes a bold ALERT warning three times before the first enemies arrive.",
             "The default config opens with two minutes of mining, then seeker waves at 4, 8, and 16 ships, another two-minute mining break, two escaper waves, and a final striker assault.",
             "Available wave entities today are seeker, escaper, striker, four asteroid breakup stages, player and enemy missiles, explosion rings, and decor stars/shapes.",
-            "You can absorb 4 hits total: 2 shield blocks first, then 2 hull hits.",
+            "Shields use a 0-100 meter: asteroid hits remove 5, tier 1 enemy hits remove 10, and hull only loses blocks once shields are gone.",
+            "When the ship is disabled, space keeps moving but the player stops interacting; A restarts and B returns.",
             "B: return to title."
         })
     elseif viewId == "trailblazer" then
-        return buildSpec("Trail Blazer Controls", {
+        return buildSpec("Marble Run Controls", {
+            "Marble Run starts by clearing the board and centering the player without pausing input.",
+            "When Show UI is enabled, an entry popup explains the controls for 5 seconds or until first interaction.",
             "Crank: steer the player circle.",
+            "The small triangle inside the player shows the current facing direction.",
             "Hold D-pad Up/Down: move forward or backward at a fixed speed of 3.2.",
             "Hold D-pad Right: draw trail only while the button is held.",
             "D-pad Left: drop the loaded ball onto the board once it is available. Only 3 dropped balls can be active at once.",
@@ -232,6 +254,16 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Crank: raise or lower gravity strength.",
             "Marbles start with burst energy and bounce off each other and the screen edges.",
             "Chaos mode adds random impulses and pattern changes on collisions.",
+            "B: return to title."
+        })
+    elseif viewId == "touchinggrass" then
+        return buildSpec("Touching Grass Controls", {
+            "D-pad: move the hand through the grass.",
+            "Nearby grass blades repel away from the hand outside the normal grass sway.",
+            "Only 40 non-contact grass blades update per second; touched blades stay immediately responsive.",
+            "Invisible wind waves occasionally push a portion of the grass.",
+            "A: lift or lower the hand. Crank: gradually raise or lower the hand.",
+            "As the hand lifts, the affected grass radius shrinks; if the hand stays out for 5 seconds, it hides until input resumes.",
             "B: return to title."
         })
     elseif viewId == "photoviewer" then
@@ -293,8 +325,9 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         elseif modeId == FishPond.MODE_BUBBLES then
             return buildSpec("Fishy Bubbles Controls", {
                 "Crank: move the bubble maker across the bottom.",
-                "D-pad: move the player fish.",
-                "Hold A: create bubbles repeatedly.",
+                "D-pad Left/Right: move the player fish.",
+                "Hold A or Up: create bubbles repeatedly.",
+                "Press Down: add another fish to the school.",
                 "B: return to title.",
                 "Fish Spawn Mode in the system menu alternates bubble and fish spawning.",
                 "Popping a bubble adds another fish to the school."
@@ -303,8 +336,9 @@ function ControlHelp.getEntrySpec(viewId, modeId)
 
         return buildSpec("Fishy Pond Controls", {
             "Crank: move the bubble maker across the bottom.",
-            "D-pad: move the player fish.",
-            "Hold A: create bubbles repeatedly.",
+            "D-pad Left/Right: move the player fish.",
+            "Hold A or Up: create bubbles repeatedly.",
+            "Press Down: add another fish to the school.",
             "B: return to title.",
             "Fish Spawn Mode in the system menu alternates bubble and fish spawning.",
             "Pop bubbles by swimming into them while the rest of the school still feeds itself."
@@ -330,6 +364,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
                 "D-pad Up/Down: accelerate forward or reverse within the current signed max speed.",
                 "RC Auto Brake in the Home menu returns the target speed to zero when Up and Down are released.",
                 "Push pucks into the opponent's net and keep them out of yours.",
+                "Pucks that escape the ring more than 3 times are respawned so the auto car cannot pin them outside.",
                 "In crank speed mode, the crank changes the shared max speed in both directions, such as +7 and -7 or +90 and -90.",
                 "B: return to title."
             })

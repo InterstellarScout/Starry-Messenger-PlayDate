@@ -29,6 +29,7 @@ local TITLE_FREE_SPIN_STAR_FADE_STEP <const> = TITLE_CONFIG.freeSpinStarFadeStep
 local TITLE_FREE_SPIN_STAR_COUNT <const> = TITLE_CONFIG.freeSpinStarCount or 50
 local TITLE_FREE_SPIN_STAR_SPEED_SCALE <const> = TITLE_CONFIG.freeSpinStarSpeedScale or 48
 local TITLE_FREE_SPIN_STAR_MIN_SPEED <const> = TITLE_CONFIG.freeSpinStarMinSpeed or 1.2
+local TITLE_FREE_SPIN_STAR_VISUAL_SPEED_SCALE <const> = TITLE_CONFIG.freeSpinStarVisualSpeedScale or 0.9
 local TITLE_FIDGET_WARP_THRESHOLD <const> = TITLE_CONFIG.fidgetWarpThreshold or 600
 local TITLE_FIDGET_WARP_BUILD_SCALE <const> = TITLE_CONFIG.fidgetWarpBuildScale or (1 / 30)
 local TITLE_FIDGET_WARP_VISUAL_DIVISOR <const> = TITLE_CONFIG.fidgetWarpVisualDivisor or 120
@@ -303,7 +304,7 @@ end
 function TitleScene:getFreeSpinFallVisualSpeed(fidgetMetric)
     return math.max(
         TITLE_FREE_SPIN_STAR_MIN_SPEED,
-        fidgetMetric * self:getFreeSpinResponseScale(TITLE_FIDGET_FALL_SPEED_MODIFIER)
+        fidgetMetric * self:getFreeSpinResponseScale(TITLE_FIDGET_FALL_SPEED_MODIFIER) * TITLE_FREE_SPIN_STAR_VISUAL_SPEED_SCALE
     )
 end
 
@@ -738,10 +739,15 @@ function TitleScene:setPreview(forceFresh)
             })
         elseif actualViewId == "wacky" then
             return WackyInflatable.new(400, 240, {
+                modeId = selectedView.modeId,
                 preview = true
             })
         elseif actualViewId == "dimensionalsplit" then
             return DimensionalSplit.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "starrytop" then
+            return StarryTop.new(400, 240, {
                 preview = true
             })
         elseif actualViewId == "spaceminer" then
@@ -756,6 +762,19 @@ function TitleScene:setPreview(forceFresh)
             })
         elseif actualViewId == "marblemadness" then
             return MarbleMadness.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "touchinggrass" then
+            return TouchingGrass.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "snake" then
+            return SnakeGame.new(400, 240, {
+                modeId = selectedView.modeId
+            })
+        elseif actualViewId == "smokebloom" then
+            return SmokeBloom.new(400, 240, {
+                modeId = selectedView.modeId,
                 preview = true
             })
         elseif actualViewId == "photoviewer" then
@@ -1239,7 +1258,7 @@ function TitleScene:drawMenu()
         gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
     end
 
-    local hasModes = selectedView and selectedView.modes ~= nil
+    local hasModes = selectedView and selectedView.modes ~= nil and not self.freeSpinActive and not self.freeSpinSettling
     local centerY = 146
     local spacing = 56
     local visibilityRange = 1.35

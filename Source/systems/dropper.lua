@@ -13,8 +13,8 @@ local snd <const> = pd.sound
 Dropper = {}
 Dropper.__index = Dropper
 
-local RIPPLE_LIMIT <const> = 28
-local BUBBLE_LIMIT <const> = 18
+local RIPPLE_LIMIT <const> = 10
+local BUBBLE_LIMIT <const> = 10
 local FLASH_COOLDOWN_FRAMES <const> = 5
 local BUBBLE_MIN_RADIUS <const> = 1
 local BUBBLE_MAX_RADIUS <const> = 5
@@ -489,7 +489,7 @@ function Dropper:drawPlayerMarker()
 end
 
 function Dropper:drawHud()
-    if self.preview then
+    if self.preview or (UIState and not UIState.isShown()) then
         return
     end
 

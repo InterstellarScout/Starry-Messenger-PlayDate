@@ -41,6 +41,7 @@ local BLOCK_PUSH_IMPULSE <const> = RC_ARENA_CONFIG.blockPushImpulse or 0.42
 local BLOCK_RESPAWN_FRAMES <const> = RC_ARENA_CONFIG.blockRespawnFrames or 12
 local HOCKEY_PUCK_COUNT <const> = RC_ARENA_CONFIG.hockeyPuckCount or 5
 local HOCKEY_NET_HALF_HEIGHT <const> = RC_ARENA_CONFIG.hockeyNetHalfHeight or 28
+local HOCKEY_PUCK_ESCAPE_LIMIT <const> = 3
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -205,6 +206,8 @@ function RCCarArena:spawnObject(object)
     object.size = BLOCK_SIZE
     object.spawnTimer = BLOCK_RESPAWN_FRAMES
     object.lastTouchedBy = nil
+    object.escapeCount = 0
+    object.wasOutsideRing = false
 
     if side == 1 then
         object.x = -object.size
@@ -452,6 +455,10 @@ function RCCarArena:updateObjects()
 
         if self.modeId == RCCarArena.MODE_HOCKEY then
             local inNetLane = math.abs(object.y - (self.height / 2)) <= HOCKEY_NET_HALF_HEIGHT
+            local outsideRing = object.x < 12
+                or object.x > self.width - 12
+                or object.y < 20
+                or object.y > self.height - 20
             if object.x < -object.size and inNetLane then
                 self.leftNetCount = self.leftNetCount + 1
                 self:spawnObject(object)
@@ -459,6 +466,15 @@ function RCCarArena:updateObjects()
                 self.rightNetCount = self.rightNetCount + 1
                 self:spawnObject(object)
             else
+                if outsideRing and not object.wasOutsideRing then
+                    object.escapeCount = (object.escapeCount or 0) + 1
+                    if object.escapeCount > HOCKEY_PUCK_ESCAPE_LIMIT then
+                        self:spawnObject(object)
+                        goto continue
+                    end
+                end
+                object.wasOutsideRing = outsideRing
+
                 if object.x < object.size and not inNetLane then
                     object.x = object.size
                     object.vx = math.abs(object.vx) * 0.85
@@ -483,6 +499,7 @@ function RCCarArena:updateObjects()
                 self:respawnObjectForScore(object)
             end
         end
+        ::continue::
     end
 end
 
@@ -629,7 +646,7 @@ function RCCarArena:drawCar(car)
 end
 
 function RCCarArena:drawHud()
-    if self.preview then
+    if self.preview or (UIState and not UIState.isShown()) then
         return
     end
 

@@ -282,7 +282,7 @@ function TiltBalls:draw()
         self:drawBall(ball)
     end
 
-    if not self.preview then
+    if not self.preview and (not UIState or UIState.isShown()) then
         gfx.setImageDrawMode(gfx.kDrawModeInverted)
         gfx.drawText(string.format("Balls %d  Slow %.2f", #self.balls, roundToHundredths(self.slowdown)), 10, 8)
         gfx.drawText("Tilt to roll  Crank slowdown  A add ball  B back", 10, 220)

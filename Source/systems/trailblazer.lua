@@ -8,10 +8,12 @@ TrailBlazer.__index = TrailBlazer
 TrailBlazer.controlsHintEnabled = true
 
 TrailBlazer.MODE_FLOW = "flow"
-TrailBlazer.MODE_DRIVE = "drive"
 
 local PLAYER_RADIUS <const> = 7
 local PLAYER_DOT_RADIUS <const> = 2
+local PLAYER_POINTER_LENGTH <const> = 6
+local PLAYER_POINTER_BASE_OFFSET <const> = 2
+local PLAYER_POINTER_HALF_WIDTH <const> = 4
 local PLAYER_DRIVE_SPEED <const> = 3.2
 local PLAYER_WRAP_MARGIN <const> = 10
 local TRAIL_POINT_STEP <const> = 3
@@ -31,6 +33,9 @@ local MENU_X <const> = 214
 local MENU_Y <const> = 10
 local MENU_WIDTH <const> = 176
 local MENU_ROW_HEIGHT <const> = 20
+local FLOW_OVERVIEW_FRAMES <const> = 30 * 5
+local MARBLE_RUN_POPUP_FRAMES <const> = 30 * 5
+local MARBLE_RUN_POPUP_TEXT <const> = "Build a marble run! Use the crank to turn, Up to move forward, Left D Pad to create a ball, and hold Right D Pad to make a line. Don't forget to tilt the play date to interact with the ball!"
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -100,13 +105,18 @@ function TrailBlazer.new(width, height, options)
     self.statusFrames = 0
     self.driveDirection = 0
     self.showControlsHint = not self.preview and TrailBlazer.controlsHintEnabled
-    self.awaitingIntroInteract = not self.preview and TrailBlazer.controlsHintEnabled
+    self.awaitingIntroInteract = false
     self.pauseHudHidden = false
     self.hudHidden = false
     self.menuOpen = false
     self.menuIndex = 1
-    self.instructionText = "Press any button to start. Then crank steers, Up/Down moves, Right draws, and Left drops a ball."
+    self.overviewFrames = 0
+    self.marbleRunPopupFrames = 0
+    self.instructionText = "Crank steers. Up/Down moves. Right draws. Left drops a ball."
     self:resetLoadedBall()
+    if not self.preview and self.modeId == TrailBlazer.MODE_FLOW then
+        self:prepareFlowEntry()
+    end
     if self.trailDrawing then
         self:startTrailAtPlayer()
     end
@@ -118,10 +128,7 @@ function TrailBlazer:getCurrentModeLabel()
 end
 
 function TrailBlazer.getModeLabel(modeId)
-    if modeId == TrailBlazer.MODE_DRIVE then
-        return "Drive 3.2"
-    end
-    return "Flow"
+    return "Marble Run"
 end
 
 function TrailBlazer.isControlsHintEnabled()
@@ -134,10 +141,6 @@ end
 
 function TrailBlazer:setPreview(preview)
     self.preview = preview == true
-end
-
-function TrailBlazer:isDriveMode()
-    return self.modeId == TrailBlazer.MODE_DRIVE
 end
 
 function TrailBlazer:setPauseHudHidden(hidden)
@@ -231,6 +234,11 @@ function TrailBlazer:activate()
     if not self.preview and not pd.accelerometerIsRunning() then
         pd.startAccelerometer()
     end
+    if not self.preview and self.modeId == TrailBlazer.MODE_FLOW then
+        self:prepareFlowEntry()
+        self.awaitingIntroInteract = false
+        self.overviewFrames = 0
+    end
 end
 
 function TrailBlazer:shutdown()
@@ -287,21 +295,39 @@ function TrailBlazer:hideControlsHint()
     self.showControlsHint = false
 end
 
-function TrailBlazer:handleFirstInteraction()
-    if not self.awaitingIntroInteract then
-        return
-    end
-
-    self.awaitingIntroInteract = false
+function TrailBlazer:prepareFlowEntry()
     self.player.x = self.width * 0.5
     self.player.y = self.height * 0.5
     self.player.angle = -90
+    self.driveDirection = 0
     self.trailDrawing = false
     self.trailPoints = {}
     self.trailSegments = {}
     self.balls = {}
     self.loadedBall = nil
     self:resetLoadedBall()
+    self.showControlsHint = TrailBlazer.isControlsHintEnabled()
+    self.marbleRunPopupFrames = MARBLE_RUN_POPUP_FRAMES
+end
+
+function TrailBlazer:prepareFlowOverview()
+    self:prepareFlowEntry()
+    self.awaitingIntroInteract = true
+    self.overviewFrames = FLOW_OVERVIEW_FRAMES
+    self.showControlsHint = true
+end
+
+function TrailBlazer:handleFirstInteraction()
+    if self.marbleRunPopupFrames ~= nil and self.marbleRunPopupFrames > 0 then
+        self.marbleRunPopupFrames = 0
+    end
+
+    if not self.awaitingIntroInteract then
+        return
+    end
+
+    self.awaitingIntroInteract = false
+    self.overviewFrames = 0
     self:hideControlsHint()
     self:setStatus("Ready")
 end
@@ -575,6 +601,16 @@ end
 
 function TrailBlazer:update()
     self.frame = self.frame + 1
+    if self.marbleRunPopupFrames ~= nil and self.marbleRunPopupFrames > 0 then
+        self.marbleRunPopupFrames = math.max(0, self.marbleRunPopupFrames - 1)
+    end
+
+    if self.awaitingIntroInteract then
+        self.overviewFrames = math.max(0, (self.overviewFrames or 0) - 1)
+        if self.overviewFrames <= 0 then
+            self:handleFirstInteraction()
+        end
+    end
 
     if self.preview then
         self:updatePreview()
@@ -611,6 +647,29 @@ function TrailBlazer:drawBallShell(x, y, radius, withCenterDot)
     gfx.setColor(gfx.kColorWhite)
 end
 
+function TrailBlazer:drawPlayerPointer()
+    local radians = math.rad(self.player.angle)
+    local forwardX = math.cos(radians)
+    local forwardY = math.sin(radians)
+    local sideX = -forwardY
+    local sideY = forwardX
+    local tipX = self.player.x + (forwardX * PLAYER_POINTER_LENGTH)
+    local tipY = self.player.y + (forwardY * PLAYER_POINTER_LENGTH)
+    local baseX = self.player.x - (forwardX * PLAYER_POINTER_BASE_OFFSET)
+    local baseY = self.player.y - (forwardY * PLAYER_POINTER_BASE_OFFSET)
+
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillTriangle(
+        tipX,
+        tipY,
+        baseX + (sideX * PLAYER_POINTER_HALF_WIDTH),
+        baseY + (sideY * PLAYER_POINTER_HALF_WIDTH),
+        baseX - (sideX * PLAYER_POINTER_HALF_WIDTH),
+        baseY - (sideY * PLAYER_POINTER_HALF_WIDTH)
+    )
+    gfx.setColor(gfx.kColorWhite)
+end
+
 function TrailBlazer:drawMenu()
     if not self.menuOpen or self.preview then
         return
@@ -624,7 +683,7 @@ function TrailBlazer:drawMenu()
     gfx.fillRoundRect(MENU_X, MENU_Y, MENU_WIDTH, height, 8)
     gfx.setDitherPattern(1, gfx.image.kDitherTypeBayer8x8)
     gfx.drawRoundRect(MENU_X, MENU_Y, MENU_WIDTH, height, 8)
-    gfx.drawText("Flow Settings", MENU_X + 10, MENU_Y + 6)
+    gfx.drawText("Marble Run Settings", MENU_X + 10, MENU_Y + 6)
 
     for index, item in ipairs(items) do
         local rowY = MENU_Y + 24 + ((index - 1) * MENU_ROW_HEIGHT)
@@ -648,6 +707,24 @@ function TrailBlazer:drawMenu()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function TrailBlazer:drawMarbleRunPopup()
+    if self.preview or self.marbleRunPopupFrames == nil or self.marbleRunPopupFrames <= 0 then
+        return
+    end
+    if UIState and not UIState.isShown() then
+        return
+    end
+
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(30, 54, 340, 112, 8)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRoundRect(30, 54, 340, 112, 8)
+    gfx.drawTextInRect(MARBLE_RUN_POPUP_TEXT, 48, 70, 304, 78, nil, nil, kTextAlignment.center)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 function TrailBlazer:draw()
     gfx.clear(gfx.kColorBlack)
     gfx.setColor(gfx.kColorWhite)
@@ -663,29 +740,45 @@ function TrailBlazer:draw()
     if self.loadedBall ~= nil then
         self:drawBallShell(self.loadedBall.x, self.loadedBall.y, self.loadedBall.radius, true)
     end
+    self:drawPlayerPointer()
 
-    if not self.preview and not self.pauseHudHidden and not self.hudHidden then
+    if not self.preview and not self.pauseHudHidden and not self.hudHidden and (not UIState or UIState.isShown() or self.awaitingIntroInteract) then
         gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        gfx.drawText(
-            string.format(
-                "Mode %s  Speed %.1f  Trail %s  Balls %d/%d",
-                TrailBlazer.getModeLabel(self.modeId),
-                self.player.speed,
-                self.trailDrawing and "on" or "off",
-                #self.balls,
-                MAX_ACTIVE_BALLS
-            ),
-            10,
-            8
-        )
-        if self.showControlsHint then
-            gfx.drawTextInRect(self.instructionText, 10, 206, 380, 28)
+        if not UIState or UIState.isShown() then
+            gfx.drawText(
+                string.format(
+                    "Mode %s  Speed %.1f  Trail %s  Balls %d/%d",
+                    TrailBlazer.getModeLabel(self.modeId),
+                    self.player.speed,
+                    self.trailDrawing and "on" or "off",
+                    #self.balls,
+                    MAX_ACTIVE_BALLS
+                ),
+                10,
+                8
+            )
         end
-        if self.statusMessage ~= nil then
+        if self.showControlsHint then
+            if self.awaitingIntroInteract then
+                gfx.setImageDrawMode(gfx.kDrawModeCopy)
+                gfx.setColor(gfx.kColorWhite)
+                gfx.fillRect(38, 76, 324, 82)
+                gfx.setColor(gfx.kColorBlack)
+                gfx.drawTextAligned("Marble Run", 200, 88, kTextAlignment.center)
+                gfx.drawTextInRect(self.instructionText, 58, 110, 284, 34, nil, nil, kTextAlignment.center)
+                gfx.drawTextAligned("Touch any control to start", 200, 140, kTextAlignment.center)
+                gfx.setColor(gfx.kColorWhite)
+                gfx.setImageDrawMode(gfx.kDrawModeInverted)
+            else
+                gfx.drawTextInRect(self.instructionText, 10, 206, 380, 28)
+            end
+        end
+        if self.statusMessage ~= nil and (not UIState or UIState.isShown()) then
             gfx.drawTextAligned(self.statusMessage, 200, 24, kTextAlignment.center)
         end
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
     end
 
+    self:drawMarbleRunPopup()
     self:drawMenu()
 end

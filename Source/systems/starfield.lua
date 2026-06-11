@@ -717,12 +717,15 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
     self:assignWarpStarVisuals(star)
     star.despawnGrowth = WARP_INWARD_DESPAWN_GROWTH_MIN + (math.random() * (WARP_INWARD_DESPAWN_GROWTH_MAX - WARP_INWARD_DESPAWN_GROWTH_MIN))
     star.spawnFadeFrames = WARP_SPAWN_FADE_IN_FRAMES
+    local useCircularSpawn = self.circularWarpSpawn == true
+    local circularSpawnRadius = self.circularWarpSpawnRadius or WARP_VISIBLE_RADIUS
 
     if spawnAtEdge then
         if self.speed < 0 then
             local angle = math.random() * (math.pi * 2)
             local useCircumference = math.random() < 0.75
-            local radius = useCircumference and WARP_SPAWN_RADIUS or (math.sqrt(math.random()) * WARP_SPAWN_RADIUS)
+            local spawnRadius = useCircularSpawn and circularSpawnRadius or WARP_SPAWN_RADIUS
+            local radius = useCircumference and spawnRadius or (math.sqrt(math.random()) * spawnRadius)
             local screenX = self.centerX + (math.cos(angle) * radius)
             local screenY = self.centerY + (math.sin(angle) * radius)
             local worldX, worldY = self:screenToWorld(screenX, screenY)
@@ -730,8 +733,18 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
             star.y = worldY - self.playerCenterY
             star.despawnRadius = WARP_INWARD_DESPAWN_START_RADIUS_MIN + (math.random() * (WARP_INWARD_DESPAWN_START_RADIUS_MAX - WARP_INWARD_DESPAWN_START_RADIUS_MIN))
         else
-            star.x = (math.random() * self.width) - self.playerCenterX
-            star.y = (math.random() * self.height) - self.playerCenterY
+            if useCircularSpawn then
+                local angle = math.random() * (math.pi * 2)
+                local radius = math.sqrt(math.random()) * circularSpawnRadius
+                local screenX = self.centerX + (math.cos(angle) * radius)
+                local screenY = self.centerY + (math.sin(angle) * radius)
+                local worldX, worldY = self:screenToWorld(screenX, screenY)
+                star.x = worldX - self.playerCenterX
+                star.y = worldY - self.playerCenterY
+            else
+                star.x = (math.random() * self.width) - self.playerCenterX
+                star.y = (math.random() * self.height) - self.playerCenterY
+            end
             star.despawnRadius = 0
         end
     else
@@ -740,8 +753,18 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
             star.y = (math.random() * 18) - 9
             star.despawnRadius = WARP_INWARD_DESPAWN_START_RADIUS_MIN + (math.random() * (WARP_INWARD_DESPAWN_START_RADIUS_MAX - WARP_INWARD_DESPAWN_START_RADIUS_MIN))
         else
-            star.x = (math.random() * self.width) - self.playerCenterX
-            star.y = (math.random() * self.height) - self.playerCenterY
+            if useCircularSpawn then
+                local angle = math.random() * (math.pi * 2)
+                local radius = math.sqrt(math.random()) * circularSpawnRadius
+                local screenX = self.centerX + (math.cos(angle) * radius)
+                local screenY = self.centerY + (math.sin(angle) * radius)
+                local worldX, worldY = self:screenToWorld(screenX, screenY)
+                star.x = worldX - self.playerCenterX
+                star.y = worldY - self.playerCenterY
+            else
+                star.x = (math.random() * self.width) - self.playerCenterX
+                star.y = (math.random() * self.height) - self.playerCenterY
+            end
             star.despawnRadius = 0
         end
     end
