@@ -23,6 +23,13 @@ local COMPETITIVE_START_FOOD <const> = 2
 local COMPETITIVE_MAX_FOOD <const> = 3
 local FOOD_SPAWN_MIN_FRAMES <const> = 15
 local FOOD_SPAWN_MAX_FRAMES <const> = 150
+local SAVE_KEY <const> = "snake_state"
+local SAVE_COOLDOWN_FRAMES <const> = 60
+local PLAYER_RESPAWN_FRAMES <const> = 150
+local MENU_X <const> = 216
+local MENU_Y <const> = 18
+local MENU_WIDTH <const> = 168
+local MENU_ROW_HEIGHT <const> = 20
 
 local function roundToInt(value)
     if value >= 0 then
@@ -80,10 +87,22 @@ function SnakeGame.new(width, height, options)
     self.foods = {}
     self.foodSpawnQueue = {}
     self.snake = {}
-    self.rivalSnake = {}
+    self.npcSnakes = {}
+    self.npcEnabled = { false, false, false, false }
+    self.npcScores = { 0, 0, 0, 0 }
+    self.trimFat = false
+    self.menuOpen = false
+    self.menuIndex = 1
+    self.menuInputCooldown = 0
+    self.saveDirty = false
+    self.saveCooldown = 0
+    self.playerRespawnFrames = 0
+    self.playerRespawnBlinkFrames = 0
     self:resetSnake()
-    self:resetRivalSnake()
+    self:resetNpcSnakes()
+    self:enforceModeNpcDefaults()
     self:resetFoods()
+    self:loadState()
     return self
 end
 
@@ -106,19 +125,69 @@ function SnakeGame:resetSnake()
     end
 end
 
-function SnakeGame:resetRivalSnake()
-    self.rivalSnake = {}
-    if not self:isCompetitive() then
+function SnakeGame:isCellOpenForPlayer(x, y)
+    for _, food in ipairs(self.foods) do
+        if food.x == x and food.y == y then
+            return false
+        end
+    end
+    for index = 1, 4 do
+        if self.npcEnabled[index] then
+            local body = self.npcSnakes[index]
+            if body ~= nil and self:bodyContains(body, x, y, 1) then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function SnakeGame:startPlayerRespawn(message)
+    self.snake = {}
+    self.playerRespawnFrames = PLAYER_RESPAWN_FRAMES
+    self.playerRespawnBlinkFrames = PLAYER_RESPAWN_FRAMES
+    self.statusMessage = message or "Respawning"
+    self.statusFrames = PLAYER_RESPAWN_FRAMES
+    self:markStateDirty()
+end
+
+function SnakeGame:tryRespawnPlayer()
+    local centerX = math.floor(self.cols * 0.5)
+    local centerY = math.floor(self.rows * 0.5)
+    if not self:isCellOpenForPlayer(centerX, centerY) then
+        self.playerRespawnFrames = 15
         return
     end
+    self:resetSnake()
+    self.playerRespawnFrames = 0
+    self.playerRespawnBlinkFrames = 45
+    self.statusMessage = "Back in"
+    self.statusFrames = 35
+    self:markStateDirty()
+end
 
-    local startX = math.floor(self.cols * 0.5)
-    local startY = math.floor(self.rows * 0.28)
-    for index = 1, RIVAL_START_LENGTH do
-        self.rivalSnake[index] = {
-            x = wrap(startX + index - 1, self.cols),
-            y = startY
+function SnakeGame:enforceModeNpcDefaults()
+    if self:isCompetitive() then
+        self.npcEnabled[1] = true
+    end
+end
+
+function SnakeGame:resetNpcSnake(index)
+    local startX = math.floor(self.cols * (0.2 + (index * 0.13)))
+    local startY = math.floor(self.rows * (0.16 + (index * 0.13)))
+    local body = {}
+    for segment = 1, RIVAL_START_LENGTH do
+        body[segment] = {
+            x = wrap(startX + segment - 1, self.cols),
+            y = wrap(startY, self.rows)
         }
+    end
+    self.npcSnakes[index] = body
+end
+
+function SnakeGame:resetNpcSnakes()
+    for index = 1, 4 do
+        self:resetNpcSnake(index)
     end
 end
 
@@ -126,10 +195,12 @@ function SnakeGame:resetRound(message)
     self.stepTimer = 0
     self.bumpCooldown = 0
     self:resetSnake()
-    self:resetRivalSnake()
+    self:resetNpcSnakes()
+    self:enforceModeNpcDefaults()
     self:resetFoods()
     self.statusMessage = message
     self.statusFrames = 45
+    self:markStateDirty()
 end
 
 function SnakeGame:spawnFood()
@@ -143,17 +214,28 @@ function SnakeGame:resetFoods()
     self.foods = {}
     self.foodSpawnQueue = {}
     local count = self:isCompetitive() and COMPETITIVE_START_FOOD or 1
+    count = math.min(count, self:getMaxFood())
     for _ = 1, count do
         self:spawnFood()
     end
 end
 
 function SnakeGame:getMaxFood()
-    return self:isCompetitive() and COMPETITIVE_MAX_FOOD or 1
+    local npcBonus = 0
+    for _, enabled in ipairs(self.npcEnabled) do
+        if enabled then
+            npcBonus = npcBonus + 1
+        end
+    end
+    local base = self:isCompetitive() and COMPETITIVE_MAX_FOOD or 1
+    return base + npcBonus
 end
 
 function SnakeGame:queueFoodSpawn()
-    if not self:isCompetitive() then
+    if #self.foods >= self:getMaxFood() then
+        return
+    end
+    if not self:isCompetitive() and self:getMaxFood() <= 1 then
         self:spawnFood()
         return
     end
@@ -166,7 +248,7 @@ function SnakeGame:queueFoodSpawn()
 end
 
 function SnakeGame:updateFoodSpawns()
-    if not self:isCompetitive() then
+    if not self:isCompetitive() and self:getMaxFood() <= 1 then
         return
     end
     while (#self.foods + #self.foodSpawnQueue) < self:getMaxFood() do
@@ -180,6 +262,88 @@ function SnakeGame:updateFoodSpawns()
             table.remove(self.foodSpawnQueue, index)
         end
     end
+end
+
+function SnakeGame:markStateDirty()
+    self.saveDirty = true
+    if self.saveCooldown <= 0 then
+        self.saveCooldown = SAVE_COOLDOWN_FRAMES
+    end
+end
+
+function SnakeGame:getSaveData()
+    return {
+        modeId = self.modeId,
+        snake = self.snake,
+        speed = self.speed,
+        score = self.score,
+        angle = self.angle,
+        lastStepX = self.lastStepX,
+        lastStepY = self.lastStepY,
+        npcEnabled = self.npcEnabled,
+        npcScores = self.npcScores,
+        trimFat = self.trimFat
+    }
+end
+
+function SnakeGame:saveState(force)
+    if not force and not self.saveDirty then
+        return
+    end
+    local ok, errorMessage = pcall(function()
+        pd.datastore.write(self:getSaveData(), SAVE_KEY)
+    end)
+    if ok then
+        self.saveDirty = false
+        self.saveCooldown = 0
+    else
+        StarryLog.error("snake save failed: %s", tostring(errorMessage))
+    end
+end
+
+function SnakeGame:loadState()
+    local ok, data = pcall(function()
+        return pd.datastore.read(SAVE_KEY)
+    end)
+    if not ok or type(data) ~= "table" then
+        return
+    end
+    if type(data.snake) == "table" and #data.snake > 0 then
+        self.snake = {}
+        for index, cell in ipairs(data.snake) do
+            if type(cell) == "table" and type(cell.x) == "number" and type(cell.y) == "number" then
+                self.snake[index] = {
+                    x = wrap(math.floor(cell.x), self.cols),
+                    y = wrap(math.floor(cell.y), self.rows)
+                }
+            end
+        end
+        if #self.snake == 0 then
+            self:resetSnake()
+        end
+    end
+    self.speed = math.max(MIN_SPEED, math.min(MAX_SPEED, tonumber(data.speed) or self.speed))
+    self.score = tonumber(data.score) or self.score
+    self.angle = tonumber(data.angle) or self.angle
+    self.lastStepX = tonumber(data.lastStepX) or self.lastStepX
+    self.lastStepY = tonumber(data.lastStepY) or self.lastStepY
+    if type(data.npcEnabled) == "table" then
+        for index = 1, 4 do
+            self.npcEnabled[index] = data.npcEnabled[index] == true
+        end
+    end
+    if type(data.npcScores) == "table" then
+        for index = 1, 4 do
+            self.npcScores[index] = tonumber(data.npcScores[index]) or 0
+        end
+    end
+    self:enforceModeNpcDefaults()
+    self.trimFat = data.trimFat == true
+    self:resetFoods()
+end
+
+function SnakeGame:shutdown()
+    self:saveState(true)
 end
 
 function SnakeGame:addFoodAt(x, y)
@@ -270,12 +434,121 @@ function SnakeGame:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHeld,
 end
 
 function SnakeGame:handlePrimaryAction()
-    self.score = 0
-    self.rivalScore = 0
-    self:resetRound("Reset")
+    self.menuOpen = true
+    self.menuInputCooldown = 1
+end
+
+function SnakeGame:isMenuOpen()
+    return self.menuOpen == true
+end
+
+function SnakeGame:closeMenu()
+    self.menuOpen = false
+end
+
+function SnakeGame:getMenuItems()
+    local npc1Type = self:isCompetitive() and "locked" or "toggle"
+    return {
+        { id = "npc1", label = "NPC Snake 1", type = npc1Type, value = self.npcEnabled[1] },
+        { id = "npc2", label = "NPC Snake 2", type = "toggle", value = self.npcEnabled[2] },
+        { id = "npc3", label = "NPC Snake 3", type = "toggle", value = self.npcEnabled[3] },
+        { id = "npc4", label = "NPC Snake 4", type = "toggle", value = self.npcEnabled[4] },
+        { id = "reset", label = "Reset Size", type = "button" },
+        { id = "trim", label = "Trim Fat", type = "toggle", value = self.trimFat }
+    }
+end
+
+function SnakeGame:trimPlayerHalf()
+    local targetLength = math.max(START_LENGTH, math.ceil(#self.snake * 0.5))
+    while #self.snake > targetLength do
+        self.snake[#self.snake] = nil
+    end
+    self.statusMessage = "Trimmed"
+    self.statusFrames = 45
+    self:markStateDirty()
+end
+
+function SnakeGame:resetPlayerSize()
+    local head = self.snake[1]
+    local stepX = self.lastStepX ~= 0 and self.lastStepX or 1
+    local stepY = self.lastStepY or 0
+    self.snake = {}
+    local startX = head and head.x or math.floor(self.cols * 0.5)
+    local startY = head and head.y or math.floor(self.rows * 0.5)
+    for index = 1, START_LENGTH do
+        self.snake[index] = {
+            x = wrap(startX - (stepX * (index - 1)), self.cols),
+            y = wrap(startY - (stepY * (index - 1)), self.rows)
+        }
+    end
+    self.statusMessage = "Size reset"
+    self.statusFrames = 45
+    self:markStateDirty()
+end
+
+function SnakeGame:toggleMenuSelection()
+    local item = self:getMenuItems()[self.menuIndex]
+    if item == nil then
+        return
+    end
+    if item.id == "reset" then
+        self:resetPlayerSize()
+    elseif item.id == "trim" then
+        self.trimFat = not self.trimFat
+        if self.trimFat then
+            self:trimPlayerHalf()
+        end
+        self:markStateDirty()
+    else
+        local npcIndex = tonumber(string.sub(item.id, 4))
+        if npcIndex ~= nil then
+            if self:isCompetitive() and npcIndex == 1 then
+                self.npcEnabled[1] = true
+                self.statusMessage = "NPC Snake 1 locked on"
+                self.statusFrames = 45
+                return
+            end
+            self.npcEnabled[npcIndex] = not self.npcEnabled[npcIndex]
+            if self.npcEnabled[npcIndex] and (self.npcSnakes[npcIndex] == nil or self.npcSnakes[npcIndex][1] == nil) then
+                self:resetNpcSnake(npcIndex)
+            end
+            self:queueFoodSpawn()
+            self:markStateDirty()
+        end
+    end
+end
+
+function SnakeGame:updateMenuInput(upPressed, downPressed, leftPressed, rightPressed, aPressed)
+    if not self.menuOpen then
+        return
+    end
+    if self.menuInputCooldown > 0 then
+        self.menuInputCooldown = self.menuInputCooldown - 1
+        return
+    end
+    local itemCount = #self:getMenuItems()
+    if upPressed then
+        self.menuIndex = self.menuIndex - 1
+        if self.menuIndex < 1 then
+            self.menuIndex = itemCount
+        end
+    elseif downPressed then
+        self.menuIndex = self.menuIndex + 1
+        if self.menuIndex > itemCount then
+            self.menuIndex = 1
+        end
+    elseif leftPressed or rightPressed or aPressed then
+        self:toggleMenuSelection()
+    end
 end
 
 function SnakeGame:update()
+    if self.menuOpen then
+        if self.saveDirty then
+            self:saveState(false)
+        end
+        return
+    end
     if self.bumpCooldown > 0 then
         self.bumpCooldown = self.bumpCooldown - 1
     end
@@ -286,13 +559,30 @@ function SnakeGame:update()
         end
     end
     self:updateFoodSpawns()
+    if self.playerRespawnFrames > 0 then
+        self.playerRespawnFrames = self.playerRespawnFrames - 1
+        if self.playerRespawnFrames <= 0 then
+            self:tryRespawnPlayer()
+        end
+    end
+    if self.playerRespawnBlinkFrames > 0 then
+        self.playerRespawnBlinkFrames = self.playerRespawnBlinkFrames - 1
+    end
 
     self.stepTimer = self.stepTimer + self.speed
     while self.stepTimer >= 30 do
         self.stepTimer = self.stepTimer - 30
-        self:advancePlayer(false)
-        self:advanceRival()
+        if self.playerRespawnFrames <= 0 then
+            self:advancePlayer(false)
+        end
+        self:advanceNpcSnakes()
         self:resolveSnakeCollision()
+    end
+    if self.saveDirty then
+        self.saveCooldown = self.saveCooldown - 1
+        if self.saveCooldown <= 0 then
+            self:saveState(false)
+        end
     end
 end
 
@@ -349,24 +639,27 @@ function SnakeGame:advancePlayer(isBump)
         self.score = self.score + 1
         table.remove(self.foods, foodIndex)
         self:queueFoodSpawn()
+        self:markStateDirty()
     elseif isBump then
         if self:isCompetitive() then
             self:addFoodAt(head.x, head.y)
         end
         self.statusMessage = "Bump"
         self.statusFrames = 12
+        self:markStateDirty()
     end
 
     if isBump then
         self:resolveSnakeCollision()
     end
+    self:markStateDirty()
 end
 
-function SnakeGame:getRivalStep()
-    local head = self.rivalSnake[1]
+function SnakeGame:getNpcStep(body, index)
+    local head = body and body[1]
     local food = head and self:getNearestFood(head) or nil
     if head == nil or food == nil then
-        return -1, 0
+        return index % 2 == 0 and 1 or -1, 0
     end
 
     local dx = food.x - head.x
@@ -377,33 +670,40 @@ function SnakeGame:getRivalStep()
     if math.abs(dy) > self.rows * 0.5 then
         dy = -sign(dy) * (self.rows - math.abs(dy))
     end
-    return sign(dx), sign(dy)
+    if math.abs(dx) > math.abs(dy) then
+        return sign(dx), 0
+    end
+    return 0, sign(dy)
 end
 
-function SnakeGame:advanceRival()
-    if not self:isCompetitive() then
-        return
-    end
-
-    local stepX, stepY = self:getRivalStep()
-    if stepX == 0 and stepY == 0 then
-        stepX = -1
-    end
-    local head = self.rivalSnake[1]
-    if head == nil then
-        return
-    end
-    local nextHead = {
-        x = wrap(head.x + stepX, self.cols),
-        y = wrap(head.y + stepY, self.rows)
-    }
-    local foodIndex = self:getFoodAt(nextHead.x, nextHead.y)
-    local grow = foodIndex ~= nil
-    self:advanceBody(self.rivalSnake, stepX, stepY, grow)
-    if grow then
-        self.rivalScore = self.rivalScore + 1
-        table.remove(self.foods, foodIndex)
-        self:queueFoodSpawn()
+function SnakeGame:advanceNpcSnakes()
+    for index = 1, 4 do
+        if self.npcEnabled[index] then
+            local body = self.npcSnakes[index]
+            local stepX, stepY = self:getNpcStep(body, index)
+            if stepX == 0 and stepY == 0 then
+                stepX = index % 2 == 0 and 1 or -1
+            end
+            local head = body and body[1]
+            if head ~= nil then
+                local nextHead = {
+                    x = wrap(head.x + stepX, self.cols),
+                    y = wrap(head.y + stepY, self.rows)
+                }
+                local foodIndex = self:getFoodAt(nextHead.x, nextHead.y)
+                local grow = foodIndex ~= nil
+                self:advanceBody(body, stepX, stepY, grow)
+                if grow then
+                    self.npcScores[index] = (self.npcScores[index] or 0) + 1
+                    if index == 1 and self:isCompetitive() then
+                        self.rivalScore = self.npcScores[index]
+                    end
+                    table.remove(self.foods, foodIndex)
+                    self:queueFoodSpawn()
+                    self:markStateDirty()
+                end
+            end
+        end
     end
 end
 
@@ -418,27 +718,37 @@ function SnakeGame:bodyContains(body, x, y, startIndex)
 end
 
 function SnakeGame:resolveSnakeCollision()
-    if not self:isCompetitive() then
-        return
-    end
-
     local playerHead = self.snake[1]
-    local rivalHead = self.rivalSnake[1]
-    if playerHead == nil or rivalHead == nil then
+    self:enforceModeNpcDefaults()
+    if playerHead == nil then
         return
     end
 
-    local playerHitRivalBody = self:bodyContains(self.rivalSnake, playerHead.x, playerHead.y, 2)
-    local rivalHitPlayerBody = self:bodyContains(self.snake, rivalHead.x, rivalHead.y, 2)
-
-    if playerHead.x == rivalHead.x and playerHead.y == rivalHead.y then
-        self:resetRound("Head-on")
-    elseif playerHitRivalBody then
-        self.rivalScore = self.rivalScore + 1
-        self:resetRound("Player loses")
-    elseif rivalHitPlayerBody then
-        self.score = self.score + 1
-        self:resetRound("Rival loses")
+    for npcIndex = 1, 4 do
+        if self.npcEnabled[npcIndex] then
+            local rivalBody = self.npcSnakes[npcIndex]
+            local rivalHead = rivalBody and rivalBody[1]
+            if rivalHead ~= nil then
+                local headOn = playerHead.x == rivalHead.x and playerHead.y == rivalHead.y
+                local playerHitRivalBody = self:bodyContains(rivalBody, playerHead.x, playerHead.y, 2)
+                local rivalHitPlayerBody = self:bodyContains(self.snake, rivalHead.x, rivalHead.y, 2)
+                if headOn or playerHitRivalBody then
+                    self.npcScores[npcIndex] = (self.npcScores[npcIndex] or 0) + 1
+                    if npcIndex == 1 and self:isCompetitive() then
+                        self.rivalScore = self.npcScores[npcIndex]
+                    end
+                    self:startPlayerRespawn(headOn and "Head-on" or "Player loses")
+                    return
+                elseif rivalHitPlayerBody then
+                    self.score = self.score + 1
+                    self.npcEnabled[npcIndex] = false
+                    self.npcSnakes[npcIndex] = {}
+                    self.statusMessage = string.format("NPC %d loses", npcIndex)
+                    self.statusFrames = 45
+                    self:markStateDirty()
+                end
+            end
+        end
     end
 end
 
@@ -449,6 +759,70 @@ function SnakeGame:drawCell(cell, filled)
         gfx.fillRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2)
     else
         gfx.drawRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2)
+    end
+end
+
+function SnakeGame:drawDirectionIndicator()
+    local head = self.snake[1]
+    if head == nil then
+        return
+    end
+    local cx = roundToInt((head.x * CELL_SIZE) + (CELL_SIZE * 0.5))
+    local cy = roundToInt((head.y * CELL_SIZE) + (CELL_SIZE * 0.5))
+    local dx = self.lastStepX ~= 0 and self.lastStepX or 0
+    local dy = self.lastStepY ~= 0 and self.lastStepY or 0
+    if dx == 0 and dy == 0 then
+        dx = 1
+    end
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawLine(cx, cy, cx + dx * 5, cy + dy * 5)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawCircleAtPoint(cx + dx * 5, cy + dy * 5, 1)
+end
+
+function SnakeGame:drawNpcSnake(body, npcIndex)
+    for index = #body, 1, -1 do
+        local cell = body[index]
+        local x = cell.x * CELL_SIZE
+        local y = cell.y * CELL_SIZE
+        if index == 1 then
+            gfx.drawRect(x, y, CELL_SIZE, CELL_SIZE)
+            gfx.drawLine(x + CELL_SIZE * 0.5, y + 1, x + CELL_SIZE * 0.5, y + CELL_SIZE - 1)
+        elseif (index + npcIndex) % 2 == 0 then
+            gfx.drawRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2)
+        else
+            gfx.fillRect(x + 3, y + 3, CELL_SIZE - 5, CELL_SIZE - 5)
+        end
+    end
+end
+
+function SnakeGame:drawMenu()
+    if not self.menuOpen then
+        return
+    end
+    local items = self:getMenuItems()
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(MENU_X, MENU_Y, MENU_WIDTH, 154, 6)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRoundRect(MENU_X, MENU_Y, MENU_WIDTH, 154, 6)
+    gfx.drawText("Snake Menu", MENU_X + 10, MENU_Y + 8)
+    for index, item in ipairs(items) do
+        local rowY = MENU_Y + 28 + ((index - 1) * MENU_ROW_HEIGHT)
+        if index == self.menuIndex then
+            gfx.fillRect(MENU_X + 6, rowY - 1, MENU_WIDTH - 12, MENU_ROW_HEIGHT)
+            gfx.setImageDrawMode(gfx.kDrawModeInverted)
+        end
+        local valueText = ""
+        if item.type == "toggle" or item.type == "locked" then
+            valueText = item.value and "On" or "Off"
+        end
+        gfx.drawText(item.label, MENU_X + 12, rowY + 2)
+        if valueText ~= "" then
+            gfx.drawTextAligned(valueText, MENU_X + MENU_WIDTH - 12, rowY + 2, kTextAlignment.right)
+        end
+        if index == self.menuIndex then
+            gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        end
     end
 end
 
@@ -463,33 +837,33 @@ function SnakeGame:draw()
             3
         )
     end
-    if self:isCompetitive() then
-        for index = #self.rivalSnake, 1, -1 do
-            local cell = self.rivalSnake[index]
-            local x = cell.x * CELL_SIZE
-            local y = cell.y * CELL_SIZE
-            if index == 1 then
-                gfx.drawRect(x, y, CELL_SIZE, CELL_SIZE)
-                gfx.drawLine(x, y, x + CELL_SIZE, y + CELL_SIZE)
-                gfx.drawLine(x + CELL_SIZE, y, x, y + CELL_SIZE)
-            elseif index % 2 == 0 then
-                gfx.drawRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2)
-            else
-                gfx.fillRect(x + 3, y + 3, CELL_SIZE - 5, CELL_SIZE - 5)
-            end
+    self:enforceModeNpcDefaults()
+    for index = 1, 4 do
+        if self.npcEnabled[index] then
+            self:drawNpcSnake(self.npcSnakes[index], index)
         end
     end
     for index = #self.snake, 1, -1 do
         self:drawCell(self.snake[index], index == 1)
     end
+    self:drawDirectionIndicator()
+    if self.playerRespawnFrames > 0 and math.floor((self.playerRespawnBlinkFrames or 0) / 8) % 2 == 0 then
+        gfx.drawRect(
+            math.floor(self.cols * 0.5) * CELL_SIZE + 1,
+            math.floor(self.rows * 0.5) * CELL_SIZE + 1,
+            CELL_SIZE - 2,
+            CELL_SIZE - 2
+        )
+    end
     if not UIState or UIState.isShown() then
         if self:isCompetitive() then
-            gfx.drawText(string.format("Speed %d  You %d Rival %d", self.speed, self.score, self.rivalScore), 8, 8)
+            gfx.drawText(string.format("Speed %d  You %d NPC1 %d", self.speed, self.score, self.npcScores[1] or self.rivalScore), 8, 8)
         else
-            gfx.drawText(string.format("Speed %d  Score %d", self.speed, self.score), 8, 8)
+            gfx.drawText(string.format("Speed %d  Score %d  Food %d/%d", self.speed, self.score, #self.foods, self:getMaxFood()), 8, 8)
         end
         if self.statusMessage ~= nil then
             gfx.drawTextAligned(self.statusMessage, self.width * 0.5, 24, kTextAlignment.center)
         end
     end
+    self:drawMenu()
 end

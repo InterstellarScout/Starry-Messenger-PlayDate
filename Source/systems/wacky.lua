@@ -253,6 +253,7 @@ function WackyInflatable.new(width, height, options)
     self.crankIdleFrames = CRANK_IDLE_FRAMES
     self.lastUserCrankFrame = -AUTO_CRANK_IDLE_FRAMES
     self.nextAutoCrankFrame = nil
+    self.autoCrankEnabled = false
     self.autoCrankDirection = 1
     self.lastCrankDirection = 1
     self.collapseMode = false
@@ -885,7 +886,7 @@ function WackyInflatable:updateWormMode()
 end
 
 function WackyInflatable:updateAutoCrank()
-    if self.preview then
+    if self.preview or not self.autoCrankEnabled then
         return
     end
 
@@ -909,6 +910,9 @@ function WackyInflatable:updateAutoCrank()
 end
 
 function WackyInflatable:handlePrimaryAction()
+    self.autoCrankEnabled = true
+    self.lastUserCrankFrame = self.frame
+    self.nextAutoCrankFrame = nil
     self.collapseMode = not self.collapseMode
 end
 

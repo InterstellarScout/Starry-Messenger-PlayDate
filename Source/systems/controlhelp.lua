@@ -222,15 +222,15 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Turn 360 now lightly brakes on its own and snaps to a stop once your drift falls under a low speed threshold.",
             "Hold Left: fire the laser drill straight ahead to mine asteroids or burn enemy ships.",
             "Press Right: launch a missile. Press Right again while one is active to detonate it early, like Orbital Defense.",
-            "A popup introduces the controls for 5 seconds or until first input.",
-            "The bottom dashboard always shows Shields, ore as O, enemies as E, total score, the ship indicator, and 10 hull blocks.",
+            "A opens Miner Settings with defended count, material marker toggles, and configured shield upgrades.",
+            "The bottom dashboard always shows Shield, ore as O, enemies as E, cash, the ship indicator, and 10 hull blocks.",
             "Show UI only toggles the top-left status text.",
             "Asteroids split into two smaller chunks three times, so mining escalates into denser debris fields.",
             "Enemies use arrival steering to keep chasing after fly-bys, and enemy missiles detonate at twice the shield radius.",
             "Each combat wave now flashes a bold ALERT warning three times before the first enemies arrive.",
             "The default config opens with two minutes of mining, then seeker waves at 4, 8, and 16 ships, another two-minute mining break, two escaper waves, and a final striker assault.",
             "Available wave entities today are seeker, escaper, striker, four asteroid breakup stages, player and enemy missiles, explosion rings, and decor stars/shapes.",
-            "Shields use a 0-100 meter: asteroid hits remove 5, tier 1 enemy hits remove 10, and hull only loses blocks once shields are gone.",
+            "Shield starts from config progression: asteroid hits remove 5, tier 1 enemy hits remove 10, and hull only loses blocks once shield is gone.",
             "When the ship is disabled, space keeps moving but the player stops interacting; A restarts and B returns.",
             "B: return to title."
         })

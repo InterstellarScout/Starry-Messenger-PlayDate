@@ -664,7 +664,7 @@ function TitleScene:shouldHandoffPreview(selectedView)
     end
 
     local actualViewId = selectedView.openViewId or selectedView.id
-    if actualViewId == "duck" or actualViewId == "orbital" or selectedView.id == "rccar_multi" or actualViewId == "multiplayer" or actualViewId == "crttv" or actualViewId == "life" then
+    if actualViewId == "duck" or actualViewId == "orbital" or selectedView.id == "rccar_multi" or actualViewId == "multiplayer" or actualViewId == "crttv" or actualViewId == "life" or actualViewId == "spaceminer" then
         return false
     end
 
@@ -766,6 +766,18 @@ function TitleScene:setPreview(forceFresh)
             })
         elseif actualViewId == "touchinggrass" then
             return TouchingGrass.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "fractaltree" then
+            return FractalTree.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "brickbuilder" then
+            return BrickBuilder.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "crankblocks" then
+            return CrankBlocks.new(400, 240, {
                 preview = true
             })
         elseif actualViewId == "snake" then
@@ -1253,7 +1265,7 @@ function TitleScene:drawMenu()
     end
     local selectedView = self:getSelectedView()
     gfx.setImageDrawMode(self:getTextDrawMode())
-    if not self.freeSpinActive and not self.freeSpinSettling and self.freeSpinStarPreview == nil then
+    if not self.freeSpinActive and not self.freeSpinSettling then
         gfx.drawTextAligned(self.headerTitle, 200, 20, kTextAlignment.center)
         gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
     end

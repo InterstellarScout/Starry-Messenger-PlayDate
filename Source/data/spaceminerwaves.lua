@@ -15,8 +15,10 @@ Wave spawn entries:
 - `entityType`: which ship to spawn.
 - `quantity`: how many ships to create for that entry.
 - `entryDegrees`: 0/360 is top, 90 is right, 180 is bottom, 270 is left.
-- If quantity is greater than 1, spawns alternate between the requested degree and
-  its opposite degree. Example: quantity 6 at 90 degrees yields 3 at 90 and 3 at 270.
+- `target`: optional attack target. Use `"player"` or `"base"`; defaults to player.
+- If quantity is greater than 1, spawns in same-frame pairs: requested degree, then
+  its opposite degree. Each next pair waits `spacing` before spawning.
+- `spacing`/`Spacing`: optional time between pairs. Defaults to GameConfig.spaceMiner.waveEntrySpacing.
 - For `time` stages, each entry may use an absolute `timestamp` or a relative `offset`.
 - For `after_stage_clear` stages, each entry should use `offset`.
 
@@ -35,6 +37,32 @@ Other Space Miner entities that exist in the view but are not directly wave-spaw
 ]]
 
 SpaceMinerWaveConfig = {
+    settingsTimeline = {
+        { timestamp = "0:00:00", miniMapEnabled = true }
+    },
+    communications = {
+        {
+            timestamp = "0:00:15",
+            duration = "0:08:00",
+            text = "Mission: Mine Ore.\nWarning: Reports of Base Invaders have been recorded in the System. Be on the look out for threats."
+        },
+        { timestamp = "0:40:00", duration = "0:01:15", text = "Communication from home base... Caller: Scout" },
+        { timestamp = "0:41:15", duration = "0:01:00", text = "Accepted.. Connecting." },
+        { timestamp = "0:42:15", duration = "0:01:00", text = "Success." },
+        { timestamp = "0:43:15", duration = "0:01:20", text = "Hey, dude. Nice job on those asteroids." },
+        { timestamp = "0:44:20", duration = "0:01:20", text = "You're really giving these shields a run for their money." },
+        { timestamp = "0:45:25", duration = "0:01:20", text = "But that's why we got that upgrade last week!" },
+        { timestamp = "0:46:25", duration = "0:01:30", text = "Keep on mining, but I've got some bad news..." },
+        { timestamp = "0:47:25", duration = "0:01:30", text = "We got word of raiders in the neighboring system.." },
+        { timestamp = "0:48:25", duration = "0:01:30", text = "They said they're coming this way." },
+        { timestamp = "0:49:20", duration = "0:01:20", text = "Hopefully not foreshadowing." },
+        { timestamp = "0:50:15", duration = "0:01:00", text = "Heh..." },
+        { timestamp = "0:51:00", duration = "0:09:00", text = "Keep up the great work. Scout Out." },
+        { timestamp = "1:40:00", duration = "0:10:00", text = "Scout: Enemies Detected Entering System. Their vectors are straight at you!" },
+        { timestamp = "1:51:00", duration = "0:04:00", text = "Scout: Enemies 1000 km and closing..." },
+        { timestamp = "1:56:00", duration = "0:02:00", text = "Scout: 500 km and closing fast. We're alone out here, dude. Good luck, for both of us!" },
+        { timestamp = "1:59:00", duration = "0:01:00", text = "Attack Imminent!" }
+    },
     entityTypes = {
         seeker = "Direct pursuit ship that accelerates straight toward the player.",
         escaper = "Evasive ship that lingers near the edge of the player view while avoiding threats.",
@@ -67,7 +95,9 @@ SpaceMinerWaveConfig = {
 				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 0 },
 				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 90 },
 				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 180 },
-				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 270 }
+				{ timestamp = "2:20:00", entityType = "seeker", quantity = 2, entryDegrees = 270 },
+                { timestamp = "4:10:00", entityType = "seeker", quantity = 2, entryDegrees = 45, target = "base", spacing = "0:00:06" },
+                { timestamp = "4:35:00", entityType = "striker", quantity = 2, entryDegrees = 225, target = "base", spacing = "0:00:12" }
             }
         },
         {

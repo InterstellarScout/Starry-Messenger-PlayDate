@@ -1,3 +1,5 @@
+import "data/spaceminerconfig"
+
 GameConfig = GameConfig or {
     title = {
         overlayDither = 0.5,
@@ -73,6 +75,9 @@ GameConfig = GameConfig or {
         backgroundStarCount = 20,
         gravity = 0.16
     },
+    crankBlocks = {
+        allowUpMove = true
+    },
     crttv = {
         staticNoiseStepX = 4,
         staticNoiseStepY = 2,
@@ -128,51 +133,7 @@ GameConfig = GameConfig or {
         hatGroundRollDrag = 0.982,
         hatBounce = 0.16
     },
-    spaceMiner = {
-        worldWrapRadius = 620,
-        asteroidSafeRadius = 140,
-        playerRadius = 8,
-        decorWrapRadius = 720,
-        playerThrust = 0.08,
-        playerReverseThrust = 0.05,
-        playerFullModeIdleDrag = 0.982,
-        playerFullModeAutoStopSpeed = 0.18,
-        enemyBaseAcceleration = 0.045,
-        enemyEscaperAcceleration = 0.055,
-        enemyStrikerAcceleration = 0.072,
-        playerMaxSpeed = 3.8,
-        enemyMaxSpeed = 3.2,
-        laserRange = 170,
-        laserWidth = 4,
-        laserDamage = 0.34,
-        missileSpeed = 4.4,
-        missileDamage = 99,
-        missileBlastRadius = 34,
-        missileLifeFrames = 110,
-        playerMissileDrawRadius = 5,
-        playerMissileDrawLength = 10,
-        maxActiveEntities = 54,
-        targetAsteroidCount = 24,
-        previewAsteroidCount = 16,
-        decorItemCount = 120,
-        shieldMax = 100,
-        asteroidShieldDamage = 5,
-        enemyShieldDamage = 10,
-        shieldRechargeAmount = 5,
-        hullHits = 10,
-        shieldFlashFrames = 18,
-        shieldRechargeDelayFrames = 150,
-        shieldRechargeStepFrames = 90,
-        asteroidPruneProtectionFrames = 45,
-        asteroidVisiblePruneGraceFrames = 120,
-        asteroidDiagnosticsEnabled = true,
-        asteroidDiagnosticIntervalFrames = 150,
-        asteroidDiagnosticEventLimit = 6,
-        alertGapFrames = 12,
-        firstMiningStageFrames = 3600,
-        intermissionStageFrames = 3600,
-        strikerMissileCooldown = 70
-    },
+    spaceMiner = SpaceMinerConfig or {},
     gifPlayer = {
         defaultSpinSpeed = 0.45,
         defaultSourceFps = 25,

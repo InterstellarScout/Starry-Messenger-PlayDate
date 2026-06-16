@@ -273,9 +273,36 @@ function GifPlayerEffect:drawScaledText(text, font, keyPrefix, centerX, centerY,
     constrainedScale = math.min(constrainedScale, CATEGORY_TEXT_MAX_HEIGHT / cached.height)
     local drawX = centerX - ((cached.width * constrainedScale) * 0.5)
     local drawY = centerY - ((cached.height * constrainedScale) * 0.5)
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+    cached.image:drawScaled(drawX - 1, drawY, constrainedScale)
+    cached.image:drawScaled(drawX + 1, drawY, constrainedScale)
+    cached.image:drawScaled(drawX, drawY - 1, constrainedScale)
+    cached.image:drawScaled(drawX, drawY + 1, constrainedScale)
+    gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
     cached.image:drawScaled(drawX, drawY, constrainedScale)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function GifPlayerEffect:drawOutlinedText(text, x, y)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawText(text, x - 1, y)
+    gfx.drawText(text, x + 1, y)
+    gfx.drawText(text, x, y - 1)
+    gfx.drawText(text, x, y + 1)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawText(text, x, y)
+end
+
+function GifPlayerEffect:drawOutlinedTextAligned(text, x, y, alignment)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawTextAligned(text, x - 1, y, alignment)
+    gfx.drawTextAligned(text, x + 1, y, alignment)
+    gfx.drawTextAligned(text, x, y - 1, alignment)
+    gfx.drawTextAligned(text, x, y + 1, alignment)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawTextAligned(text, x, y, alignment)
 end
 
 function GifPlayerEffect:activate()
@@ -774,8 +801,8 @@ function GifPlayerEffect:drawGif()
     gfx.setColor(gfx.kColorBlack)
 
     if self.activeGif == nil or self.activeFrames == nil then
-        gfx.drawTextAligned("No converted GIFs found.", 200, 112, kTextAlignment.center)
-        gfx.drawTextAligned("Add frame sets under Source/gifs/<Category>.", 200, 128, kTextAlignment.center)
+        self:drawOutlinedTextAligned("No converted GIFs found.", 200, 112, kTextAlignment.center)
+        self:drawOutlinedTextAligned("Add frame sets under Source/gifs/<Category>.", 200, 128, kTextAlignment.center)
         return
     end
 
@@ -801,10 +828,8 @@ function GifPlayerEffect:drawCategoryOverlay()
     local prevIndex = categoryCount > 0 and (self.categoryIndex == 1 and categoryCount or self.categoryIndex - 1) or 0
     local nextIndex = categoryCount > 0 and (self.categoryIndex == categoryCount and 1 or self.categoryIndex + 1) or 0
 
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    gfx.drawText("GIF Categories", 8, 4)
-    gfx.drawText(displayInteger(self.categoryIndex) .. "/" .. displayInteger(categoryCount), 350, 4)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    self:drawOutlinedText("GIF Categories", 8, 4)
+    self:drawOutlinedText(displayInteger(self.categoryIndex) .. "/" .. displayInteger(categoryCount), 350, 4)
 
     self:drawScaledText(activeCategoryName, self.selectedFont or self.smallFont, "category-selected", 200, 88, CATEGORY_CENTER_SCALE)
     if prevIndex > 0 and prevIndex ~= self.categoryIndex then
@@ -814,44 +839,37 @@ function GifPlayerEffect:drawCategoryOverlay()
         self:drawScaledText(self.categories[nextIndex].name, self.largeFont or self.smallFont, "category-next", 200, 114, CATEGORY_SIDE_SCALE)
     end
 
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
     if self.activeCategory ~= nil then
-        gfx.drawTextAligned(displayInteger(#self.activeCategory.items) .. " GIFs", 200, 138, kTextAlignment.center)
+        self:drawOutlinedTextAligned(displayInteger(#self.activeCategory.items) .. " GIFs", 200, 138, kTextAlignment.center)
     end
-    gfx.drawText("Crank/Up/Down choose category  A open  B title", 8, 228)
-
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    self:drawOutlinedText("Crank/Up/Down choose category  A open  B title", 8, 228)
 end
 
 function GifPlayerEffect:drawGifChooserOverlay()
     gfx.setColor(gfx.kColorBlack)
     gfx.fillRect(0, 0, self.width, 18)
     gfx.fillRect(0, self.height - 22, self.width, 22)
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
 
     local categoryName = self.activeCategory and self.activeCategory.name or "GIF PLAYER"
     local label = self.activeGif and self.activeGif.label or "No GIFs"
     local count = #self.catalog
-    gfx.drawText(categoryName, 8, 4)
-    gfx.drawText(displayInteger(self.gifIndex) .. "/" .. displayInteger(math.max(1, count)), 350, 4)
-    gfx.drawTextAligned(label, 200, 212, kTextAlignment.center)
-    gfx.drawText("Up/Down choose gif  A play  B categories", 8, 228)
-
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    self:drawOutlinedText(categoryName, 8, 4)
+    self:drawOutlinedText(displayInteger(self.gifIndex) .. "/" .. displayInteger(math.max(1, count)), 350, 4)
+    self:drawOutlinedTextAligned(label, 200, 212, kTextAlignment.center)
+    self:drawOutlinedText("Up/Down choose gif  A play  B categories", 8, 228)
 end
 
 function GifPlayerEffect:drawPlaybackOverlay()
     gfx.setColor(gfx.kColorBlack)
     gfx.fillRect(0, 0, self.width, 14)
     gfx.fillRect(0, self.height - 16, self.width, 16)
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
 
     local categoryName = self.activeCategory and self.activeCategory.name or "GIF PLAYER"
     local label = self.activeGif and self.activeGif.label or "GIF PLAYER"
     local frameCount = self.activeGif and self.activeGif.frameCount or 0
     local frameIndex = frameCount > 0 and wrapFrame(math.floor(self.activeFramePosition + 0.5), frameCount) or 0
-    gfx.drawText(categoryName .. ": " .. label, 8, 2)
-    gfx.drawText("Frame " .. displayInteger(frameIndex) .. "/" .. displayInteger(frameCount), 292, 2)
+    self:drawOutlinedText(categoryName .. ": " .. label, 8, 2)
+    self:drawOutlinedText("Frame " .. displayInteger(frameIndex) .. "/" .. displayInteger(frameCount), 292, 2)
 
     local audioLine = "Audio: none"
     if self.audioPath ~= nil then
@@ -863,14 +881,15 @@ function GifPlayerEffect:drawPlaybackOverlay()
             audioLine = "Audio: scrub sync"
         end
     end
-    gfx.drawText(audioLine, 8, 212)
-    gfx.drawText("Up/Down choose  Left/Right step  A mode  B browser", 8, 226)
-
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    self:drawOutlinedText(audioLine, 8, 212)
+    self:drawOutlinedText("Up/Down choose  Left/Right step  A mode  B browser", 8, 226)
 end
 
 function GifPlayerEffect:drawOverlay()
     if self.preview then
+        return
+    end
+    if UIState and not UIState.isShown() then
         return
     end
 

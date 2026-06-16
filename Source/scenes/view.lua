@@ -106,6 +106,18 @@ function ViewScene.new(config)
         self.effect = MarbleMadness.new(400, 240)
     elseif self.viewId == "touchinggrass" then
         self.effect = TouchingGrass.new(400, 240)
+    elseif self.viewId == "fractaltree" then
+        self.effect = FractalTree.new(400, 240, {
+            preview = false
+        })
+    elseif self.viewId == "brickbuilder" then
+        self.effect = BrickBuilder.new(400, 240, {
+            preview = false
+        })
+    elseif self.viewId == "crankblocks" then
+        self.effect = CrankBlocks.new(400, 240, {
+            preview = false
+        })
     elseif self.viewId == "snake" then
         self.effect = SnakeGame.new(400, 240, {
             modeId = self.modeId
@@ -652,6 +664,14 @@ function ViewScene:update()
             self.effect:closeMenu()
             return
         end
+        if self.viewId == "snake" and self.effect and self.effect.isMenuOpen and self.effect:isMenuOpen() then
+            self.effect:closeMenu()
+            return
+        end
+        if self.viewId == "spaceminer" and self.effect and self.effect.isMenuOpen and self.effect:isMenuOpen() then
+            self.effect:closeMenu()
+            return
+        end
         if self:isLifeReviewMode() and self.effect:handleReviewBack() then
             return
         end
@@ -722,16 +742,24 @@ function ViewScene:update()
         elseif self.viewId == "wacky" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "spaceminer" then
-            self.effect:handlePrimaryAction()
+            if not (self.effect.isMenuOpen and self.effect:isMenuOpen()) then
+                self.effect:handlePrimaryAction()
+            end
         elseif self.viewId == "fishpond" then
         elseif self.viewId == "trailblazer" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "marblemadness" then
         elseif self.viewId == "snake" then
-            self.effect:handlePrimaryAction()
+            if not (self.effect.isMenuOpen and self.effect:isMenuOpen()) then
+                self.effect:handlePrimaryAction()
+            end
         elseif self.viewId == "smokebloom" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "touchinggrass" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "brickbuilder" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "crankblocks" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "rccar" then
             if self.effect and self.effect.toggleCrankMode then
@@ -804,8 +832,19 @@ function ViewScene:update()
     elseif self.viewId == "touchinggrass" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
-    elseif self.viewId == "snake" then
+    elseif self.viewId == "fractaltree" then
+        self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
+    elseif self.viewId == "brickbuilder" then
         self.effect:applyCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "crankblocks" then
+        self.effect:applyCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "snake" then
+        if not (self.effect.isMenuOpen and self.effect:isMenuOpen()) then
+            self.effect:applyCrank(change)
+        end
         self.crankAccumulator = 0
     elseif self.viewId == "smokebloom" then
         self.effect:applyCrank(change)
@@ -948,17 +987,34 @@ function ViewScene:update()
             pd.buttonIsPressed(pd.kButtonUp),
             pd.buttonIsPressed(pd.kButtonDown)
         )
-    elseif self.viewId == "snake" then
+    elseif self.viewId == "crankblocks" then
         self.effect:handleDirectionalInput(
-            pd.buttonIsPressed(pd.kButtonLeft),
-            pd.buttonIsPressed(pd.kButtonRight),
-            pd.buttonIsPressed(pd.kButtonUp),
-            pd.buttonIsPressed(pd.kButtonDown),
             pd.buttonJustPressed(pd.kButtonLeft),
             pd.buttonJustPressed(pd.kButtonRight),
             pd.buttonJustPressed(pd.kButtonUp),
             pd.buttonJustPressed(pd.kButtonDown)
         )
+    elseif self.viewId == "snake" then
+        if self.effect.isMenuOpen and self.effect:isMenuOpen() then
+            self.effect:updateMenuInput(
+                pd.buttonJustPressed(pd.kButtonUp),
+                pd.buttonJustPressed(pd.kButtonDown),
+                pd.buttonJustPressed(pd.kButtonLeft),
+                pd.buttonJustPressed(pd.kButtonRight),
+                pd.buttonJustPressed(pd.kButtonA)
+            )
+        else
+            self.effect:handleDirectionalInput(
+                pd.buttonIsPressed(pd.kButtonLeft),
+                pd.buttonIsPressed(pd.kButtonRight),
+                pd.buttonIsPressed(pd.kButtonUp),
+                pd.buttonIsPressed(pd.kButtonDown),
+                pd.buttonJustPressed(pd.kButtonLeft),
+                pd.buttonJustPressed(pd.kButtonRight),
+                pd.buttonJustPressed(pd.kButtonUp),
+                pd.buttonJustPressed(pd.kButtonDown)
+            )
+        end
     elseif self.viewId == "smokebloom" then
         self.effect:handleDirectionalInput(
             pd.buttonIsPressed(pd.kButtonLeft),
@@ -967,13 +1023,23 @@ function ViewScene:update()
             pd.buttonIsPressed(pd.kButtonDown)
         )
     elseif self.viewId == "spaceminer" then
-        self.effect:updateInput(
-            pd.buttonIsPressed(pd.kButtonUp),
-            pd.buttonIsPressed(pd.kButtonDown),
-            pd.buttonIsPressed(pd.kButtonLeft),
-            pd.buttonJustPressed(pd.kButtonRight),
-            pd.buttonJustPressed(pd.kButtonA)
-        )
+        if self.effect.isMenuOpen and self.effect:isMenuOpen() then
+            self.effect:updateMenuInput(
+                pd.buttonJustPressed(pd.kButtonUp),
+                pd.buttonJustPressed(pd.kButtonDown),
+                pd.buttonJustPressed(pd.kButtonLeft),
+                pd.buttonJustPressed(pd.kButtonRight),
+                pd.buttonJustPressed(pd.kButtonA)
+            )
+        else
+            self.effect:updateInput(
+                pd.buttonIsPressed(pd.kButtonUp),
+                pd.buttonIsPressed(pd.kButtonDown),
+                pd.buttonIsPressed(pd.kButtonLeft),
+                pd.buttonJustPressed(pd.kButtonRight),
+                pd.buttonJustPressed(pd.kButtonA)
+            )
+        end
     elseif self.viewId == "fishpond" then
         local inputX = 0
         local inputY = 0

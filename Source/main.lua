@@ -30,6 +30,9 @@ import "systems/marblemadness"
 import "systems/snakegame"
 import "systems/smokebloom"
 import "systems/touchinggrass"
+import "systems/fractaltree"
+import "systems/brickbuilder"
+import "systems/crankblocks"
 import "systems/vibes"
 import "systems/puddledrops"
 import "systems/dropper"
@@ -50,7 +53,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.1.98"
+local APP_VERSION <const> = "0.2.0"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -186,7 +189,15 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     {
         id = "spaceminer",
-        label = "Space Miner"
+        label = "Space Miner",
+        modes = {
+            SpaceMiner.MODE_STORY,
+            SpaceMiner.MODE_CONTINUE,
+            SpaceMiner.MODE_NEW_SAVE,
+            SpaceMiner.MODE_ENDLESS
+        },
+        modeId = SpaceMiner.MODE_STORY,
+        getModeLabel = SpaceMiner.getModeLabel
     },
     {
         id = "trailblazer",
@@ -196,6 +207,9 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     { id = "marblemadness", label = "Marble Madness" },
     { id = "touchinggrass", label = "Touching Grass" },
+    { id = "fractaltree", label = "Fractal Tree" },
+    { id = "brickbuilder", label = "Brick Builder" },
+    { id = "crankblocks", label = "Crank Blocks" },
     {
         id = "snake",
         label = "Snake",
