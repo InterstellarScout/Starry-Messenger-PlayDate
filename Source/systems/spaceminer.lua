@@ -8,6 +8,7 @@ local gfx <const> = pd.graphics
 local SPACE_MINER_CONFIG <const> = GameConfig and GameConfig.spaceMiner or {}
 local BASE_CONFIG <const> = SPACE_MINER_CONFIG.base or {}
 local ENEMY_TYPE_CONFIG <const> = SPACE_MINER_CONFIG.enemyTypes or {}
+local PROGRESSION_CONFIG <const> = SPACE_MINER_CONFIG.playerProgression or {}
 
 SpaceMiner = {}
 SpaceMiner.__index = SpaceMiner
@@ -56,6 +57,20 @@ local MISSILE_BLAST_RADIUS <const> = SPACE_MINER_CONFIG.missileBlastRadius or 34
 local MISSILE_LIFE_FRAMES <const> = SPACE_MINER_CONFIG.missileLifeFrames or 110
 local PLAYER_MISSILE_DRAW_RADIUS <const> = SPACE_MINER_CONFIG.playerMissileDrawRadius or 5
 local PLAYER_MISSILE_DRAW_LENGTH <const> = SPACE_MINER_CONFIG.playerMissileDrawLength or 10
+local CARGO_INITIAL_CAPACITY <const> = SPACE_MINER_CONFIG.cargoInitialCapacity or 50
+local CARGO_CAPACITY_ORE_STEP <const> = SPACE_MINER_CONFIG.cargoCapacityOreStep or 50
+local CARGO_CAPACITY_INCREASE <const> = SPACE_MINER_CONFIG.cargoCapacityIncrease or 10
+local CARGO_CAPACITY_GROW_RATE <const> = SPACE_MINER_CONFIG.cargoCapacityGrowRate or 0.04
+local CARGO_UNLOAD_STEP_FRAMES <const> = SPACE_MINER_CONFIG.cargoUnloadStepFrames or 4
+local HOME_BASE_MENU_RADIUS <const> = SPACE_MINER_CONFIG.homeBaseMenuRadius or 20
+local ENTITY_LOG_INTERVAL_FRAMES <const> = SPACE_MINER_CONFIG.entityLogIntervalFrames or 180
+local SHIP_REPAIR_SHIELD_PER_SECOND <const> = SPACE_MINER_CONFIG.shipRepairShieldPercentPerSecond or 0.10
+local SHIP_REPAIR_HULL_STEP_FRAMES <const> = SPACE_MINER_CONFIG.shipRepairHullStepFrames or 30
+local AUTO_MISSILE_SHOTS_PER_SECOND <const> = SPACE_MINER_CONFIG.autoMissileShotsPerSecond or 12
+local MENU_AUTO_NAVIGATE_ENABLED <const> = SPACE_MINER_CONFIG.menuAutoNavigateEnabled ~= false
+local MENU_AUTO_NAVIGATE_RADIUS <const> = SPACE_MINER_CONFIG.menuAutoNavigateRadius or 180
+local MENU_AUTO_NAVIGATE_ACCELERATION <const> = SPACE_MINER_CONFIG.menuAutoNavigateAcceleration or 0.026
+local MENU_AUTO_NAVIGATE_MAX_SPEED <const> = SPACE_MINER_CONFIG.menuAutoNavigateMaxSpeed or 1.1
 local MAX_ACTIVE_ENTITIES <const> = SPACE_MINER_CONFIG.maxActiveEntities or 54
 local TARGET_ASTEROID_COUNT <const> = SPACE_MINER_CONFIG.targetAsteroidCount or 24
 local PREVIEW_ASTEROID_COUNT <const> = SPACE_MINER_CONFIG.previewAsteroidCount or 16
@@ -116,18 +131,33 @@ local DASHBOARD_HULL_X <const> = 306
 local DASHBOARD_HULL_Y <const> = DASHBOARD_Y + 6
 local DASHBOARD_TEXT_Y <const> = DASHBOARD_Y + 5
 local STORY_SAVE_KEY <const> = "spaceminer-story-save"
-local STORY_SAVE_INTERVAL_FRAMES <const> = 120
 local MINIMAP_X <const> = 336
 local MINIMAP_Y <const> = 12
 local MINIMAP_WIDTH <const> = 54
 local MINIMAP_HEIGHT <const> = 38
 local MINIMAP_RANGE <const> = 520
+local CARGO_BAR_X <const> = MINIMAP_X
+local CARGO_BAR_Y <const> = MINIMAP_Y + MINIMAP_HEIGHT + 3
+local CARGO_BAR_WIDTH <const> = MINIMAP_WIDTH
+local CARGO_BAR_HEIGHT <const> = 11
 local MINER_MENU_X <const> = 198
 local MINER_MENU_Y <const> = 12
 local MINER_MENU_WIDTH <const> = 190
+local HOME_BASE_MENU_WIDTH <const> = SPACE_MINER_CONFIG.homeBaseMenuWidth or 240
 local MINER_MENU_ROW_HEIGHT <const> = 18
 local COMMUNICATION_LINE_CHAR_LIMIT <const> = SPACE_MINER_CONFIG.communicationLineCharLimit or 22
 local COMMUNICATION_MAX_LINES <const> = SPACE_MINER_CONFIG.communicationMaxLines or 8
+local COMMUNICATION_LINE_SPACING <const> = SPACE_MINER_CONFIG.communicationLineSpacing or 15
+local COMMUNICATION_BOX_PADDING <const> = SPACE_MINER_CONFIG.communicationBoxPadding or 28
+local COMMUNICATION_WIDTH <const> = SPACE_MINER_CONFIG.communicationWidth or math.floor(SCREEN_WIDTH * 0.5) - 14
+local COMMUNICATION_MIN_FRAMES <const> = SPACE_MINER_CONFIG.communicationMinFrames or 90
+local COMMUNICATION_FRAMES_PER_CHAR <const> = SPACE_MINER_CONFIG.communicationFramesPerChar or 2.2
+local BASE_SHIELD_RADIUS <const> = BASE_CONFIG.shieldRadius or 56
+local BASE_SHIELD_ASTEROID_DAMAGE <const> = BASE_CONFIG.shieldAsteroidDamage or 6
+local BASE_SHIELD_ENEMY_WEAPON_DAMAGE <const> = BASE_CONFIG.shieldEnemyWeaponDamage or 28
+local BASE_SHIELD_ENEMY_SHIP_DAMAGE <const> = BASE_CONFIG.shieldEnemyShipDamage or 18
+local BASE_SHIELD_PLAYER_DOCK_SUPPRESS_RADIUS <const> = BASE_CONFIG.shieldPlayerDockSuppressRadius or BASE_SHIELD_RADIUS
+local BASE_SHIELD_ENEMY_KEEP_ALIVE_RADIUS <const> = BASE_CONFIG.shieldEnemyKeepAliveRadius or 190
 
 local ASTEROID_STAGE_CONFIG <const> = {
     [0] = { radius = 30, hp = 7, speed = 0.28, fragments = 2, score = 20 },
@@ -190,6 +220,58 @@ end
 
 local ASTEROID_MATERIALS, ASTEROID_MATERIAL_RARITY_TOTAL = normalizeAsteroidMaterials(SPACE_MINER_CONFIG.asteroidMaterials)
 local ASTEROID_SIZE_LAYERS <const> = normalizeAsteroidSizeLayers(SPACE_MINER_CONFIG.asteroidSizeLayers)
+
+local UPGRADE_CATEGORY_CONFIG <const> = {
+    laser = {
+        screen = "laser",
+        title = "Laser Upgrades",
+        configKey = "laserUpgrades",
+        ownedKey = "ownedLaserUpgrades",
+        activeKey = "activeLaserUpgrade",
+        defaultId = "standard-laser"
+    },
+    missile = {
+        screen = "missile",
+        title = "Missile Upgrades",
+        configKey = "missileUpgrades",
+        ownedKey = "ownedMissileUpgrades",
+        activeKey = "activeMissileUpgrade",
+        defaultId = "standard-unguided"
+    },
+    shield = {
+        screen = "shield",
+        title = "Shield Upgrades",
+        configKey = "shieldUpgrades",
+        ownedKey = "ownedShieldUpgrades",
+        activeKey = "activeShieldUpgrade",
+        defaultId = "standard-shields"
+    },
+    thruster = {
+        screen = "thruster",
+        title = "Thruster Upgrades",
+        configKey = "thrusterUpgrades",
+        ownedKey = "ownedThrusterUpgrades",
+        activeKey = "activeThrusterUpgrade",
+        defaultId = "standard-thrusters"
+    },
+    cargo = {
+        screen = "cargo",
+        title = "Cargo Space",
+        configKey = "cargoUpgrades",
+        ownedKey = "ownedCargoUpgrades",
+        activeKey = "activeCargoUpgrade",
+        defaultId = "cargo-50"
+    }
+}
+
+local HOME_MENU_SCREENS <const> = {
+    { id = "laser", label = "Laser Upgrades" },
+    { id = "missile", label = "Missile Upgrades" },
+    { id = "shield", label = "Shield Upgrades" },
+    { id = "thruster", label = "Thruster Upgrades" },
+    { id = "cargo", label = "Cargo Space" },
+    { id = "settings", label = "Game Settings" }
+}
 
 local TURN_WINDOW_DEGREES <const> = {
     [SpaceMiner.MODE_FULL] = 360,
@@ -325,14 +407,16 @@ local function normalizeCommunicationSchedule(rawMessages)
     for index, rawMessage in ipairs(rawMessages or {}) do
         local startFrame = parseFrameCount(rawMessage.timestampFrames or rawMessage.timestamp or rawMessage.start or 0)
         local durationFrames = parseFrameCount(rawMessage.durationFrames or rawMessage.duration or "0:03:00")
+        local text = rawMessage.text or rawMessage.message or ""
+        local readableFrames = math.max(COMMUNICATION_MIN_FRAMES, math.floor(#text * COMMUNICATION_FRAMES_PER_CHAR))
         schedule[#schedule + 1] = {
             id = rawMessage.id or string.format("message-%d", index),
             startFrame = startFrame,
-            endFrame = startFrame + math.max(1, durationFrames),
-            text = rawMessage.text or rawMessage.message or "",
+            endFrame = startFrame + math.max(1, durationFrames, readableFrames),
+            text = text,
             x = rawMessage.x or 8,
             y = rawMessage.y or 8,
-            width = rawMessage.width or math.floor(SCREEN_WIDTH * 0.5) - 14
+            width = rawMessage.width or COMMUNICATION_WIDTH
         }
     end
     table.sort(schedule, function(left, right)
@@ -536,6 +620,23 @@ function SpaceMiner:applyTurnModeSetting()
     self.turnScale = 360 / self.turnWindow
 end
 
+function SpaceMiner:positionPlayerNearBase()
+    if self.preview or not self:isStoryMode() then
+        return
+    end
+    local directions = {
+        { x = 0, y = -1, angle = 90 },
+        { x = 1, y = 0, angle = 180 },
+        { x = 0, y = 1, angle = 270 },
+        { x = -1, y = 0, angle = 0 }
+    }
+    local direction = directions[math.random(1, #directions)]
+    local distance = BASE_SHIELD_RADIUS + 20
+    self.player.x = BASE_WORLD_X + (direction.x * distance)
+    self.player.y = BASE_WORLD_Y + (direction.y * distance)
+    self.player.angle = direction.angle
+end
+
 function SpaceMiner.new(width, height, options)
     local self = setmetatable({}, SpaceMiner)
     options = options or {}
@@ -562,6 +663,7 @@ function SpaceMiner.new(width, height, options)
         angle = 270,
         laserOn = false,
         missile = nil,
+        missiles = {},
         pendingMissileTrigger = false
     }
     self.input = {
@@ -577,7 +679,14 @@ function SpaceMiner.new(width, height, options)
     self.score = 0
     self.cash = 0
     self.minedChunks = 0
+    self.cargoOre = 0
+    self.cargoValue = 0
+    self.cargoLoads = {}
+    self.cargoUnloadFrames = 0
+    self.cargoCapacity = CARGO_INITIAL_CAPACITY
+    self.cargoCapacityTarget = CARGO_INITIAL_CAPACITY
     self.destroyedEnemies = 0
+    self.testModeEnabled = false
     self.shieldLevel = 1
     self.playerShieldMax = SHIELD_MAX
     self.frame = 0
@@ -587,9 +696,38 @@ function SpaceMiner.new(width, height, options)
     self.stageLabel = (#STAGE_SCHEDULE > 0 and STAGE_SCHEDULE[1].label) or "Open Mining"
     self.stageRuntime = nil
     self.menuOpen = false
+    self.menuType = "ship"
+    self.homeMenuScreen = "directory"
     self.menuIndex = 1
+    self.menuInputIgnoreFrames = 0
+    self.homeDirectoryIndex = 1
+    self.menuOpenedAtX = 0
+    self.menuOpenedAtY = 0
+    self.homeMenuMessage = nil
+    self.homeMenuScoutHidden = false
+    self.homeMenuAutoCloseFrames = nil
+    self.homeBaseVisitGreetingShown = false
+    self.wasInHomeBaseShield = false
+    self.wasCollidingHomeBase = false
+    self.contextCommunication = nil
+    self.baseCollisionCooldownFrames = 0
+    self.destroyedQuoteQueue = nil
+    self.destroyedQuoteIndex = 1
+    self.hullRepairFrames = 0
+    self.autoMissileAccumulator = 0
+    self.supernovaFlashFrames = 0
     self.materialMarkerToggles = {}
-    self.saveFrameCounter = 0
+    self.ownedLaserUpgrades = {}
+    self.ownedMissileUpgrades = {}
+    self.ownedShieldUpgrades = {}
+    self.ownedThrusterUpgrades = {}
+    self.ownedCargoUpgrades = {}
+    self.activeLaserUpgrade = nil
+    self.activeMissileUpgrade = nil
+    self.activeShieldUpgrade = nil
+    self.activeThrusterUpgrade = nil
+    self.activeCargoUpgrade = nil
+    self:initializeUpgradeState()
     self.enemySerial = 0
     self.playerShieldHits = self.playerShieldMax
     self.playerHullHits = HULL_HITS
@@ -619,6 +757,7 @@ function SpaceMiner.new(width, height, options)
     self:resetAsteroidDiagnostics()
     self:resetMaterialMarkerToggles()
     self:applyTurnModeSetting()
+    self:positionPlayerNearBase()
     self:seedBackgroundStars()
     self:buildBackgroundImage()
     self:buildBaseImage()
@@ -645,7 +784,6 @@ function SpaceMiner:activate()
 end
 
 function SpaceMiner:shutdown()
-    self:saveStoryState()
 end
 
 function SpaceMiner:getStorySaveData()
@@ -666,7 +804,23 @@ function SpaceMiner:getStorySaveData()
         score = self.score,
         cash = self.cash,
         minedChunks = self.minedChunks,
+        cargoOre = self.cargoOre,
+        cargoValue = self.cargoValue,
+        cargoLoads = self.cargoLoads,
+        cargoCapacity = self.cargoCapacity,
+        cargoCapacityTarget = self.cargoCapacityTarget,
         destroyedEnemies = self.destroyedEnemies,
+        testModeEnabled = self.testModeEnabled,
+        ownedLaserUpgrades = self.ownedLaserUpgrades,
+        ownedMissileUpgrades = self.ownedMissileUpgrades,
+        ownedShieldUpgrades = self.ownedShieldUpgrades,
+        ownedThrusterUpgrades = self.ownedThrusterUpgrades,
+        ownedCargoUpgrades = self.ownedCargoUpgrades,
+        activeLaserUpgrade = self.activeLaserUpgrade,
+        activeMissileUpgrade = self.activeMissileUpgrade,
+        activeShieldUpgrade = self.activeShieldUpgrade,
+        activeThrusterUpgrade = self.activeThrusterUpgrade,
+        activeCargoUpgrade = self.activeCargoUpgrade,
         shieldLevel = self.shieldLevel,
         playerShieldMax = self.playerShieldMax,
         playerShieldHits = self.playerShieldHits,
@@ -720,10 +874,31 @@ function SpaceMiner:loadStorySave()
         self.player.vy = tonumber(data.player.vy) or 0
         self.player.angle = tonumber(data.player.angle) or self.player.angle
     end
+    self.player.missiles = {}
+    self.player.missile = nil
     self.score = tonumber(data.score) or self.score
     self.cash = tonumber(data.cash) or self.cash
     self.minedChunks = tonumber(data.minedChunks) or self.minedChunks
+    self.cargoOre = tonumber(data.cargoOre) or self.cargoOre
+    self.cargoValue = tonumber(data.cargoValue) or self.cargoValue
+    if type(data.cargoLoads) == "table" then
+        self.cargoLoads = data.cargoLoads
+    elseif self.cargoOre > 0 then
+        self.cargoLoads = {}
+        local averageValue = math.floor(((self.cargoValue or 0) / self.cargoOre) + 0.5)
+        for _ = 1, self.cargoOre do
+            self.cargoLoads[#self.cargoLoads + 1] = averageValue
+        end
+    end
     self.destroyedEnemies = tonumber(data.destroyedEnemies) or self.destroyedEnemies
+    self.testModeEnabled = data.testModeEnabled == true
+    self:loadOwnedUpgradeState("laser", data.ownedLaserUpgrades, data.activeLaserUpgrade)
+    self:loadOwnedUpgradeState("missile", data.ownedMissileUpgrades, data.activeMissileUpgrade)
+    self:loadOwnedUpgradeState("shield", data.ownedShieldUpgrades, data.activeShieldUpgrade)
+    self:loadOwnedUpgradeState("thruster", data.ownedThrusterUpgrades, data.activeThrusterUpgrade)
+    self:loadOwnedUpgradeState("cargo", data.ownedCargoUpgrades, data.activeCargoUpgrade)
+    self.cargoCapacityTarget = math.max(CARGO_INITIAL_CAPACITY, tonumber(data.cargoCapacityTarget) or self:getCargoCapacityTarget(), self:getCargoUpgradeCapacity())
+    self.cargoCapacity = math.max(CARGO_INITIAL_CAPACITY, tonumber(data.cargoCapacity) or self.cargoCapacityTarget)
     self:applyShieldUpgradeLevel(tonumber(data.shieldLevel) or self.shieldLevel or 1)
     self.playerShieldMax = tonumber(data.playerShieldMax) or self.playerShieldMax
     self.playerShieldHits = tonumber(data.playerShieldHits) or self.playerShieldHits
@@ -747,7 +922,14 @@ function SpaceMiner:handlePrimaryAction()
         return
     end
     if not self.gameOver then
-        self.menuOpen = true
+        if self:tryAntiGravBlink() then
+            return
+        end
+        if self:isWithinHomeMenuRange() then
+            self:openHomeBaseMenu()
+        else
+            self:openShipMenu()
+        end
         return
     end
 
@@ -763,25 +945,116 @@ function SpaceMiner:handlePrimaryAction()
     end
 end
 
+function SpaceMiner:tryAntiGravBlink()
+    local upgrade = self:getActiveUpgrade("thruster") or {}
+    if upgrade.blinkDistance == nil then
+        return false
+    end
+
+    local inputX = 0
+    local inputY = 0
+    if pd.buttonIsPressed(pd.kButtonLeft) then
+        inputX = inputX - 1
+    end
+    if pd.buttonIsPressed(pd.kButtonRight) then
+        inputX = inputX + 1
+    end
+    if pd.buttonIsPressed(pd.kButtonUp) then
+        inputY = inputY - 1
+    end
+    if pd.buttonIsPressed(pd.kButtonDown) then
+        inputY = inputY + 1
+    end
+    if inputX == 0 and inputY == 0 then
+        return false
+    end
+
+    local ux, uy = unitVector(inputX, inputY)
+    local targetX = self.player.x + (ux * upgrade.blinkDistance)
+    local targetY = self.player.y + (uy * upgrade.blinkDistance)
+    local landingRadius = PLAYER_RADIUS + 12
+    for _, enemy in ipairs(self.enemyShips) do
+        if distanceSquared(targetX, targetY, enemy.x, enemy.y) <= ((landingRadius + enemy.size) * (landingRadius + enemy.size)) then
+            targetX = enemy.x - (ux * (landingRadius + enemy.size + 4))
+            targetY = enemy.y - (uy * (landingRadius + enemy.size + 4))
+        end
+    end
+    for _, asteroid in ipairs(self.asteroids) do
+        if distanceSquared(targetX, targetY, asteroid.x, asteroid.y) <= ((landingRadius + asteroid.radius) * (landingRadius + asteroid.radius)) then
+            targetX = asteroid.x - (ux * (landingRadius + asteroid.radius + 4))
+            targetY = asteroid.y - (uy * (landingRadius + asteroid.radius + 4))
+        end
+    end
+
+    self:addExplosion(self.player.x, self.player.y, 16, 8)
+    self.player.x = targetX
+    self.player.y = targetY
+    self.player.vx = self.player.vx * 0.35
+    self.player.vy = self.player.vy * 0.35
+    self:addExplosion(self.player.x, self.player.y, 16, 8)
+    return true
+end
+
 function SpaceMiner:isMenuOpen()
     return self.menuOpen == true
 end
 
+function SpaceMiner:isWithinHomeMenuRange()
+    if not self:isStoryMode() then
+        return false
+    end
+    local radius = math.max(HOME_BASE_MENU_RADIUS, BASE_SHIELD_RADIUS)
+    return distanceSquared(self.player.x, self.player.y, BASE_WORLD_X, BASE_WORLD_Y) <= (radius * radius)
+end
+
+function SpaceMiner:openShipMenu()
+    self.menuOpen = true
+    self.menuType = "ship"
+    self.homeMenuScreen = "directory"
+    self.menuIndex = 1
+    self.menuInputIgnoreFrames = 1
+    self.menuOpenedAtX = self.player.x
+    self.menuOpenedAtY = self.player.y
+    self.homeMenuAutoCloseFrames = nil
+end
+
+function SpaceMiner:openHomeBaseMenu()
+    self.menuOpen = true
+    self.menuType = "home"
+    self.homeMenuScreen = "directory"
+    self.menuIndex = 1
+    self.homeDirectoryIndex = 1
+    self.menuInputIgnoreFrames = 1
+    self.menuOpenedAtX = self.player.x
+    self.menuOpenedAtY = self.player.y
+    self.homeMenuMessage = self:getHomeBaseMenuMessage()
+    self.homeMenuScoutHidden = false
+    self.homeMenuAutoCloseFrames = (#self.enemyShips > 0 or #self.enemyMissiles > 0) and 120 or nil
+end
+
 function SpaceMiner:closeMenu()
+    if self.menuOpen and self:isStoryMode() then
+        self:saveStoryState()
+    end
     self.menuOpen = false
+    self.homeMenuAutoCloseFrames = nil
+    self.player.laserOn = false
+    self.input.laser = false
 end
 
 function SpaceMiner:getMenuItems()
-    local items = {}
-    local nextShield = self:getNextShieldUpgrade()
-    if nextShield ~= nil then
-        items[#items + 1] = {
-            id = "upgrade-shield",
-            label = string.format("Shield L%d $%d", nextShield.level, nextShield.cost or 0),
-            value = (self.cash or 0) >= (nextShield.cost or 0),
-            action = "upgrade-shield"
-        }
+    if self.menuType == "home" then
+        return self:getHomeMenuItems()
     end
+
+    local items = {
+        {
+            id = "trigger-next-event",
+            label = "Trigger Next Event",
+            value = false,
+            action = "trigger-next-event"
+        }
+    }
     for _, material in ipairs(ASTEROID_MATERIALS) do
         items[#items + 1] = {
             id = material.id,
@@ -792,59 +1065,208 @@ function SpaceMiner:getMenuItems()
     return items
 end
 
+function SpaceMiner:getHomeMenuItems()
+    local items = {}
+    if self.homeMenuScreen == "directory" then
+        for _, screen in ipairs(HOME_MENU_SCREENS) do
+            items[#items + 1] = {
+                id = screen.id,
+                label = screen.label,
+                action = "open-screen"
+            }
+        end
+        return items
+    end
+
+    if self.homeMenuScreen == "settings" then
+        return self:getShipSettingsMenuItems()
+    end
+
+    local category = self:getUpgradeCategoryForScreen(self.homeMenuScreen)
+    if category == nil then
+        return items
+    end
+    for _, upgrade in ipairs(self:getUpgradeList(category)) do
+        local owned = self:isUpgradeOwned(category, upgrade.id)
+        local active = self:getActiveUpgradeId(category) == upgrade.id
+        local cost = upgrade.cost or 0
+        items[#items + 1] = {
+            id = upgrade.id,
+            label = upgrade.name or upgrade.id,
+            cost = cost,
+            value = active,
+            action = (owned or self.testModeEnabled) and "equip-upgrade" or "buy-upgrade",
+            category = category,
+            enabled = self.testModeEnabled or owned or (self.cash or 0) >= cost
+        }
+    end
+    return items
+end
+
+function SpaceMiner:getShipSettingsMenuItems()
+    local items = {
+        {
+            id = "trigger-next-event",
+            label = "Trigger Next Event",
+            value = false,
+            action = "trigger-next-event"
+        },
+        {
+            id = "test-mode",
+            label = "Test Mode",
+            value = self.testModeEnabled == true,
+            action = "toggle-test-mode"
+        }
+    }
+    for _, material in ipairs(ASTEROID_MATERIALS) do
+        items[#items + 1] = {
+            id = material.id,
+            label = material.label,
+            value = self.materialMarkerToggles[material.id] == true,
+            action = "toggle-material"
+        }
+    end
+    return items
+end
+
 function SpaceMiner:toggleMenuSelection()
     local item = self:getMenuItems()[self.menuIndex]
     if item == nil then
         return
     end
-    if item.action == "upgrade-shield" then
-        self:purchaseShieldUpgrade()
+    if item.action == "open-screen" then
+        self.homeDirectoryIndex = self.menuIndex
+        self.homeMenuScreen = item.id
+        self.menuIndex = 1
+    elseif item.action == "buy-upgrade" or item.action == "equip-upgrade" then
+        self:purchaseOrEquipUpgrade(item.category, item.id)
+    elseif item.action == "toggle-test-mode" then
+        self.testModeEnabled = not self.testModeEnabled
+    elseif item.action == "trigger-next-event" then
+        self:triggerNextWaveEvent()
     else
         self.materialMarkerToggles[item.id] = not self.materialMarkerToggles[item.id]
     end
 end
 
-function SpaceMiner:getShieldUpgradeConfig(level)
-    local upgrades = SPACE_MINER_CONFIG.playerProgression and SPACE_MINER_CONFIG.playerProgression.shieldUpgrades or nil
-    for _, upgrade in ipairs(upgrades or {}) do
-        if tonumber(upgrade.level) == level then
+function SpaceMiner:getUpgradeCategoryForScreen(screen)
+    for category, config in pairs(UPGRADE_CATEGORY_CONFIG) do
+        if config.screen == screen then
+            return category
+        end
+    end
+    return nil
+end
+
+function SpaceMiner:getUpgradeList(category)
+    local config = UPGRADE_CATEGORY_CONFIG[category]
+    return config and (PROGRESSION_CONFIG[config.configKey] or {}) or {}
+end
+
+function SpaceMiner:getUpgradeById(category, id)
+    for _, upgrade in ipairs(self:getUpgradeList(category)) do
+        if upgrade.id == id then
             return upgrade
         end
     end
     return nil
 end
 
-function SpaceMiner:getNextShieldUpgrade()
-    return self:getShieldUpgradeConfig((self.shieldLevel or 1) + 1)
+function SpaceMiner:getOwnedUpgradeTable(category)
+    local config = UPGRADE_CATEGORY_CONFIG[category]
+    return config and self[config.ownedKey] or nil
+end
+
+function SpaceMiner:getActiveUpgradeId(category)
+    local config = UPGRADE_CATEGORY_CONFIG[category]
+    return config and self[config.activeKey] or nil
+end
+
+function SpaceMiner:setActiveUpgradeId(category, id)
+    local config = UPGRADE_CATEGORY_CONFIG[category]
+    if config ~= nil then
+        self[config.activeKey] = id
+    end
+end
+
+function SpaceMiner:isUpgradeOwned(category, id)
+    local owned = self:getOwnedUpgradeTable(category)
+    return owned ~= nil and owned[id] == true
+end
+
+function SpaceMiner:initializeUpgradeState()
+    for category, config in pairs(UPGRADE_CATEGORY_CONFIG) do
+        local owned = self:getOwnedUpgradeTable(category)
+        if owned ~= nil then
+            owned[config.defaultId] = true
+            self:setActiveUpgradeId(category, self:getActiveUpgradeId(category) or config.defaultId)
+        end
+    end
+end
+
+function SpaceMiner:loadOwnedUpgradeState(category, ownedState, activeId)
+    local owned = self:getOwnedUpgradeTable(category)
+    if owned == nil then
+        return
+    end
+    if type(ownedState) == "table" then
+        for id, value in pairs(ownedState) do
+            owned[id] = value == true
+        end
+    end
+    local config = UPGRADE_CATEGORY_CONFIG[category]
+    owned[config.defaultId] = true
+    if activeId ~= nil and owned[activeId] == true then
+        self:setActiveUpgradeId(category, activeId)
+    end
+end
+
+function SpaceMiner:purchaseOrEquipUpgrade(category, id)
+    if category == nil or id == nil then
+        return
+    end
+    local upgrade = self:getUpgradeById(category, id)
+    local owned = self:getOwnedUpgradeTable(category)
+    if upgrade == nil or owned == nil then
+        return
+    end
+    if self.testModeEnabled then
+        owned[id] = true
+    elseif owned[id] ~= true then
+        local cost = upgrade.cost or 0
+        if (self.cash or 0) < cost then
+            return
+        end
+        self.cash = self.cash - cost
+        owned[id] = true
+    end
+    self:setActiveUpgradeId(category, id)
+end
+
+function SpaceMiner:getActiveUpgrade(category)
+    return self:getUpgradeById(category, self:getActiveUpgradeId(category)) or self:getUpgradeById(category, UPGRADE_CATEGORY_CONFIG[category].defaultId)
 end
 
 function SpaceMiner:applyShieldUpgradeLevel(level)
-    local upgrade = self:getShieldUpgradeConfig(level)
     self.shieldLevel = level
-    self.playerShieldMax = (upgrade and upgrade.maxShield) or SHIELD_MAX
+    self.playerShieldMax = SHIELD_MAX
     self.playerShieldHits = math.min(self.playerShieldHits or self.playerShieldMax, self.playerShieldMax)
-end
-
-function SpaceMiner:purchaseShieldUpgrade()
-    local nextShield = self:getNextShieldUpgrade()
-    if nextShield == nil then
-        return
-    end
-    local cost = nextShield.cost or 0
-    if (self.cash or 0) < cost then
-        return
-    end
-    self.cash = self.cash - cost
-    self:applyShieldUpgradeLevel(nextShield.level or ((self.shieldLevel or 1) + 1))
-    self.playerShieldHits = self.playerShieldMax
-    if self:isStoryMode() then
-        self:saveStoryState()
-    end
 end
 
 function SpaceMiner:updateMenuInput(upPressed, downPressed, leftPressed, rightPressed, aPressed)
     if not self.menuOpen then
         return
+    end
+    if (self.menuInputIgnoreFrames or 0) > 0 then
+        self.menuInputIgnoreFrames = self.menuInputIgnoreFrames - 1
+        return
+    end
+    if self.homeMenuAutoCloseFrames ~= nil then
+        self.homeMenuAutoCloseFrames = self.homeMenuAutoCloseFrames - 1
+        if self.homeMenuAutoCloseFrames <= 0 then
+            self:closeMenu()
+            return
+        end
     end
     local itemCount = #self:getMenuItems()
     if itemCount <= 0 then
@@ -860,8 +1282,105 @@ function SpaceMiner:updateMenuInput(upPressed, downPressed, leftPressed, rightPr
         if self.menuIndex > itemCount then
             self.menuIndex = 1
         end
+    elseif leftPressed and self.menuType == "home" and self.homeMenuScreen ~= "directory" then
+        self.homeMenuScreen = "directory"
+        self.menuIndex = self.homeDirectoryIndex or 1
     elseif leftPressed or rightPressed or aPressed then
+        if aPressed and self.menuType == "home" then
+            self.homeMenuScoutHidden = true
+        end
         self:toggleMenuSelection()
+    end
+end
+
+function SpaceMiner:getHomeBaseMenuMessage()
+    if #self.enemyShips > 0 or #self.enemyMissiles > 0 then
+        return BASE_CONFIG.homeBaseEnemyAround or "Scout: Get back out there!"
+    end
+
+    local hullRatio = clamp((self.playerHullHits or HULL_HITS) / HULL_HITS, 0, 1)
+    if hullRatio < 0.10 then
+        return BASE_CONFIG.homeBaseCriticalHealth or "Scout: How are you still alive?"
+    elseif hullRatio < 0.50 then
+        return BASE_CONFIG.homeBaseBelowHalfHealth or "Scout: That damage isn't cheap."
+    elseif hullRatio < 1 then
+        return BASE_CONFIG.homeBaseAboveHalfHealth or "Scout: You're paying for that, right?"
+    end
+
+    if self.homeBaseVisitGreetingShown then
+        return self.baseName or "Home Base"
+    end
+    self.homeBaseVisitGreetingShown = true
+    local greetings = BASE_CONFIG.homeBaseGreetings or {}
+    if #greetings > 0 then
+        return greetings[math.random(1, #greetings)]
+    end
+    return "Scout: Welcome home."
+end
+
+function SpaceMiner:updateHomeBaseVisitState()
+    if not self:isStoryMode() then
+        return
+    end
+    local enterRadius = BASE_SHIELD_RADIUS
+    local exitRadius = BASE_SHIELD_RADIUS + 10
+    local distanceSq = distanceSquared(self.player.x, self.player.y, BASE_WORLD_X, BASE_WORLD_Y)
+    local inside = self.wasInHomeBaseShield
+        and distanceSq <= (exitRadius * exitRadius)
+        or distanceSq <= (enterRadius * enterRadius)
+    if not inside and self.wasInHomeBaseShield then
+        self.homeBaseVisitGreetingShown = false
+    end
+    self.wasInHomeBaseShield = inside
+end
+
+function SpaceMiner:updateMenuAutoNavigate()
+    if not self.menuOpen or not MENU_AUTO_NAVIGATE_ENABLED or self.gameOver then
+        return
+    end
+
+    local steerX = 0
+    local steerY = 0
+    for _, enemy in ipairs(self.enemyShips) do
+        local dx = self.player.x - enemy.x
+        local dy = self.player.y - enemy.y
+        local ux, uy, distance = unitVector(dx, dy)
+        if distance < 95 then
+            local strength = 1 - clamp(distance / 95, 0, 1)
+            steerX = steerX + ux * strength
+            steerY = steerY + uy * strength
+        end
+    end
+    for _, missile in ipairs(self.enemyMissiles) do
+        local dx = self.player.x - missile.x
+        local dy = self.player.y - missile.y
+        local ux, uy, distance = unitVector(dx, dy)
+        if distance < 80 then
+            local strength = 1 - clamp(distance / 80, 0, 1)
+            steerX = steerX + ux * strength * 1.35
+            steerY = steerY + uy * strength * 1.35
+        end
+    end
+
+    local homeX = self.menuOpenedAtX or self.player.x
+    local homeY = self.menuOpenedAtY or self.player.y
+    local dxHome = homeX - self.player.x
+    local dyHome = homeY - self.player.y
+    local homeUx, homeUy, homeDistance = unitVector(dxHome, dyHome)
+    if homeDistance > MENU_AUTO_NAVIGATE_RADIUS then
+        steerX = steerX + homeUx * 2
+        steerY = steerY + homeUy * 2
+    elseif homeDistance > MENU_AUTO_NAVIGATE_RADIUS * 0.55 then
+        steerX = steerX + homeUx * 0.55
+        steerY = steerY + homeUy * 0.55
+    end
+
+    if math.abs(steerX) > 0.0001 or math.abs(steerY) > 0.0001 then
+        local ux, uy = unitVector(steerX, steerY)
+        applyAcceleration(self.player, ux * MENU_AUTO_NAVIGATE_ACCELERATION, uy * MENU_AUTO_NAVIGATE_ACCELERATION, MENU_AUTO_NAVIGATE_MAX_SPEED)
+    else
+        self.player.vx = self.player.vx * 0.96
+        self.player.vy = self.player.vy * 0.96
     end
 end
 
@@ -901,6 +1420,120 @@ function SpaceMiner:getAsteroidCashValue(asteroid)
     local material = asteroid.material or ASTEROID_MATERIALS[1]
     local tinyScale = 2 ^ math.max(0, 3 - (asteroid.stage or 3))
     return math.max(0, math.floor((material.cashPerTiny or 1) * tinyScale))
+end
+
+function SpaceMiner:getCargoCapacityTarget()
+    local oreStep = math.max(1, CARGO_CAPACITY_ORE_STEP)
+    local upgradeCount = math.floor((self.minedChunks or 0) / oreStep)
+    return math.max(self:getCargoUpgradeCapacity(), CARGO_INITIAL_CAPACITY + (upgradeCount * CARGO_CAPACITY_INCREASE))
+end
+
+function SpaceMiner:getCargoUpgradeCapacity()
+    local upgrade = self:getActiveUpgrade("cargo") or {}
+    return upgrade.capacity or CARGO_INITIAL_CAPACITY
+end
+
+function SpaceMiner:isCargoFull()
+    return (self.cargoOre or 0) >= math.floor((self.cargoCapacity or CARGO_INITIAL_CAPACITY) + 0.0001)
+end
+
+function SpaceMiner:addCargoFromAsteroid(asteroid)
+    if self:isCargoFull() then
+        return false
+    end
+
+    self.cargoOre = math.min(self.cargoOre + 1, math.floor(self.cargoCapacity or CARGO_INITIAL_CAPACITY))
+    local cargoCashValue = self:getAsteroidCashValue(asteroid)
+    self.cargoValue = (self.cargoValue or 0) + cargoCashValue
+    self.cargoLoads[#self.cargoLoads + 1] = cargoCashValue
+    self.minedChunks = self.minedChunks + 1
+    self.cargoCapacityTarget = self:getCargoCapacityTarget()
+    return true
+end
+
+function SpaceMiner:isWithinHomeBaseServiceRange()
+    return self:isStoryMode()
+        and distanceSquared(self.player.x, self.player.y, BASE_WORLD_X, BASE_WORLD_Y) <= (BASE_SHIELD_RADIUS * BASE_SHIELD_RADIUS)
+end
+
+function SpaceMiner:updateCargo()
+    local targetCapacity = self:getCargoCapacityTarget()
+    self.cargoCapacityTarget = math.max(self.cargoCapacityTarget or CARGO_INITIAL_CAPACITY, targetCapacity)
+    if (self.cargoCapacity or CARGO_INITIAL_CAPACITY) < self.cargoCapacityTarget then
+        self.cargoCapacity = math.min(self.cargoCapacityTarget, self.cargoCapacity + CARGO_CAPACITY_GROW_RATE)
+    end
+
+    if not self:isWithinHomeBaseServiceRange() or (self.cargoOre or 0) <= 0 then
+        self.cargoUnloadFrames = 0
+        return
+    end
+
+    self.cargoUnloadFrames = (self.cargoUnloadFrames or 0) + 1
+    if self.cargoUnloadFrames >= CARGO_UNLOAD_STEP_FRAMES then
+        self.cargoUnloadFrames = 0
+        local loadValue = table.remove(self.cargoLoads, 1) or 0
+        self.cargoOre = math.max(0, self.cargoOre - 1)
+        self.cargoValue = math.max(0, (self.cargoValue or 0) - loadValue)
+        self.cash = (self.cash or 0) + loadValue
+    end
+end
+
+function SpaceMiner:updateHomeBaseRepairs()
+    if not self:isWithinHomeBaseServiceRange() or self.gameOver then
+        self.hullRepairFrames = 0
+        return
+    end
+
+    if (self.playerShieldHits or 0) < (self.playerShieldMax or SHIELD_MAX) then
+        local shieldPerFrame = ((self.playerShieldMax or SHIELD_MAX) * SHIP_REPAIR_SHIELD_PER_SECOND) / 30
+        self.playerShieldHits = math.min(self.playerShieldMax or SHIELD_MAX, (self.playerShieldHits or 0) + shieldPerFrame)
+    end
+
+    if (self.playerHullHits or 0) < HULL_HITS then
+        self.hullRepairFrames = (self.hullRepairFrames or 0) + 1
+        if self.hullRepairFrames >= SHIP_REPAIR_HULL_STEP_FRAMES then
+            self.hullRepairFrames = 0
+            self.playerHullHits = math.min(HULL_HITS, (self.playerHullHits or 0) + 1)
+        end
+    else
+        self.hullRepairFrames = 0
+    end
+end
+
+function SpaceMiner:isRepairBeamActive()
+    return self:isWithinHomeBaseServiceRange()
+        and ((self.playerShieldHits or 0) < (self.playerShieldMax or SHIELD_MAX) or (self.playerHullHits or 0) < HULL_HITS)
+end
+
+function SpaceMiner:getLaserDamagePerFrame()
+    local upgrade = self:getActiveUpgrade("laser") or {}
+    local baseDps = LASER_DAMAGE * 30
+    return (baseDps + (upgrade.dpsBonus or 0)) / 30
+end
+
+function SpaceMiner:getLaserEnemyPenetrationLimit()
+    local upgrade = self:getActiveUpgrade("laser") or {}
+    return upgrade.maxEnemyHits or LASER_ENEMY_PENETRATION_LIMIT
+end
+
+function SpaceMiner:getMissileDamage()
+    local upgrade = self:getActiveUpgrade("missile") or {}
+    return MISSILE_DAMAGE + (upgrade.damageBonus or 0)
+end
+
+function SpaceMiner:getShieldDamageReduction()
+    local upgrade = self:getActiveUpgrade("shield") or {}
+    return clamp(upgrade.damageReduction or 0, 0, 0.9)
+end
+
+function SpaceMiner:getThrusterAccelerationMultiplier()
+    local upgrade = self:getActiveUpgrade("thruster") or {}
+    return 1 + (upgrade.accelerationBonus or 0)
+end
+
+function SpaceMiner:getThrusterHandlingMultiplier()
+    local upgrade = self:getActiveUpgrade("thruster") or {}
+    return 1 + (upgrade.handlingBonus or 0)
 end
 
 function SpaceMiner:seedAsteroids(targetCount)
@@ -1277,10 +1910,14 @@ function SpaceMiner:addExplosion(x, y, radius, life)
 end
 
 function SpaceMiner:getShieldDamageForReason(reason)
+    local reduction = self:getShieldDamageReduction()
+    local damage
     if reason == "asteroid" then
-        return ASTEROID_SHIELD_DAMAGE
+        damage = ASTEROID_SHIELD_DAMAGE
+    else
+        damage = ENEMY_SHIELD_DAMAGE
     end
-    return ENEMY_SHIELD_DAMAGE
+    return math.max(1, math.floor((damage * (1 - reduction)) + 0.5))
 end
 
 function SpaceMiner:damagePlayer(reason)
@@ -1307,8 +1944,10 @@ function SpaceMiner:damagePlayer(reason)
         self.player.laserOn = false
         self.player.pendingMissileTrigger = false
         self.player.missile = nil
+        self.player.missiles = {}
         self.player.vx = 0
         self.player.vy = 0
+        self:startDestroyedCommunications()
     end
 end
 
@@ -1345,13 +1984,46 @@ function SpaceMiner:getTargetVelocity(target)
     return self.player.vx, self.player.vy
 end
 
+function SpaceMiner:isEnemyNearBase()
+    local radiusSq = BASE_SHIELD_ENEMY_KEEP_ALIVE_RADIUS * BASE_SHIELD_ENEMY_KEEP_ALIVE_RADIUS
+    for _, enemy in ipairs(self.enemyShips) do
+        if distanceSquared(enemy.x, enemy.y, BASE_WORLD_X, BASE_WORLD_Y) <= radiusSq then
+            return true
+        end
+    end
+    for _, missile in ipairs(self.enemyMissiles) do
+        if distanceSquared(missile.x, missile.y, BASE_WORLD_X, BASE_WORLD_Y) <= radiusSq then
+            return true
+        end
+    end
+    return false
+end
+
+function SpaceMiner:isBaseShieldActive()
+    if (self.baseShieldHits or 0) <= 0 then
+        return false
+    end
+    local playerDocked = distanceSquared(self.player.x, self.player.y, BASE_WORLD_X, BASE_WORLD_Y) <= (BASE_SHIELD_PLAYER_DOCK_SUPPRESS_RADIUS * BASE_SHIELD_PLAYER_DOCK_SUPPRESS_RADIUS)
+    return not playerDocked or self:isEnemyNearBase()
+end
+
 function SpaceMiner:damageBase(reason)
     if self.baseShieldFlashFrames > 0 then
         return
     end
-    self.baseShieldHits = math.max(0, (self.baseShieldHits or BASE_SHIELD_MAX) - BASE_SHIELD_DAMAGE)
+    local damage = BASE_SHIELD_DAMAGE
+    if reason == "asteroid" then
+        damage = BASE_SHIELD_ASTEROID_DAMAGE
+    elseif reason == "enemy-missile" then
+        damage = BASE_SHIELD_ENEMY_WEAPON_DAMAGE
+    elseif reason == "enemy-ship" then
+        damage = BASE_SHIELD_ENEMY_SHIP_DAMAGE
+    end
+    self.baseShieldHits = math.max(0, (self.baseShieldHits or BASE_SHIELD_MAX) - damage)
     self.baseShieldFlashFrames = SHIELD_FLASH_FRAMES
-    self.baseUnderAttackFrames = 45
+    if reason ~= "asteroid" then
+        self.baseUnderAttackFrames = 45
+    end
     self.baseFramesSinceDamage = 0
     self.baseShieldRechargeFrames = 0
     self:addExplosion(BASE_WORLD_X, BASE_WORLD_Y, 18, 10)
@@ -1476,12 +2148,52 @@ function SpaceMiner:beginStage(index)
     StarryLog.info("miner stage begin %s", stage.id)
 end
 
+function SpaceMiner:startSupernovaFlash()
+    self.supernovaFlashFrames = 24
+end
+
 function SpaceMiner:advanceStage()
     if self.stageIndex < #STAGE_SCHEDULE then
         self:beginStage(self.stageIndex + 1)
+        self:saveStoryState()
     else
-        self.stageLabel = "Open Mining"
-        self.stageFrame = self.stageFrame + 1
+        self:beginStage(1)
+        self:startSupernovaFlash()
+        self:saveStoryState()
+    end
+end
+
+function SpaceMiner:triggerNextWaveEvent()
+    if self.preview or self:isEndlessMode() or #STAGE_SCHEDULE == 0 then
+        return
+    end
+    local stage = self:getCurrentStage()
+    if stage ~= nil and stage.kind == "wave" then
+        local runtime = self.stageRuntime
+        if runtime ~= nil then
+            runtime.alertStarted = true
+            runtime.alertStartFrame = self.frame - ALERT_TOTAL_FRAMES
+            runtime.waveStartFrame = self.frame
+            self.stageFrame = math.max(self.stageFrame, stage.trigger and (stage.trigger.delayFrames or 0) or 0)
+        end
+        return
+    end
+    for offset = 1, #STAGE_SCHEDULE do
+        local index = ((self.stageIndex - 1 + offset) % #STAGE_SCHEDULE) + 1
+        if STAGE_SCHEDULE[index].kind == "wave" then
+            if index <= self.stageIndex then
+                self:startSupernovaFlash()
+            end
+            self:beginStage(index)
+            local runtime = self.stageRuntime
+            if runtime ~= nil then
+                runtime.alertStarted = true
+                runtime.alertStartFrame = self.frame - ALERT_TOTAL_FRAMES
+                runtime.waveStartFrame = self.frame
+            end
+            self:saveStoryState()
+            return
+        end
     end
 end
 
@@ -1536,6 +2248,16 @@ function SpaceMiner:getActiveCommunication()
     if self:isEndlessMode() then
         return nil
     end
+    if self.menuOpen and self.menuType == "home" then
+        return nil
+    end
+
+    if self.contextCommunication ~= nil then
+        if self.frame < self.contextCommunication.endFrame then
+            return self.contextCommunication
+        end
+        self.contextCommunication = nil
+    end
 
     if (self.baseUnderAttackFrames or 0) > 0 then
         return {
@@ -1545,7 +2267,7 @@ function SpaceMiner:getActiveCommunication()
             text = SPACE_MINER_CONFIG.baseUnderAttackMessage or "Base under attack",
             x = 8,
             y = 8,
-            width = math.floor(SCREEN_WIDTH * 0.5) - 14,
+            width = COMMUNICATION_WIDTH,
             urgent = true
         }
     end
@@ -1558,11 +2280,90 @@ function SpaceMiner:getActiveCommunication()
     return nil
 end
 
+function SpaceMiner:hasScheduledOrUrgentCommunication()
+    if (self.baseUnderAttackFrames or 0) > 0 then
+        return true
+    end
+    for _, message in ipairs(COMMUNICATION_SCHEDULE) do
+        if self.frame >= message.startFrame and self.frame < message.endFrame then
+            return true
+        end
+    end
+    return false
+end
+
+function SpaceMiner:startContextCommunication(id, text, durationFrames)
+    if text == nil or text == "" then
+        return
+    end
+    local readableFrames = math.max(COMMUNICATION_MIN_FRAMES, math.floor(#text * COMMUNICATION_FRAMES_PER_CHAR))
+    self.contextCommunication = {
+        id = id,
+        startFrame = self.frame,
+        endFrame = self.frame + math.max(durationFrames or 120, readableFrames),
+        text = text,
+        x = 8,
+        y = 8,
+        width = COMMUNICATION_WIDTH
+    }
+end
+
+function SpaceMiner:updateBaseCollisionCommunication()
+    if self.preview or not self:isStoryMode() or self.gameOver then
+        return
+    end
+    if (self.baseCollisionCooldownFrames or 0) > 0 then
+        self.baseCollisionCooldownFrames = self.baseCollisionCooldownFrames - 1
+    end
+    local collisionRadius = PLAYER_RADIUS + 22
+    local colliding = distanceSquared(self.player.x, self.player.y, BASE_WORLD_X, BASE_WORLD_Y) <= (collisionRadius * collisionRadius)
+    if not colliding then
+        self.wasCollidingHomeBase = false
+        return
+    end
+    if self.wasCollidingHomeBase or (self.baseCollisionCooldownFrames or 0) > 0 then
+        return
+    end
+    self.wasCollidingHomeBase = true
+    if self.contextCommunication ~= nil or self:hasScheduledOrUrgentCommunication() then
+        return
+    end
+    local quotes = BASE_CONFIG.baseCollisionContext or BASE_CONFIG["base-collision-context"] or {}
+    if #quotes <= 0 then
+        return
+    end
+    self:startContextCommunication("base-collision-context", quotes[math.random(1, #quotes)], 105)
+    self.baseCollisionCooldownFrames = 180
+end
+
+function SpaceMiner:startDestroyedCommunications()
+    local quotes = BASE_CONFIG.destroyedPcQuotes or BASE_CONFIG["destroyed-pc-quotes"] or {}
+    self.destroyedQuoteQueue = quotes
+    self.destroyedQuoteIndex = 1
+    self.contextCommunication = nil
+end
+
+function SpaceMiner:updateDestroyedCommunications()
+    if not self.gameOver or self.destroyedQuoteQueue == nil then
+        return
+    end
+    if self.contextCommunication ~= nil and self.frame < self.contextCommunication.endFrame then
+        return
+    end
+    if self.contextCommunication ~= nil and self.frame >= self.contextCommunication.endFrame then
+        self.contextCommunication = nil
+    end
+    if self.destroyedQuoteIndex > #self.destroyedQuoteQueue then
+        return
+    end
+    local text = self.destroyedQuoteQueue[self.destroyedQuoteIndex]
+    self.destroyedQuoteIndex = self.destroyedQuoteIndex + 1
+    self:startContextCommunication("destroyed-pc-quote", text, 120)
+end
+
 function SpaceMiner:getCommunicationFade(message)
     local fadeFrames = 15
-    local fadeIn = clamp((self.frame - message.startFrame) / fadeFrames, 0, 1)
-    local fadeOut = clamp((message.endFrame - self.frame) / fadeFrames, 0, 1)
-    return math.min(fadeIn, fadeOut)
+    return clamp((message.endFrame - self.frame) / fadeFrames, 0, 1)
 end
 
 function SpaceMiner:spawnWaveEntity(entry, spawnIndex)
@@ -1604,7 +2405,7 @@ function SpaceMiner:stageEntriesFullySpawned(stage)
 end
 
 function SpaceMiner:updateStage()
-    if self.preview or self:isEndlessMode() then
+    if self.preview or self:isEndlessMode() or self.menuOpen then
         return
     end
 
@@ -1686,7 +2487,7 @@ function SpaceMiner:applyCrank(change)
     end
 
     self.virtualCrankAngle = self.virtualCrankAngle + change
-    self.player.angle = normalizeAngle(self.player.angle + (change * self.turnScale))
+    self.player.angle = normalizeAngle(self.player.angle + (change * self.turnScale * self:getThrusterHandlingMultiplier()))
 end
 
 function SpaceMiner:updateInput(upPressed, downPressed, leftPressed, rightJustPressed, primaryJustPressed)
@@ -1698,7 +2499,7 @@ function SpaceMiner:updateInput(upPressed, downPressed, leftPressed, rightJustPr
     self.input.reverse = (downPressed and not self.gameOver) and 1 or 0
     self.input.laser = leftPressed == true and not self.gameOver
     self.player.laserOn = self.input.laser
-    if rightJustPressed and not self.gameOver then
+    if (rightJustPressed or (self:getActiveUpgrade("missile") or {}).autoLaunch and pd.buttonIsPressed(pd.kButtonRight)) and not self.gameOver then
         self.player.pendingMissileTrigger = true
     end
 end
@@ -1729,11 +2530,12 @@ function SpaceMiner:applyPlayerThrust()
     end
 
     local radians = math.rad(self.player.angle)
+    local thrustMultiplier = self:getThrusterAccelerationMultiplier()
     if self.input.thrust > 0 then
-        applyAcceleration(self.player, math.cos(radians) * PLAYER_THRUST, math.sin(radians) * PLAYER_THRUST, PLAYER_MAX_SPEED)
+        applyAcceleration(self.player, math.cos(radians) * PLAYER_THRUST * thrustMultiplier, math.sin(radians) * PLAYER_THRUST * thrustMultiplier, PLAYER_MAX_SPEED)
     end
     if self.input.reverse > 0 then
-        applyAcceleration(self.player, -math.cos(radians) * PLAYER_REVERSE_THRUST, -math.sin(radians) * PLAYER_REVERSE_THRUST, PLAYER_MAX_SPEED)
+        applyAcceleration(self.player, -math.cos(radians) * PLAYER_REVERSE_THRUST * thrustMultiplier, -math.sin(radians) * PLAYER_REVERSE_THRUST * thrustMultiplier, PLAYER_MAX_SPEED)
     end
 end
 
@@ -1765,21 +2567,54 @@ function SpaceMiner:handleMissileTrigger()
         return
     end
 
+    local upgrade = self:getActiveUpgrade("missile") or {}
+    if upgrade.autoLaunch then
+        self.autoMissileAccumulator = (self.autoMissileAccumulator or 0) + (AUTO_MISSILE_SHOTS_PER_SECOND / 30)
+        local shotCost = upgrade.shotCost or 5
+        while self.autoMissileAccumulator >= 1 and (self.cash or 0) >= shotCost do
+            self.autoMissileAccumulator = self.autoMissileAccumulator - 1
+            self.cash = self.cash - shotCost
+            self:spawnPlayerMissile(upgrade)
+        end
+        self.player.pendingMissileTrigger = false
+        return
+    end
+    self.autoMissileAccumulator = 0
+
     if self.player.missile ~= nil then
-        self:explodePlayerMissile(self.player.missile.x, self.player.missile.y)
+        if not upgrade.manualDetonate then
+            self.player.pendingMissileTrigger = false
+            return
+        end
+        self:explodePlayerMissile(self.player.missile.x, self.player.missile.y, self.player.missile, true)
         self.player.pendingMissileTrigger = false
         return
     end
 
+    self:spawnPlayerMissile(upgrade)
+    self.player.pendingMissileTrigger = false
+end
+
+function SpaceMiner:spawnPlayerMissile(upgrade)
     local radians = math.rad(self.player.angle)
-    self.player.missile = {
+    local missile = {
         x = self.player.x,
         y = self.player.y,
         vx = math.cos(radians) * MISSILE_SPEED + self.player.vx,
         vy = math.sin(radians) * MISSILE_SPEED + self.player.vy,
-        life = MISSILE_LIFE_FRAMES
+        life = MISSILE_LIFE_FRAMES,
+        guided = upgrade and upgrade.guided or false,
+        damage = MISSILE_DAMAGE + ((upgrade and upgrade.damageBonus) or 0),
+        autoLaunch = upgrade and upgrade.autoLaunch == true,
+        visual = upgrade and upgrade.id,
+        survivesManualDetonation = upgrade and upgrade.survivesManualDetonation == true,
+        maxManualDetonations = upgrade and upgrade.maxManualDetonations or 1,
+        manualDetonations = 0
     }
-    self.player.pendingMissileTrigger = false
+    self.player.missiles[#self.player.missiles + 1] = missile
+    if not missile.autoLaunch then
+        self.player.missile = missile
+    end
 end
 
 function SpaceMiner:damageAsteroid(index, amount, options)
@@ -1796,11 +2631,19 @@ function SpaceMiner:damageAsteroid(index, amount, options)
 
     local config = ASTEROID_STAGE_CONFIG[asteroid.stage]
     local minedScore = config and config.score or 1
-    if not self:isEndlessMode() then
+    local nextConfig = ASTEROID_STAGE_CONFIG[(asteroid.stage or 0) + 1]
+    local isOreChunk = nextConfig == nil
+    if isOreChunk and self:isCargoFull() and not options.skipRewards and options.removalReason ~= "missile" then
+        asteroid.hp = math.max(1, config and config.hp or 1)
+        return
+    end
+
+    if not options.skipRewards and not self:isEndlessMode() then
         self.score = self.score + minedScore
     end
-    self.cash = (self.cash or 0) + self:getAsteroidCashValue(asteroid)
-    self.minedChunks = self.minedChunks + 1
+    if isOreChunk and not options.skipRewards then
+        self:addCargoFromAsteroid(asteroid)
+    end
     self:addExplosion(asteroid.x, asteroid.y, asteroid.radius + 4, 9)
     if options.spawnFragments ~= false then
         self:spawnFragments(asteroid, {
@@ -1832,14 +2675,15 @@ function SpaceMiner:damageEnemy(index, amount)
     table.remove(self.enemyShips, index)
 end
 
-function SpaceMiner:explodePlayerMissile(x, y)
+function SpaceMiner:explodePlayerMissile(x, y, missile, manualTrigger)
     self:addExplosion(x, y, MISSILE_BLAST_RADIUS, 9)
+    local missileDamage = (missile and missile.damage) or self:getMissileDamage()
 
     for enemyIndex = #self.enemyShips, 1, -1 do
         local enemy = self.enemyShips[enemyIndex]
         local hitRadius = MISSILE_BLAST_RADIUS + enemy.size
         if distanceSquared(x, y, enemy.x, enemy.y) <= (hitRadius * hitRadius) then
-            self:damageEnemy(enemyIndex, MISSILE_DAMAGE)
+            self:damageEnemy(enemyIndex, missileDamage)
         end
     end
 
@@ -1847,46 +2691,149 @@ function SpaceMiner:explodePlayerMissile(x, y)
         local asteroid = self.asteroids[asteroidIndex]
         local hitRadius = MISSILE_BLAST_RADIUS + asteroid.radius
         if distanceSquared(x, y, asteroid.x, asteroid.y) <= (hitRadius * hitRadius) then
-            self:damageAsteroid(asteroidIndex, MISSILE_DAMAGE, {
+            self:damageAsteroid(asteroidIndex, missileDamage, {
                 missileCascade = true,
                 removalReason = "missile"
             })
         end
     end
 
-    self.player.missile = nil
+    if manualTrigger and missile ~= nil and missile.survivesManualDetonation then
+        missile.manualDetonations = (missile.manualDetonations or 0) + 1
+        if missile.manualDetonations < (missile.maxManualDetonations or 5) then
+            return
+        end
+    end
+    self:removePlayerMissile(missile)
+end
+
+function SpaceMiner:removePlayerMissile(missile)
+    if missile == nil then
+        self.player.missile = nil
+        return
+    end
+    for index = #self.player.missiles, 1, -1 do
+        if self.player.missiles[index] == missile then
+            table.remove(self.player.missiles, index)
+            break
+        end
+    end
+    if self.player.missile == missile then
+        self.player.missile = nil
+    end
+end
+
+function SpaceMiner:getAutoMissileTarget(missile)
+    local nearest = nil
+    local nearestDistanceSq = math.huge
+    for _, enemy in ipairs(self.enemyShips) do
+        local candidateDistanceSq = distanceSquared(missile.x, missile.y, enemy.x, enemy.y)
+        if candidateDistanceSq < nearestDistanceSq then
+            nearest = enemy
+            nearestDistanceSq = candidateDistanceSq
+        end
+    end
+    if nearest ~= nil then
+        return nearest.x, nearest.y
+    end
+
+    local threat = nil
+    local threatDistanceSq = math.huge
+    for _, asteroid in ipairs(self.asteroids) do
+        local playerDistanceSq = distanceSquared(self.player.x, self.player.y, asteroid.x, asteroid.y)
+        if playerDistanceSq <= (30 * 30) and playerDistanceSq < threatDistanceSq then
+            threat = asteroid
+            threatDistanceSq = playerDistanceSq
+        end
+    end
+    if threat ~= nil then
+        return threat.x, threat.y
+    end
+
+    local largest = nil
+    for _, asteroid in ipairs(self.asteroids) do
+        if largest == nil or asteroid.radius > largest.radius then
+            largest = asteroid
+        end
+    end
+    if largest ~= nil then
+        return largest.x, largest.y
+    end
+    return nil, nil
+end
+
+function SpaceMiner:getAutoMissileEnemyTarget()
+    if not ((self:getActiveUpgrade("missile") or {}).autoLaunch) then
+        return nil
+    end
+    local nearest = nil
+    local nearestDistanceSq = math.huge
+    for _, enemy in ipairs(self.enemyShips) do
+        local candidateDistanceSq = distanceSquared(self.player.x, self.player.y, enemy.x, enemy.y)
+        if candidateDistanceSq < nearestDistanceSq then
+            nearest = enemy
+            nearestDistanceSq = candidateDistanceSq
+        end
+    end
+    return nearest
+end
+
+function SpaceMiner:updatePlayerMissileGuidance(missile)
+    if missile.guided == "player" then
+        local radians = math.rad(self.player.angle)
+        local targetVx = math.cos(radians) * MISSILE_SPEED
+        local targetVy = math.sin(radians) * MISSILE_SPEED
+        missile.vx = missile.vx + ((targetVx - missile.vx) * 0.16)
+        missile.vy = missile.vy + ((targetVy - missile.vy) * 0.16)
+    elseif missile.guided == "auto" then
+        local targetX, targetY = self:getAutoMissileTarget(missile)
+        if targetX ~= nil then
+            local ux, uy = unitVector(targetX - missile.x, targetY - missile.y)
+            missile.vx = missile.vx + (ux * 0.18)
+            missile.vy = missile.vy + (uy * 0.18)
+            local speed = magnitude(missile.vx, missile.vy)
+            if speed > MISSILE_SPEED * 1.15 then
+                missile.vx = (missile.vx / speed) * MISSILE_SPEED * 1.15
+                missile.vy = (missile.vy / speed) * MISSILE_SPEED * 1.15
+            end
+        end
+    end
 end
 
 function SpaceMiner:updatePlayerMissile()
     self:handleMissileTrigger()
 
-    local missile = self.player.missile
-    if missile == nil then
+    if #self.player.missiles == 0 then
         return
     end
 
-    missile.x = missile.x + missile.vx
-    missile.y = missile.y + missile.vy
-    missile.life = missile.life - 1
+    for missileIndex = #self.player.missiles, 1, -1 do
+        local missile = self.player.missiles[missileIndex]
+        self:updatePlayerMissileGuidance(missile)
+        missile.x = missile.x + missile.vx
+        missile.y = missile.y + missile.vy
+        missile.life = missile.life - 1
 
-    for enemyIndex, enemy in ipairs(self.enemyShips) do
-        local hitRadius = enemy.size + 3
-        if distanceSquared(missile.x, missile.y, enemy.x, enemy.y) <= (hitRadius * hitRadius) then
-            self:explodePlayerMissile(missile.x, missile.y)
-            return
+        for enemyIndex, enemy in ipairs(self.enemyShips) do
+            local hitRadius = enemy.size + 3
+            if distanceSquared(missile.x, missile.y, enemy.x, enemy.y) <= (hitRadius * hitRadius) then
+                self:explodePlayerMissile(missile.x, missile.y, missile)
+                goto continue
+            end
         end
-    end
 
-    for asteroidIndex, asteroid in ipairs(self.asteroids) do
-        local hitRadius = asteroid.radius + 2
-        if distanceSquared(missile.x, missile.y, asteroid.x, asteroid.y) <= (hitRadius * hitRadius) then
-            self:explodePlayerMissile(missile.x, missile.y)
-            return
+        for asteroidIndex, asteroid in ipairs(self.asteroids) do
+            local hitRadius = asteroid.radius + 2
+            if distanceSquared(missile.x, missile.y, asteroid.x, asteroid.y) <= (hitRadius * hitRadius) then
+                self:explodePlayerMissile(missile.x, missile.y, missile)
+                goto continue
+            end
         end
-    end
 
-    if missile.life <= 0 then
-        self:explodePlayerMissile(missile.x, missile.y)
+        if missile.life <= 0 then
+            self:explodePlayerMissile(missile.x, missile.y, missile)
+        end
+        ::continue::
     end
 end
 
@@ -1916,6 +2863,12 @@ function SpaceMiner:updateEnemyMissiles()
             self:addExplosion(missile.x, missile.y, detonationRadius * 0.55, 8)
             self:damagePlayer("enemy-missile")
             table.remove(self.enemyMissiles, missileIndex)
+        elseif self:isStoryMode()
+            and self:isBaseShieldActive()
+            and distanceSquared(missile.x, missile.y, BASE_WORLD_X, BASE_WORLD_Y) <= (BASE_SHIELD_RADIUS * BASE_SHIELD_RADIUS) then
+            self:addExplosion(missile.x, missile.y, 16, 8)
+            self:damageBase("enemy-missile")
+            table.remove(self.enemyMissiles, missileIndex)
         elseif distanceSquared(missile.x, missile.y, BASE_WORLD_X, BASE_WORLD_Y) <= (28 * 28) then
             self:addExplosion(missile.x, missile.y, 14, 8)
             self:damageBase("enemy-missile")
@@ -1942,9 +2895,9 @@ function SpaceMiner:applyLaser()
         local hitDistanceSq = linePointDistanceSquared(enemy.x, enemy.y, self.player.x, self.player.y, endX, endY)
         local hitRadius = enemy.size + LASER_WIDTH
         if hitDistanceSq <= (hitRadius * hitRadius) then
-            self:damageEnemy(enemyIndex, LASER_DAMAGE)
+            self:damageEnemy(enemyIndex, self:getLaserDamagePerFrame())
             enemyHits = enemyHits + 1
-            if enemyHits >= LASER_ENEMY_PENETRATION_LIMIT then
+            if enemyHits >= self:getLaserEnemyPenetrationLimit() then
                 break
             end
         end
@@ -1955,7 +2908,7 @@ function SpaceMiner:applyLaser()
         local hitDistanceSq = linePointDistanceSquared(asteroid.x, asteroid.y, self.player.x, self.player.y, endX, endY)
         local hitRadius = asteroid.radius + LASER_WIDTH
         if hitDistanceSq <= (hitRadius * hitRadius) then
-            self:damageAsteroid(asteroidIndex, LASER_DAMAGE, {
+            self:damageAsteroid(asteroidIndex, self:getLaserDamagePerFrame(), {
                 removalReason = "laser"
             })
         end
@@ -2033,6 +2986,19 @@ function SpaceMiner:updateAsteroids()
                 drawY
             )
             table.remove(self.asteroids, asteroidIndex)
+        elseif self:isStoryMode()
+            and self:isBaseShieldActive()
+            and distanceSquared(asteroid.x, asteroid.y, BASE_WORLD_X, BASE_WORLD_Y) <= ((asteroid.radius + BASE_SHIELD_RADIUS) * (asteroid.radius + BASE_SHIELD_RADIUS)) then
+            self:addExplosion(asteroid.x, asteroid.y, asteroid.radius + 6, 9)
+            self:spawnFragments(asteroid)
+            table.remove(self.asteroids, asteroidIndex)
+        elseif self:isStoryMode()
+            and not self:isBaseShieldActive()
+            and distanceSquared(asteroid.x, asteroid.y, BASE_WORLD_X, BASE_WORLD_Y) <= ((asteroid.radius + 24) * (asteroid.radius + 24)) then
+            self:addExplosion(asteroid.x, asteroid.y, asteroid.radius + 6, 9)
+            self:damageBase("asteroid")
+            self:spawnFragments(asteroid)
+            table.remove(self.asteroids, asteroidIndex)
         end
     end
 
@@ -2072,10 +3038,45 @@ end
 
 function SpaceMiner:getActiveEntityCount()
     local count = #self.asteroids + #self.enemyShips + #self.enemyMissiles + #self.explosions
-    if self.player.missile ~= nil then
-        count = count + 1
-    end
+    count = count + #(self.player.missiles or {})
     return count
+end
+
+function SpaceMiner:logEntityCountsIfNeeded()
+    if self.preview or ENTITY_LOG_INTERVAL_FRAMES <= 0 or (self.frame % ENTITY_LOG_INTERVAL_FRAMES) ~= 0 then
+        return
+    end
+    local offscreenEnemies = 0
+    local nearBaseEnemies = 0
+    local baseRadiusSq = BASE_SHIELD_ENEMY_KEEP_ALIVE_RADIUS * BASE_SHIELD_ENEMY_KEEP_ALIVE_RADIUS
+    for _, enemy in ipairs(self.enemyShips) do
+        local drawX, drawY = worldToScreen(self.player.x, self.player.y, enemy.x, enemy.y)
+        if drawX < -20 or drawX > SCREEN_WIDTH + 20 or drawY < -20 or drawY > SCREEN_HEIGHT + 20 then
+            offscreenEnemies = offscreenEnemies + 1
+        end
+        if distanceSquared(enemy.x, enemy.y, BASE_WORLD_X, BASE_WORLD_Y) <= baseRadiusSq then
+            nearBaseEnemies = nearBaseEnemies + 1
+        end
+    end
+    StarryLog.forceDebug(
+        "miner entities frame=%d stage=%d/%d total=%d asteroids=%d enemies=%d offscreenEnemies=%d nearBaseEnemies=%d enemyMissiles=%d playerMissiles=%d explosions=%d cargo=%d/%d baseShield=%d menu=%s gameOver=%s",
+        self.frame,
+        self.stageIndex or 0,
+        #STAGE_SCHEDULE,
+        self:getActiveEntityCount(),
+        #self.asteroids,
+        #self.enemyShips,
+        offscreenEnemies,
+        nearBaseEnemies,
+        #self.enemyMissiles,
+        #(self.player.missiles or {}),
+        #self.explosions,
+        self.cargoOre or 0,
+        math.floor((self.cargoCapacity or CARGO_INITIAL_CAPACITY) + 0.0001),
+        self.baseShieldHits or 0,
+        tostring(self.menuOpen == true),
+        tostring(self.gameOver == true)
+    )
 end
 
 function SpaceMiner:pruneOffscreenAsteroidsForEntityPressure()
@@ -2140,14 +3141,16 @@ function SpaceMiner:pruneOffscreenAsteroidsForEntityPressure()
 end
 
 function SpaceMiner:getNearestPlayerMissile(enemy)
-    if self.player.missile == nil then
-        return nil
+    local nearest = nil
+    local nearestDistanceSq = 140 * 140
+    for _, missile in ipairs(self.player.missiles or {}) do
+        local candidateDistanceSq = distanceSquared(enemy.x, enemy.y, missile.x, missile.y)
+        if candidateDistanceSq <= nearestDistanceSq then
+            nearest = missile
+            nearestDistanceSq = candidateDistanceSq
+        end
     end
-
-    if distanceSquared(enemy.x, enemy.y, self.player.missile.x, self.player.missile.y) <= (140 * 140) then
-        return self.player.missile
-    end
-    return nil
+    return nearest
 end
 
 function SpaceMiner:getNearestAsteroidThreat(enemy)
@@ -2302,28 +3305,79 @@ function SpaceMiner:updateStriker(enemy)
     end
 end
 
+function SpaceMiner:updatePostDeathEnemy(enemy)
+    local targetAsteroid = nil
+    local targetAsteroidIndex = nil
+    local nearestDistanceSq = math.huge
+    for asteroidIndex, asteroid in ipairs(self.asteroids) do
+        local candidateDistanceSq = distanceSquared(enemy.x, enemy.y, asteroid.x, asteroid.y)
+        if candidateDistanceSq < nearestDistanceSq then
+            nearestDistanceSq = candidateDistanceSq
+            targetAsteroid = asteroid
+            targetAsteroidIndex = asteroidIndex
+        end
+    end
+
+    if targetAsteroid ~= nil and nearestDistanceSq <= (260 * 260) then
+        local steerX, steerY = steerBodyToward(enemy, targetAsteroid.x, targetAsteroid.y, enemy.maxSpeed, enemy.acceleration * 1.4, 28)
+        if math.abs(steerX) > 0.0001 or math.abs(steerY) > 0.0001 then
+            enemy.angle = normalizeAngle(math.deg(math.atan(steerY, steerX)))
+        end
+        if nearestDistanceSq <= ((enemy.size + targetAsteroid.radius + 4) * (enemy.size + targetAsteroid.radius + 4)) then
+            self:addExplosion(targetAsteroid.x, targetAsteroid.y, targetAsteroid.radius + 5, 8)
+            self:damageAsteroid(targetAsteroidIndex, 999, {
+                skipRewards = true,
+                removalReason = "enemy"
+            })
+        end
+    else
+        if enemy.fleeAngle == nil then
+            enemy.fleeAngle = math.atan(enemy.y - self.player.y, enemy.x - self.player.x) + ((math.random() - 0.5) * 0.7)
+        end
+        applyAcceleration(enemy, math.cos(enemy.fleeAngle) * enemy.acceleration, math.sin(enemy.fleeAngle) * enemy.acceleration, enemy.maxSpeed)
+        enemy.angle = normalizeAngle(math.deg(enemy.fleeAngle))
+    end
+
+    enemy.x = wrapCoordinate(self.player.x, enemy.x + enemy.vx)
+    enemy.y = wrapCoordinate(self.player.y, enemy.y + enemy.vy)
+    local drawX, drawY = worldToScreen(self.player.x, self.player.y, enemy.x, enemy.y)
+    return drawX < -80 or drawX > SCREEN_WIDTH + 80 or drawY < -80 or drawY > SCREEN_HEIGHT + 80
+end
+
 function SpaceMiner:updateEnemies()
     for enemyIndex = #self.enemyShips, 1, -1 do
         local enemy = self.enemyShips[enemyIndex]
-        if enemy.type == "seeker" then
-            self:updateSeekers(enemy)
-        elseif enemy.type == "escaper" then
-            self:updateEscaper(enemy)
+        if self.gameOver then
+            if self:updatePostDeathEnemy(enemy) then
+                table.remove(self.enemyShips, enemyIndex)
+            end
         else
-            self:updateStriker(enemy)
-        end
+            if enemy.type == "seeker" then
+                self:updateSeekers(enemy)
+            elseif enemy.type == "escaper" then
+                self:updateEscaper(enemy)
+            else
+                self:updateStriker(enemy)
+            end
 
-        enemy.x = wrapCoordinate(self.player.x, enemy.x + enemy.vx)
-        enemy.y = wrapCoordinate(self.player.y, enemy.y + enemy.vy)
+            enemy.x = wrapCoordinate(self.player.x, enemy.x + enemy.vx)
+            enemy.y = wrapCoordinate(self.player.y, enemy.y + enemy.vy)
 
-        if not self.gameOver and distanceSquared(enemy.x, enemy.y, self.player.x, self.player.y) <= ((enemy.size + PLAYER_RADIUS + 1) * (enemy.size + PLAYER_RADIUS + 1)) then
-            self:addExplosion(enemy.x, enemy.y, enemy.size + 6, 9)
-            self:damagePlayer("enemy-ship")
-            table.remove(self.enemyShips, enemyIndex)
-        elseif distanceSquared(enemy.x, enemy.y, BASE_WORLD_X, BASE_WORLD_Y) <= ((enemy.size + 24) * (enemy.size + 24)) then
-            self:addExplosion(enemy.x, enemy.y, enemy.size + 8, 9)
-            self:damageBase("enemy-ship")
-            table.remove(self.enemyShips, enemyIndex)
+            if distanceSquared(enemy.x, enemy.y, self.player.x, self.player.y) <= ((enemy.size + PLAYER_RADIUS + 1) * (enemy.size + PLAYER_RADIUS + 1)) then
+                self:addExplosion(enemy.x, enemy.y, enemy.size + 6, 9)
+                self:damagePlayer("enemy-ship")
+                table.remove(self.enemyShips, enemyIndex)
+            elseif self:isStoryMode()
+                and self:isBaseShieldActive()
+                and distanceSquared(enemy.x, enemy.y, BASE_WORLD_X, BASE_WORLD_Y) <= ((enemy.size + BASE_SHIELD_RADIUS) * (enemy.size + BASE_SHIELD_RADIUS)) then
+                self:addExplosion(enemy.x, enemy.y, enemy.size + 8, 9)
+                self:damageBase("enemy-ship")
+                table.remove(self.enemyShips, enemyIndex)
+            elseif distanceSquared(enemy.x, enemy.y, BASE_WORLD_X, BASE_WORLD_Y) <= ((enemy.size + 24) * (enemy.size + 24)) then
+                self:addExplosion(enemy.x, enemy.y, enemy.size + 8, 9)
+                self:damageBase("enemy-ship")
+                table.remove(self.enemyShips, enemyIndex)
+            end
         end
     end
 end
@@ -2358,15 +3412,32 @@ function SpaceMiner:update()
     self:updateInstructionOverlay()
     self:updateDashboardIndicator()
 
-    self.frame = self.frame + 1
+    if not self.menuOpen then
+        self.frame = self.frame + 1
+    end
     if self:isStoryMode() then
+        self:updateHomeBaseVisitState()
         self:updateBaseTimeline()
         self:updateSettingsTimeline()
+        self:updateBaseCollisionCommunication()
+        self:updateDestroyedCommunications()
     end
-    if self.baseUnderAttackFrames > 0 then
+    if self.baseUnderAttackFrames > 0 and not (self.menuOpen and self.menuType == "home") then
         self.baseUnderAttackFrames = self.baseUnderAttackFrames - 1
     end
+    if (self.supernovaFlashFrames or 0) > 0 then
+        self.supernovaFlashFrames = self.supernovaFlashFrames - 1
+    end
     self:updateStage()
+    self:updateCargo()
+    self:updateHomeBaseRepairs()
+    if self.menuOpen then
+        self.input.thrust = 0
+        self.input.reverse = 0
+        self.input.laser = false
+        self.player.laserOn = false
+        self:updateMenuAutoNavigate()
+    end
     self:applyPlayerThrust()
     self:updatePlayerPosition()
     self:updateDecor()
@@ -2380,14 +3451,8 @@ function SpaceMiner:update()
     end
     self:updateAsteroids()
     self:updateExplosions()
+    self:logEntityCountsIfNeeded()
     self:logAsteroidDiagnosticsIfNeeded()
-    if self:isStoryMode() then
-        self.saveFrameCounter = self.saveFrameCounter + 1
-        if self.saveFrameCounter >= STORY_SAVE_INTERVAL_FRAMES then
-            self.saveFrameCounter = 0
-            self:saveStoryState()
-        end
-    end
 end
 
 function SpaceMiner:drawDecorLayer(layer)
@@ -2422,6 +3487,23 @@ function SpaceMiner:drawBackgroundStars()
     end
 end
 
+function SpaceMiner:drawDistantStar()
+    local x = 300
+    local y = 52
+    local frame = self.frame or 0
+    gfx.setColor(gfx.kColorWhite)
+
+    for index = 1, 10 do
+        local radius = 2 + index
+        local direction = (index % 2 == 0) and -1 or 1
+        local spin = (frame * (1.2 + index * 0.18) * direction) % 360
+        local arcLength = 128 + (index % 3) * 28
+        local gapOffset = 42 + (index * 11)
+        gfx.drawArc(x, y, radius, spin, spin + arcLength)
+        gfx.drawArc(x, y, radius, spin + arcLength + gapOffset, spin + 350)
+    end
+end
+
 function SpaceMiner:drawMiniMapMarker(worldX, worldY, kind)
     local relX = clamp((worldX - self.player.x) / MINIMAP_RANGE, -1, 1)
     local relY = clamp((worldY - self.player.y) / MINIMAP_RANGE, -1, 1)
@@ -2453,29 +3535,89 @@ function SpaceMiner:drawMaterialMiniMap()
     end
 end
 
+function SpaceMiner:drawCargoSpaceBar()
+    local capacity = math.max(1, math.floor((self.cargoCapacity or CARGO_INITIAL_CAPACITY) + 0.0001))
+    local ratio = clamp((self.cargoOre or 0) / capacity, 0, 1)
+    local fillWidth = math.floor((CARGO_BAR_WIDTH - 2) * ratio + 0.5)
+    local isFull = ratio >= 1
+    local fullFlashWhite = isFull and (math.floor((self.frame or 0) / 8) % 2 == 0)
+
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawRect(CARGO_BAR_X, CARGO_BAR_Y, CARGO_BAR_WIDTH, CARGO_BAR_HEIGHT)
+    if fillWidth > 0 then
+        gfx.setColor((not isFull or fullFlashWhite) and gfx.kColorWhite or gfx.kColorBlack)
+        gfx.fillRect(CARGO_BAR_X + 1, CARGO_BAR_Y + 1, fillWidth, CARGO_BAR_HEIGHT - 2)
+    end
+
+    local fillRight = CARGO_BAR_X + fillWidth
+    self:drawTinyConsoleText("CARGO SPACE", CARGO_BAR_X + 1, CARGO_BAR_Y + 3, function(charX)
+        if charX <= fillRight and (not isFull or fullFlashWhite) then
+            return gfx.kColorBlack
+        end
+        return gfx.kColorWhite
+    end)
+    gfx.setColor(gfx.kColorWhite)
+end
+
 function SpaceMiner:drawMenu()
     if not self.menuOpen then
         return
     end
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
     local items = self:getMenuItems()
-    local height = 52 + (#items * MINER_MENU_ROW_HEIGHT)
+    local isHome = self.menuType == "home"
+    local menuWidth = isHome and HOME_BASE_MENU_WIDTH or MINER_MENU_WIDTH
+    local menuX = isHome and math.floor((SCREEN_WIDTH - menuWidth) * 0.5) or MINER_MENU_X
+    local messageHeight = 0
+    local height = 52 + messageHeight + (#items * MINER_MENU_ROW_HEIGHT)
     gfx.setColor(gfx.kColorWhite)
-    gfx.fillRoundRect(MINER_MENU_X, MINER_MENU_Y, MINER_MENU_WIDTH, height, 6)
+    gfx.fillRoundRect(menuX, MINER_MENU_Y, menuWidth, height, 6)
     gfx.setColor(gfx.kColorBlack)
-    gfx.drawRoundRect(MINER_MENU_X, MINER_MENU_Y, MINER_MENU_WIDTH, height, 6)
-    gfx.drawText("Miner Settings", MINER_MENU_X + 10, MINER_MENU_Y + 8)
-    gfx.drawText(string.format("Defended: %d", self.destroyedEnemies or 0), MINER_MENU_X + 10, MINER_MENU_Y + 25)
+    gfx.drawRoundRect(menuX, MINER_MENU_Y, menuWidth, height, 6)
+    local title = "Ship Menu"
+    if isHome then
+        title = self.homeMenuScreen == "directory" and "Home Base" or ((UPGRADE_CATEGORY_CONFIG[self:getUpgradeCategoryForScreen(self.homeMenuScreen)] or {}).title or "Game Settings")
+    end
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawText(title, menuX + 10, MINER_MENU_Y + 8)
+    gfx.drawText(string.format("Defended: %d", self.destroyedEnemies or 0), menuX + 10, MINER_MENU_Y + 25)
     for index, item in ipairs(items) do
-        local rowY = MINER_MENU_Y + 46 + ((index - 1) * MINER_MENU_ROW_HEIGHT)
-        if index == self.menuIndex then
-            gfx.fillRect(MINER_MENU_X + 6, rowY - 1, MINER_MENU_WIDTH - 12, MINER_MENU_ROW_HEIGHT)
+        local rowY = MINER_MENU_Y + 46 + messageHeight + ((index - 1) * MINER_MENU_ROW_HEIGHT)
+        local unaffordable = item.action == "buy-upgrade" and item.enabled == false
+        local flashError = unaffordable and (math.floor((self.frame or 0) / 8) % 2 == 0)
+        local invertRow = index == self.menuIndex or flashError
+        if invertRow then
+            gfx.setColor(gfx.kColorBlack)
+            gfx.fillRect(menuX + 6, rowY - 1, menuWidth - 12, MINER_MENU_ROW_HEIGHT)
             gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        end
-        gfx.drawText(item.label, MINER_MENU_X + 12, rowY + 1)
-        local valueText = item.action == "upgrade-shield" and (item.value and "Buy" or "Need $") or (item.value and "On" or "Off")
-        gfx.drawTextAligned(valueText, MINER_MENU_X + MINER_MENU_WIDTH - 12, rowY + 1, kTextAlignment.right)
-        if index == self.menuIndex then
+        else
+            gfx.setColor(gfx.kColorBlack)
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        end
+        local label = tostring(item.label or "")
+        local maxLabelLength = isHome and 52 or 18
+        if #label > maxLabelLength then
+            label = string.sub(label, 1, maxLabelLength - 1) .. "."
+        end
+        local valueText = ""
+        if item.action == "buy-upgrade" then
+            valueText = item.cost ~= nil and string.format("$%d", item.cost) or ""
+        elseif item.action == "equip-upgrade" then
+            valueText = item.value and "On" or "Equip"
+        elseif item.action == "open-screen" then
+            valueText = ">"
+        else
+            valueText = item.value and "On" or "Off"
+        end
+        local valueReserve = isHome and 70 or 48
+        local labelWidth = menuWidth - valueReserve - 22
+        gfx.drawTextInRect(label, menuX + 12, rowY + 1, labelWidth, MINER_MENU_ROW_HEIGHT)
+        gfx.drawTextAligned(valueText, menuX + menuWidth - 12, rowY + 1, kTextAlignment.right)
+        if invertRow then
+            gfx.setImageDrawMode(gfx.kDrawModeCopy)
+            gfx.setColor(gfx.kColorBlack)
         end
     end
     gfx.setColor(gfx.kColorWhite)
@@ -2488,25 +3630,85 @@ function SpaceMiner:drawShip()
 
     gfx.setColor(gfx.kColorWhite)
     local radians = math.rad(self.player.angle)
+    local laserUpgrade = self:getActiveUpgrade("laser") or {}
+    local shieldUpgrade = self:getActiveUpgrade("shield") or {}
+    local thrusterUpgrade = self:getActiveUpgrade("thruster") or {}
     local tipX = CENTER_X + (math.cos(radians) * 10)
     local tipY = CENTER_Y + (math.sin(radians) * 10)
     local leftX = CENTER_X + (math.cos(radians + 2.55) * 8)
     local leftY = CENTER_Y + (math.sin(radians + 2.55) * 8)
     local rightX = CENTER_X + (math.cos(radians - 2.55) * 8)
     local rightY = CENTER_Y + (math.sin(radians - 2.55) * 8)
+    local function pointForwardSide(forward, side)
+        return CENTER_X + (math.cos(radians) * forward) + (math.cos(radians + math.pi * 0.5) * side),
+            CENTER_Y + (math.sin(radians) * forward) + (math.sin(radians + math.pi * 0.5) * side)
+    end
+    if shieldUpgrade.id == "dyson-shielding" then
+        gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
+        gfx.fillTriangle(tipX, tipY, leftX, leftY, rightX, rightY)
+        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+        gfx.setColor(gfx.kColorWhite)
+    end
     gfx.drawLine(tipX, tipY, leftX, leftY)
     gfx.drawLine(tipX, tipY, rightX, rightY)
     gfx.drawLine(leftX, leftY, rightX, rightY)
 
+    if laserUpgrade.id == "standard-splaser" or laserUpgrade.id == "advanced-splaser" then
+        local sideX = CENTER_X + math.cos(radians + 2.55) * 4
+        local sideY = CENTER_Y + math.sin(radians + 2.55) * 4
+        local sideNx = math.cos(radians + math.pi * 0.5)
+        local sideNy = math.sin(radians + math.pi * 0.5)
+        gfx.drawRect(sideX + sideNx * 3 - 1, sideY + sideNy * 3 - 4, 3, 8)
+    end
+
+    if thrusterUpgrade.id == "lightening-rcs-v1" or thrusterUpgrade.id == "lightening-rcs-v2" or thrusterUpgrade.id == "nuclear-rcs" then
+        local tailX = CENTER_X - (math.cos(radians) * 9)
+        local tailY = CENTER_Y - (math.sin(radians) * 9)
+        gfx.drawCircleAtPoint(tailX, tailY, 3)
+    elseif thrusterUpgrade.id == "anti-grav-drive" then
+        local tailX, tailY = pointForwardSide(-8, 5)
+        gfx.drawCircleAtPoint(tailX, tailY, 4)
+    elseif thrusterUpgrade.id == "experimental-anti-momentum" then
+        local aX, aY = pointForwardSide(-2, -5)
+        local bX, bY = pointForwardSide(-12, -9)
+        local cX, cY = pointForwardSide(-8, -1)
+        gfx.drawTriangle(aX, aY, bX, bY, cX, cY)
+        aX, aY = pointForwardSide(-2, 5)
+        bX, bY = pointForwardSide(-12, 9)
+        cX, cY = pointForwardSide(-8, 1)
+        gfx.drawTriangle(aX, aY, bX, bY, cX, cY)
+    end
+
     if self.input.thrust > 0 and not self.preview then
         local exhaustX = CENTER_X - (math.cos(radians) * 8)
         local exhaustY = CENTER_Y - (math.sin(radians) * 8)
-        gfx.drawLine(exhaustX, exhaustY, exhaustX - (math.cos(radians) * 6), exhaustY - (math.sin(radians) * 6))
+        local flameLength = 6
+        if thrusterUpgrade.id == "lightening-rcs-v2" then
+            flameLength = 10
+        elseif thrusterUpgrade.id == "nuclear-rcs" then
+            flameLength = 13
+        elseif thrusterUpgrade.id == "experimental-anti-momentum" then
+            flameLength = 16
+        end
+        gfx.drawLine(exhaustX, exhaustY, exhaustX - (math.cos(radians) * flameLength), exhaustY - (math.sin(radians) * flameLength))
     end
 
     local shieldRadius = PLAYER_RADIUS + 3 + (self.playerShieldHits > 0 and 2 or 0)
     if self.playerShieldHits > 0 then
-        gfx.drawCircleAtPoint(CENTER_X, CENTER_Y, shieldRadius)
+        if shieldUpgrade.id == "rotating-frequency" then
+            local spin = math.rad((self.frame or 0) * 8)
+            gfx.drawEllipseInRect(CENTER_X - shieldRadius - 4 + math.cos(spin) * 2, CENTER_Y - shieldRadius + math.sin(spin) * 2, (shieldRadius + 4) * 2, shieldRadius * 2)
+        elseif shieldUpgrade.id == "dyson-shielding" then
+            gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer8x8)
+            gfx.fillCircleAtPoint(CENTER_X, CENTER_Y, shieldRadius + 1)
+            gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+            gfx.drawCircleAtPoint(CENTER_X, CENTER_Y, shieldRadius + 1)
+        else
+            gfx.drawCircleAtPoint(CENTER_X, CENTER_Y, shieldRadius)
+            if shieldUpgrade.id == "photonic-emitters" then
+                gfx.drawCircleAtPoint(CENTER_X, CENTER_Y, shieldRadius + 2)
+            end
+        end
     end
 end
 
@@ -2529,6 +3731,23 @@ function SpaceMiner:drawMiningBase()
         gfx.drawLine(drawX, drawY + 14, drawX, drawY + 27)
     end
 
+    if self:isBaseShieldActive() then
+        local shieldRatio = clamp((self.baseShieldHits or BASE_SHIELD_MAX) / BASE_SHIELD_MAX, 0, 1)
+        if self.baseShieldFlashFrames > 0 and (math.floor(self.baseShieldFlashFrames / 3) % 2 == 0) then
+            gfx.setDitherPattern(0.45, gfx.image.kDitherTypeBayer8x8)
+            gfx.fillCircleAtPoint(drawX, drawY, BASE_SHIELD_RADIUS)
+            gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+        end
+        gfx.drawCircleAtPoint(drawX, drawY, BASE_SHIELD_RADIUS)
+        if shieldRatio > 0.66 then
+            gfx.drawCircleAtPoint(drawX, drawY, BASE_SHIELD_RADIUS - 2)
+        elseif shieldRatio > 0.33 then
+            gfx.drawArc(drawX, drawY, BASE_SHIELD_RADIUS - 2, -80, 200)
+        else
+            gfx.drawArc(drawX, drawY, BASE_SHIELD_RADIUS - 2, -45, 90)
+        end
+    end
+
     if self.baseHealthBarEnabled then
         local barWidth = 48
         local barY = drawY - 40
@@ -2543,6 +3762,63 @@ function SpaceMiner:drawMiningBase()
         gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
         gfx.drawTextAligned(self.baseName or "Home Base", drawX, drawY - 56, kTextAlignment.center)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    end
+end
+
+function SpaceMiner:drawHomeBaseCargoBeam()
+    if not self:isWithinHomeBaseServiceRange() then
+        return
+    end
+
+    local baseX, baseY = worldToScreen(self.player.x, self.player.y, BASE_WORLD_X, BASE_WORLD_Y)
+    if baseX < -60 or baseX > SCREEN_WIDTH + 60 or baseY < -60 or baseY > DASHBOARD_Y + 60 then
+        return
+    end
+
+    local pulse = math.floor((self.frame or 0) / 4) % 2
+    local sourceX = baseX
+    local sourceY = baseY
+    local targetX = CENTER_X
+    local targetY = CENTER_Y
+    local dx = targetX - sourceX
+    local dy = targetY - sourceY
+    local nx, ny = unitVector(-dy, dx)
+    local halfWidth = ((self.cargoOre or 0) > 0) and 3 or 1
+
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawLine(sourceX, sourceY, targetX, targetY)
+    if halfWidth > 1 then
+        gfx.drawLine(sourceX + nx * halfWidth, sourceY + ny * halfWidth, targetX + nx * halfWidth, targetY + ny * halfWidth)
+        gfx.drawLine(sourceX - nx * halfWidth, sourceY - ny * halfWidth, targetX - nx * halfWidth, targetY - ny * halfWidth)
+    end
+    if pulse == 0 and (self.cargoOre or 0) > 0 then
+        gfx.setColor(gfx.kColorBlack)
+        local midX = (sourceX + targetX) * 0.5
+        local midY = (sourceY + targetY) * 0.5
+        gfx.drawLine(midX - nx * halfWidth, midY - ny * halfWidth, midX + nx * halfWidth, midY + ny * halfWidth)
+        gfx.setColor(gfx.kColorWhite)
+    end
+    if self:isRepairBeamActive() then
+        local segments = 6
+        local offsetSign = (math.floor((self.frame or 0) / 3) % 2 == 0) and 1 or -1
+        for line = -1, 1, 2 do
+            local lastX = sourceX + nx * line * 5
+            local lastY = sourceY + ny * line * 5
+            for index = 1, segments do
+                local t = index / segments
+                local jitter = ((index % 2 == 0) and 5 or -5) * offsetSign
+                local nextX = sourceX + (dx * t) + (nx * line * 5) + (nx * jitter)
+                local nextY = sourceY + (dy * t) + (ny * line * 5) + (ny * jitter)
+                if index == segments then
+                    nextX = targetX + nx * line * 5
+                    nextY = targetY + ny * line * 5
+                end
+                gfx.drawLine(lastX, lastY, nextX, nextY)
+                lastX = nextX
+                lastY = nextY
+            end
+        end
     end
 end
 
@@ -2621,6 +3897,7 @@ end
 
 function SpaceMiner:drawEnemies()
     gfx.setColor(gfx.kColorWhite)
+    local autoTarget = self:getAutoMissileEnemyTarget()
     for _, enemy in ipairs(self.enemyShips) do
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, enemy.x, enemy.y)
         local half = enemy.size
@@ -2637,18 +3914,26 @@ function SpaceMiner:drawEnemies()
             gfx.setColor(gfx.kColorWhite)
             gfx.drawRect(drawX - half, drawY - half, half * 2, half * 2)
         end
+        if enemy == autoTarget then
+            gfx.drawRect(drawX - half - 4, drawY - half - 4, (half * 2) + 8, (half * 2) + 8)
+        end
     end
 end
 
 function SpaceMiner:drawMissiles()
     gfx.setColor(gfx.kColorWhite)
-    if self.player.missile ~= nil then
-        local drawX, drawY = worldToScreen(self.player.x, self.player.y, self.player.missile.x, self.player.missile.y)
-        local radians = math.rad(self.player.angle)
+    for _, missile in ipairs(self.player.missiles or {}) do
+        local drawX, drawY = worldToScreen(self.player.x, self.player.y, missile.x, missile.y)
+        local radians = math.atan(missile.vy, missile.vx)
         local tailX = drawX - (math.cos(radians) * PLAYER_MISSILE_DRAW_LENGTH)
         local tailY = drawY - (math.sin(radians) * PLAYER_MISSILE_DRAW_LENGTH)
-        gfx.drawLine(tailX, tailY, drawX, drawY)
-        gfx.fillCircleAtPoint(drawX, drawY, PLAYER_MISSILE_DRAW_RADIUS)
+        if missile.visual == "advanced-guided" then
+            gfx.drawRect(drawX - 3, drawY - 2, 7, 4)
+            gfx.drawLine(tailX - math.cos(radians) * 5, tailY - math.sin(radians) * 5, drawX, drawY)
+        else
+            gfx.drawLine(tailX, tailY, drawX, drawY)
+            gfx.fillCircleAtPoint(drawX, drawY, PLAYER_MISSILE_DRAW_RADIUS)
+        end
     end
 
     for _, missile in ipairs(self.enemyMissiles) do
@@ -2672,6 +3957,13 @@ function SpaceMiner:drawLaser()
     local endX = CENTER_X + (math.cos(radians) * LASER_RANGE)
     local endY = CENTER_Y + (math.sin(radians) * LASER_RANGE)
     gfx.drawLine(CENTER_X, CENTER_Y, endX, endY)
+    local upgrade = self:getActiveUpgrade("laser") or {}
+    if upgrade.id == "advanced-laser" or upgrade.id == "advanced-splaser" then
+        local nx = math.cos(radians + math.pi * 0.5)
+        local ny = math.sin(radians + math.pi * 0.5)
+        gfx.drawLine(CENTER_X + nx, CENTER_Y + ny, endX + nx, endY + ny)
+        gfx.drawLine(CENTER_X - nx, CENTER_Y - ny, endX - nx, endY - ny)
+    end
 end
 
 function SpaceMiner:drawExplosions()
@@ -2813,9 +4105,11 @@ function SpaceMiner:drawInstructionOverlay()
 
     gfx.setColor(gfx.kColorWhite)
     gfx.drawRoundRect(38, 48, 324, 104, 8)
+    gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
     gfx.drawTextAligned("Space Miner", 200, 61, kTextAlignment.center)
     gfx.drawTextInRect("Crank turns the ship. Up/Down thrust. Hold Left to mine. Right launches or detonates a missile.", 58, 84, 284, 38, nil, nil, kTextAlignment.center)
     gfx.drawTextAligned("Mine asteroids for ore and score.", 200, 126, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
 function SpaceMiner:drawAlert()
@@ -2831,12 +4125,16 @@ function SpaceMiner:drawAlert()
     gfx.drawTextAligned(alertText, centerX, centerY, kTextAlignment.center)
 end
 
-function SpaceMiner:drawTinyConsoleText(text, x, y)
-    gfx.setColor(gfx.kColorWhite)
+function SpaceMiner:drawTinyConsoleText(text, x, y, colorProvider)
     local cursorX = x
     local upper = string.upper(tostring(text or ""))
     for index = 1, #upper do
         local char = string.sub(upper, index, index)
+        if type(colorProvider) == "function" then
+            gfx.setColor(colorProvider(cursorX, char) or gfx.kColorWhite)
+        else
+            gfx.setColor(colorProvider or gfx.kColorWhite)
+        end
         if char == "-" then
             gfx.drawLine(cursorX, y + 2, cursorX + 2, y + 2)
             cursorX = cursorX + 4
@@ -2900,8 +4198,7 @@ function SpaceMiner:wrapCommunicationText(text)
     return lines
 end
 
-function SpaceMiner:drawCommunication()
-    local message = self:getActiveCommunication()
+function SpaceMiner:drawCommunicationBox(message, filled)
     if message == nil then
         return
     end
@@ -2913,7 +4210,7 @@ function SpaceMiner:drawCommunication()
 
     local x = message.x or 8
     local y = message.y or 8
-    local width = message.width or math.floor(SCREEN_WIDTH * 0.5) - 14
+    local width = message.width or COMMUNICATION_WIDTH
     local ok, linesOrError = pcall(function()
         return self:wrapCommunicationText(message.text)
     end)
@@ -2921,22 +4218,49 @@ function SpaceMiner:drawCommunication()
     if not ok and StarryLog and StarryLog.error then
         StarryLog.error("%s", tostring(linesOrError))
     end
-    local height = math.min(DASHBOARD_Y - y - 4, 22 + (#lines * 12))
+    local height = math.min(DASHBOARD_Y - y - 4, COMMUNICATION_BOX_PADDING + (#lines * COMMUNICATION_LINE_SPACING))
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(filled and 0.72 or 0.48, gfx.image.kDitherTypeBayer8x8)
+    gfx.fillRoundRect(x - 2, y - 2, width + 4, height + 4, 5)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     gfx.setColor(gfx.kColorWhite)
-    gfx.setDitherPattern(math.max(0.25, fade), gfx.image.kDitherTypeBayer8x8)
     gfx.drawRoundRect(x, y, width, height, 4)
     gfx.drawLine(x + 6, y + 13, x + width - 6, y + 13)
-    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     self:drawTinyConsoleText("SYS-COM", x + 7, y + 4)
+    gfx.setDitherPattern(math.max(0.12, fade), gfx.image.kDitherTypeBayer8x8)
     gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
     for index, line in ipairs(lines) do
-        local lineY = y + 17 + ((index - 1) * 12)
+        local lineY = y + 18 + ((index - 1) * COMMUNICATION_LINE_SPACING)
         if lineY < y + height - 8 then
             gfx.drawText(line, x + 7, lineY)
         end
     end
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function SpaceMiner:drawCommunication()
+    self:drawCommunicationBox(self:getActiveCommunication(), false)
+end
+
+function SpaceMiner:drawHomeMenuScoutCommunication()
+    if not (self.menuOpen and self.menuType == "home") or self.homeMenuScoutHidden then
+        return
+    end
+    if self.homeMenuMessage == nil or self.homeMenuMessage == "" then
+        return
+    end
+
+    self:drawCommunicationBox({
+        text = self.homeMenuMessage,
+        startFrame = self.frame,
+        endFrame = self.frame + 120,
+        x = SCREEN_WIDTH - COMMUNICATION_WIDTH - 8,
+        y = 8,
+        width = COMMUNICATION_WIDTH
+    }, true)
 end
 
 function SpaceMiner:draw()
@@ -2945,9 +4269,11 @@ function SpaceMiner:draw()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     self:drawBackgroundStars()
+    self:drawDistantStar()
     self:drawDecorLayer("back")
     if self:isStoryMode() then
         self:drawMiningBase()
+        self:drawHomeBaseCargoBeam()
         self:drawBasePointer()
     end
     self:drawAsteroids()
@@ -2961,10 +4287,18 @@ function SpaceMiner:draw()
     end
     self:drawDecorLayer("front")
     self:drawMaterialMiniMap()
+    self:drawCargoSpaceBar()
     self:drawHud()
     self:drawInstructionOverlay()
     if self:isStoryMode() then
         self:drawCommunication()
     end
     self:drawMenu()
+    self:drawHomeMenuScoutCommunication()
+    if (self.supernovaFlashFrames or 0) > 0 then
+        gfx.setColor(gfx.kColorWhite)
+        gfx.setDitherPattern(clamp(self.supernovaFlashFrames / 24, 0.1, 1), gfx.image.kDitherTypeBayer8x8)
+        gfx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    end
 end

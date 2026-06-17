@@ -793,6 +793,10 @@ function TitleScene:setPreview(forceFresh)
             return PhotoViewerEffect.new(400, 240, {
                 preview = true
             })
+        elseif actualViewId == "textviewer" then
+            return TextViewerEffect.new(400, 240, {
+                preview = true
+            })
         elseif actualViewId == "gifplayer" then
             return GifPlayerEffect.new(400, 240, {
                 modeId = selectedView.modeId,

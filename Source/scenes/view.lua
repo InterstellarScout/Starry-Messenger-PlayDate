@@ -128,6 +128,8 @@ function ViewScene.new(config)
         })
     elseif self.viewId == "photoviewer" then
         self.effect = PhotoViewerEffect.new(400, 240)
+    elseif self.viewId == "textviewer" then
+        self.effect = TextViewerEffect.new(400, 240)
     elseif self.viewId == "gifplayer" then
         self.effect = GifPlayerEffect.new(400, 240, {
             modeId = self.modeId
@@ -675,7 +677,7 @@ function ViewScene:update()
         if self:isLifeReviewMode() and self.effect:handleReviewBack() then
             return
         end
-        if self.viewId == "gifplayer" and self.effect and self.effect.handleBack and self.effect:handleBack() then
+        if (self.viewId == "gifplayer" or self.viewId == "textviewer") and self.effect and self.effect.handleBack and self.effect:handleBack() then
             return
         end
         if self.onReturnToTitle then
@@ -738,6 +740,8 @@ function ViewScene:update()
         elseif self.viewId == "gifplayer" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "photoviewer" then
+            self.effect:handlePrimaryAction()
+        elseif self.viewId == "textviewer" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "wacky" then
             self.effect:handlePrimaryAction()
@@ -852,6 +856,9 @@ function ViewScene:update()
     elseif self.viewId == "photoviewer" then
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
+    elseif self.viewId == "textviewer" then
+        self.effect:applyCrank(change, acceleratedChange)
+        self.crankAccumulator = 0
     elseif self.viewId == "fishpond" then
         if self.effect.modeId == FishPond.MODE_TANK then
             self.effect:adjustTankCurrent(change)
@@ -953,6 +960,13 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self.effect:handleDown()
         end
+    elseif self.viewId == "textviewer" then
+        self.effect:handleDirectionalInput(
+            pd.buttonJustPressed(pd.kButtonUp),
+            pd.buttonJustPressed(pd.kButtonDown),
+            pd.buttonJustPressed(pd.kButtonLeft),
+            pd.buttonJustPressed(pd.kButtonRight)
+        )
     elseif self.viewId == "trailblazer" then
         if self.effect.isMenuOpen and self.effect:isMenuOpen() then
             self.effect:updateMenuInput(
@@ -1090,7 +1104,7 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self:applySpeedStep(-1)
         end
-    elseif self.viewId == "gifplayer" or self.viewId == "crttv" or self.viewId == "vibes" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "dimensionalsplit" or self.viewId == "starrytop" or self.viewId == "dropper" or self.viewId == "spaceminer" then
+    elseif self.viewId == "gifplayer" or self.viewId == "textviewer" or self.viewId == "crttv" or self.viewId == "vibes" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "dimensionalsplit" or self.viewId == "starrytop" or self.viewId == "dropper" or self.viewId == "spaceminer" then
     elseif self.viewId ~= "lava" then
         if self.effect and self.effect.steerDirectionToward then
             self:updateStarfieldDirection()

@@ -25,6 +25,7 @@ import "systems/dimensionalsplit"
 import "systems/rccararena"
 import "systems/tiltballs"
 import "systems/photoviewer"
+import "systems/textviewer"
 import "systems/trailblazer"
 import "systems/marblemadness"
 import "systems/snakegame"
@@ -53,7 +54,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.0"
+local APP_VERSION <const> = "0.2.1"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -221,6 +222,7 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = SnakeGame.getModeLabel
     },
     { id = "photoviewer", label = "Photo Viewer" },
+    { id = "textviewer", label = "Text Viewer" },
     { id = "gifplayer", label = "Gif Player" },
     {
         id = "fishpond",

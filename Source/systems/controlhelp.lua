@@ -275,6 +275,18 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "The title preview cycles through the collection automatically.",
             "B: return to title."
         })
+    elseif viewId == "textviewer" then
+        return buildSpec("Text Viewer Controls", {
+            "The first screen is the document library with each piece's title and description from its first two lines.",
+            "Documents may add property lines after the description, such as font: sasser-slab.",
+            "A: open the selected document, or toggle the line cursor while reading.",
+            "In Font Sampler, A on a font line applies that font; A on the checkbox controls whether it is saved as the default.",
+            "Crank: move the cursor up and down the first letter of each visible text line; the page scrolls when the cursor reaches mid-page.",
+            "D-pad Up/Down: move the cursor by one line, or scroll when Cursor is off.",
+            "D-pad Left toggles page rolling. D-pad Right toggles the cursor.",
+            "Markdown headings are styled, and image/wiki-link lines are hidden without leaving extra blank space.",
+            "B: return from the reader to the library, then to title."
+        })
     elseif viewId == "gifplayer" then
         return buildSpec("GIF Player Controls", {
             "On entry, crank or D-pad chooses a GIF category and A opens it.",
