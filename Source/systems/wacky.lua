@@ -264,6 +264,8 @@ function WackyInflatable.new(width, height, options)
     self.partyLastDirection = 0
     self.partyLastMotionFrame = -PARTY_IDLE_FRAMES
     self.partyRayPhase = 0
+    self.partySynth = nil
+    self.partyNextNoteFrame = 0
     self.reachForStarsMode = false
     self.reachVisualAmount = 0
     self.reachUpwardFrames = 0
@@ -311,7 +313,45 @@ end
 
 function WackyInflatable:shutdown()
     self.partyMode = false
+    self:stopPartyAudio()
     self.reachForStarsMode = false
+end
+
+function WackyInflatable:startPartyAudio()
+    if self.preview or self.partySynth ~= nil or not pd.sound or not pd.sound.synth then
+        return
+    end
+    local ok, synth = pcall(function()
+        return pd.sound.synth.new(pd.sound.kWaveSquare)
+    end)
+    if ok then
+        self.partySynth = synth
+    end
+end
+
+function WackyInflatable:stopPartyAudio()
+    if self.partySynth and self.partySynth.noteOff then
+        pcall(function()
+            self.partySynth:noteOff()
+        end)
+    end
+    self.partySynth = nil
+end
+
+function WackyInflatable:updatePartyAudio()
+    if not self.partyMode then
+        self:stopPartyAudio()
+        return
+    end
+    self:startPartyAudio()
+    if self.partySynth and self.frame >= (self.partyNextNoteFrame or 0) then
+        local notes = { 60, 64, 67, 72, 67, 64 }
+        local note = notes[((math.floor(self.frame / 6)) % #notes) + 1]
+        pcall(function()
+            self.partySynth:playNote(note, 0.28, 0.12)
+        end)
+        self.partyNextNoteFrame = self.frame + 8
+    end
 end
 
 function WackyInflatable:resetBodyPose(fullyExtended)
@@ -851,6 +891,7 @@ function WackyInflatable:updatePartyMode()
         self.partyVisualAmount = 0
     end
     self.partyRayPhase = wrapPhase((self.partyRayPhase or 0) + (0.11 + (self.partyVisualAmount * 0.12)))
+    self:updatePartyAudio()
 end
 
 function WackyInflatable:updateReachForStarsMode()

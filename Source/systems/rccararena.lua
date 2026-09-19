@@ -39,6 +39,8 @@ local BLOCK_SIZE <const> = RC_ARENA_CONFIG.blockSize or 10
 local BLOCK_SLIDE_FRICTION <const> = RC_ARENA_CONFIG.blockSlideFriction or 0.965
 local BLOCK_PUSH_IMPULSE <const> = RC_ARENA_CONFIG.blockPushImpulse or 0.42
 local BLOCK_RESPAWN_FRAMES <const> = RC_ARENA_CONFIG.blockRespawnFrames or 12
+local OBJECT_RESPAWN_MIN_FRAMES <const> = 60
+local OBJECT_RESPAWN_MAX_FRAMES <const> = 180
 local HOCKEY_PUCK_COUNT <const> = RC_ARENA_CONFIG.hockeyPuckCount or 5
 local HOCKEY_NET_HALF_HEIGHT <const> = RC_ARENA_CONFIG.hockeyNetHalfHeight or 28
 local HOCKEY_PUCK_ESCAPE_LIMIT <const> = 3
@@ -439,11 +441,26 @@ function RCCarArena:respawnObjectForScore(object)
         end
     end
 
-    self:spawnObject(object)
+    self:scheduleObjectRespawn(object)
+end
+
+function RCCarArena:scheduleObjectRespawn(object)
+    object.respawnDelayFrames = math.random(OBJECT_RESPAWN_MIN_FRAMES, OBJECT_RESPAWN_MAX_FRAMES)
+    object.vx = 0
+    object.vy = 0
+    object.x = -1000
+    object.y = -1000
 end
 
 function RCCarArena:updateObjects()
     for _, object in ipairs(self.objects) do
+        if (object.respawnDelayFrames or 0) > 0 then
+            object.respawnDelayFrames = object.respawnDelayFrames - 1
+            if object.respawnDelayFrames <= 0 then
+                self:spawnObject(object)
+            end
+            goto continue
+        end
         object.x = object.x + object.vx
         object.y = object.y + object.vy
         object.vx = object.vx * BLOCK_SLIDE_FRICTION
@@ -461,7 +478,7 @@ function RCCarArena:updateObjects()
                 or object.y > self.height - 20
             if object.x < -object.size and inNetLane then
                 self.leftNetCount = self.leftNetCount + 1
-                self:spawnObject(object)
+                self:scheduleObjectRespawn(object)
             elseif object.x > self.width + object.size and inNetLane then
                 self.rightNetCount = self.rightNetCount + 1
                 self:spawnObject(object)
@@ -469,7 +486,7 @@ function RCCarArena:updateObjects()
                 if outsideRing and not object.wasOutsideRing then
                     object.escapeCount = (object.escapeCount or 0) + 1
                     if object.escapeCount > HOCKEY_PUCK_ESCAPE_LIMIT then
-                        self:spawnObject(object)
+                        self:scheduleObjectRespawn(object)
                         goto continue
                     end
                 end

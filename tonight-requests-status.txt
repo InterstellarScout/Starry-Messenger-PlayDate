@@ -5,6 +5,7 @@
 | --- | --- |
 | Improve Vibes title contrast, make inward Warp stars shrink at center, extend Fractal Tree growth with orbiting particles, add Touching Grass hand shadow, and accelerate held Crank Blocks movement. | Done |
 | Remove the Crank Blocks playfield border so the game uses the full screen. | Done |
+| Add Snake God Mode and optional 3-6 second NPC Auto respawn; reorganize root folders; finish the listed Space Miner, Bubble Pop, Wacky, GIF, Duck, RC Arena, and Snake updates. | Done |
 | Derive implementation directives and a family-only companion transcript from the supplied Playdate verbal suggestions. | Done |
 | Add the supplied Alan Watts “Form and Void” notes and transcript to Text Viewer. | Done |
 | Consolidate the supplied Alan Watts excerpts into a cleaned Text Viewer entry and Markdown export. | Done |

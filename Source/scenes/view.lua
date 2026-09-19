@@ -1043,7 +1043,8 @@ function ViewScene:update()
                 pd.buttonJustPressed(pd.kButtonDown),
                 pd.buttonJustPressed(pd.kButtonLeft),
                 pd.buttonJustPressed(pd.kButtonRight),
-                pd.buttonJustPressed(pd.kButtonA)
+                pd.buttonJustPressed(pd.kButtonA),
+                pd.buttonIsPressed(pd.kButtonDown)
             )
         else
             self.effect:updateInput(

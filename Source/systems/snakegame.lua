@@ -26,6 +26,8 @@ local FOOD_SPAWN_MAX_FRAMES <const> = 150
 local SAVE_KEY <const> = "snake_state"
 local SAVE_COOLDOWN_FRAMES <const> = 60
 local PLAYER_RESPAWN_FRAMES <const> = 150
+local NPC_RESPAWN_MIN_FRAMES <const> = 180
+local NPC_RESPAWN_MAX_FRAMES <const> = 360
 local MENU_X <const> = 216
 local MENU_Y <const> = 18
 local MENU_WIDTH <const> = 168
@@ -90,7 +92,11 @@ function SnakeGame.new(width, height, options)
     self.npcSnakes = {}
     self.npcEnabled = { false, false, false, false }
     self.npcScores = { 0, 0, 0, 0 }
+    self.npcRespawnFrames = { 0, 0, 0, 0 }
     self.trimFat = false
+    self.godMode = false
+    self.autoRespawn = false
+    self.victoryOpen = false
     self.menuOpen = false
     self.menuIndex = 1
     self.menuInputCooldown = 0
@@ -282,7 +288,9 @@ function SnakeGame:getSaveData()
         lastStepY = self.lastStepY,
         npcEnabled = self.npcEnabled,
         npcScores = self.npcScores,
-        trimFat = self.trimFat
+        trimFat = self.trimFat,
+        godMode = self.godMode,
+        autoRespawn = self.autoRespawn
     }
 end
 
@@ -339,6 +347,8 @@ function SnakeGame:loadState()
     end
     self:enforceModeNpcDefaults()
     self.trimFat = data.trimFat == true
+    self.godMode = data.godMode == true
+    self.autoRespawn = data.autoRespawn == true
     self:resetFoods()
 end
 
@@ -434,6 +444,20 @@ function SnakeGame:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHeld,
 end
 
 function SnakeGame:handlePrimaryAction()
+    if self.victoryOpen then
+        self.victoryOpen = false
+        self:resetSnake()
+        for index = 1, 4 do
+            if self.npcEnabled[index] then
+                self:resetNpcSnake(index)
+            end
+            self.npcRespawnFrames[index] = 0
+        end
+        self:resetFoods()
+        self.statusMessage = "New round"
+        self.statusFrames = 45
+        return
+    end
     self.menuOpen = true
     self.menuInputCooldown = 1
 end
@@ -454,7 +478,9 @@ function SnakeGame:getMenuItems()
         { id = "npc3", label = "NPC Snake 3", type = "toggle", value = self.npcEnabled[3] },
         { id = "npc4", label = "NPC Snake 4", type = "toggle", value = self.npcEnabled[4] },
         { id = "reset", label = "Reset Size", type = "button" },
-        { id = "trim", label = "Trim Fat", type = "toggle", value = self.trimFat }
+        { id = "trim", label = "Trim Fat", type = "toggle", value = self.trimFat },
+        { id = "god", label = "God Mode", type = "toggle", value = self.godMode },
+        { id = "autorespawn", label = "Auto respawn", type = "toggle", value = self.autoRespawn }
     }
 end
 
@@ -499,6 +525,16 @@ function SnakeGame:toggleMenuSelection()
             self:trimPlayerHalf()
         end
         self:markStateDirty()
+    elseif item.id == "god" then
+        self.godMode = not self.godMode
+        self.statusMessage = self.godMode and "God mode on" or "God mode off"
+        self.statusFrames = 45
+        self:markStateDirty()
+    elseif item.id == "autorespawn" then
+        self.autoRespawn = not self.autoRespawn
+        self.statusMessage = self.autoRespawn and "NPC auto respawn on" or "NPC auto respawn off"
+        self.statusFrames = 45
+        self:markStateDirty()
     else
         local npcIndex = tonumber(string.sub(item.id, 4))
         if npcIndex ~= nil then
@@ -515,6 +551,55 @@ function SnakeGame:toggleMenuSelection()
             self:queueFoodSpawn()
             self:markStateDirty()
         end
+    end
+end
+
+function SnakeGame:defeatNpc(npcIndex)
+    self.npcSnakes[npcIndex] = {}
+    if self.autoRespawn then
+        self.npcRespawnFrames[npcIndex] = math.random(NPC_RESPAWN_MIN_FRAMES, NPC_RESPAWN_MAX_FRAMES)
+        self.statusMessage = string.format("NPC %d returns soon", npcIndex)
+    else
+        self.npcRespawnFrames[npcIndex] = 0
+        self.statusMessage = string.format("NPC %d loses", npcIndex)
+    end
+    self.statusFrames = 45
+    self:markStateDirty()
+end
+
+function SnakeGame:updateNpcRespawns()
+    for index = 1, 4 do
+        if self.npcEnabled[index] and (self.npcSnakes[index] == nil or self.npcSnakes[index][1] == nil) then
+            if self.autoRespawn and (self.npcRespawnFrames[index] or 0) > 0 then
+                self.npcRespawnFrames[index] = self.npcRespawnFrames[index] - 1
+                if self.npcRespawnFrames[index] <= 0 then
+                    self:resetNpcSnake(index)
+                    self.statusMessage = string.format("NPC %d respawns", index)
+                    self.statusFrames = 45
+                end
+            end
+        end
+    end
+end
+
+function SnakeGame:checkVictory()
+    if self.autoRespawn or self.victoryOpen then
+        return
+    end
+    local enabledCount = 0
+    local activeCount = 0
+    for index = 1, 4 do
+        if self.npcEnabled[index] then
+            enabledCount = enabledCount + 1
+            if self.npcSnakes[index] and self.npcSnakes[index][1] then
+                activeCount = activeCount + 1
+            end
+        end
+    end
+    if enabledCount > 0 and activeCount == 0 then
+        self.victoryOpen = true
+        self.statusMessage = "Victory! All NPC snakes defeated"
+        self.statusFrames = 0
     end
 end
 
@@ -543,6 +628,9 @@ function SnakeGame:updateMenuInput(upPressed, downPressed, leftPressed, rightPre
 end
 
 function SnakeGame:update()
+    if self.victoryOpen then
+        return
+    end
     if self.menuOpen then
         if self.saveDirty then
             self:saveState(false)
@@ -559,6 +647,7 @@ function SnakeGame:update()
         end
     end
     self:updateFoodSpawns()
+    self:updateNpcRespawns()
     if self.playerRespawnFrames > 0 then
         self.playerRespawnFrames = self.playerRespawnFrames - 1
         if self.playerRespawnFrames <= 0 then
@@ -733,6 +822,12 @@ function SnakeGame:resolveSnakeCollision()
                 local playerHitRivalBody = self:bodyContains(rivalBody, playerHead.x, playerHead.y, 2)
                 local rivalHitPlayerBody = self:bodyContains(self.snake, rivalHead.x, rivalHead.y, 2)
                 if headOn or playerHitRivalBody then
+                    if self.godMode then
+                        self.score = self.score + 1
+                        self:defeatNpc(npcIndex)
+                        self:checkVictory()
+                        return
+                    end
                     self.npcScores[npcIndex] = (self.npcScores[npcIndex] or 0) + 1
                     if npcIndex == 1 and self:isCompetitive() then
                         self.rivalScore = self.npcScores[npcIndex]
@@ -741,11 +836,8 @@ function SnakeGame:resolveSnakeCollision()
                     return
                 elseif rivalHitPlayerBody then
                     self.score = self.score + 1
-                    self.npcEnabled[npcIndex] = false
-                    self.npcSnakes[npcIndex] = {}
-                    self.statusMessage = string.format("NPC %d loses", npcIndex)
-                    self.statusFrames = 45
-                    self:markStateDirty()
+                    self:defeatNpc(npcIndex)
+                    self:checkVictory()
                 end
             end
         end
@@ -802,9 +894,9 @@ function SnakeGame:drawMenu()
     end
     local items = self:getMenuItems()
     gfx.setColor(gfx.kColorWhite)
-    gfx.fillRoundRect(MENU_X, MENU_Y, MENU_WIDTH, 154, 6)
+    gfx.fillRoundRect(MENU_X, MENU_Y, MENU_WIDTH, 194, 6)
     gfx.setColor(gfx.kColorBlack)
-    gfx.drawRoundRect(MENU_X, MENU_Y, MENU_WIDTH, 154, 6)
+    gfx.drawRoundRect(MENU_X, MENU_Y, MENU_WIDTH, 194, 6)
     gfx.drawText("Snake Menu", MENU_X + 10, MENU_Y + 8)
     for index, item in ipairs(items) do
         local rowY = MENU_Y + 28 + ((index - 1) * MENU_ROW_HEIGHT)
@@ -824,6 +916,19 @@ function SnakeGame:drawMenu()
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
         end
     end
+end
+
+function SnakeGame:drawVictoryMenu()
+    if not self.victoryOpen then
+        return
+    end
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(62, 80, 276, 80, 8)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRoundRect(62, 80, 276, 80, 8)
+    gfx.drawTextAligned("VICTORY!", 200, 94, kTextAlignment.center)
+    gfx.drawTextAligned("All NPC snakes defeated", 200, 116, kTextAlignment.center)
+    gfx.drawTextAligned("A: play again", 200, 138, kTextAlignment.center)
 end
 
 function SnakeGame:draw()
@@ -866,4 +971,5 @@ function SnakeGame:draw()
         end
     end
     self:drawMenu()
+    self:drawVictoryMenu()
 end

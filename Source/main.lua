@@ -54,7 +54,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.6"
+local APP_VERSION <const> = "0.2.7"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -147,14 +147,6 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     { id = "starrytop", label = "Starry Top" },
     {
-        id = "multiplayer",
-        label = "Multiplayer",
-        modes = { 2, 3, 4 },
-        modeId = 2,
-        getModeLabel = MultiplayerConfig.getBeingCountLabel
-    },
-    { id = "vibes", label = "Vibes" },
-    {
         id = "life",
         label = "Game of Life",
         modes = {
@@ -189,13 +181,24 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = WackyInflatable.getModeLabel
     },
     {
-        id = "spaceminer",
-        label = "Space Miner",
+        id = "spaceminer-mining",
+        openViewId = "spaceminer",
+        label = "Space Miner: Mining",
+        modes = {
+            SpaceMiner.MODE_ENDLESS,
+            SpaceMiner.MODE_CONTINUE
+        },
+        modeId = SpaceMiner.MODE_ENDLESS,
+        getModeLabel = SpaceMiner.getModeLabel
+    },
+    {
+        id = "spaceminer-story",
+        openViewId = "spaceminer",
+        label = "Space Miner: Story",
         modes = {
             SpaceMiner.MODE_STORY,
             SpaceMiner.MODE_CONTINUE,
-            SpaceMiner.MODE_NEW_SAVE,
-            SpaceMiner.MODE_ENDLESS
+            SpaceMiner.MODE_NEW_SAVE
         },
         modeId = SpaceMiner.MODE_STORY,
         getModeLabel = SpaceMiner.getModeLabel
@@ -221,9 +224,6 @@ local SINGLE_VIEW_ITEMS <const> = {
         modeId = SnakeGame.MODE_STANDARD,
         getModeLabel = SnakeGame.getModeLabel
     },
-    { id = "photoviewer", label = "Photo Viewer" },
-    { id = "textviewer", label = "Text Viewer" },
-    { id = "gifplayer", label = "Gif Player" },
     {
         id = "fishpond",
         label = "Fishy Pond",
@@ -272,6 +272,25 @@ local SINGLE_VIEW_ITEMS <const> = {
     }
 }
 
+local ROOT_VIEW_ITEMS <const> = {
+    { id = "lowkey", label = "Low-Key Games" },
+    { id = "vibes", label = "Vibes" },
+    {
+        id = "multiplayer",
+        label = "Multiplayer",
+        modes = { 2, 3, 4 },
+        modeId = 2,
+        getModeLabel = MultiplayerConfig.getBeingCountLabel
+    },
+    { id = "utilities", label = "Utilities" }
+}
+
+local UTILITIES_VIEW_ITEMS <const> = {
+    { id = "photoviewer", label = "Photo Viewer" },
+    { id = "gifplayer", label = "GIF Player" },
+    { id = "textviewer", label = "Text Viewer" }
+}
+
 local function getRCCarMultiplayerModeLabel(modeId)
     if modeId == RCCarArena.MODE_HOCKEY then
         return "RC Hockey"
@@ -301,8 +320,12 @@ local function getCatalogViewItems(catalog)
         return MULTIPLAYER_VIEW_ITEMS
     elseif catalog == "vibes" then
         return VIBES_VIEW_ITEMS
+    elseif catalog == "single" then
+        return SINGLE_VIEW_ITEMS
+    elseif catalog == "utilities" then
+        return UTILITIES_VIEW_ITEMS
     end
-    return SINGLE_VIEW_ITEMS
+    return ROOT_VIEW_ITEMS
 end
 
 local function getViewIndex(viewItems, viewId)
@@ -384,27 +407,18 @@ local function returnToCurrentTitle(returnedViewId, options)
     ViewAudio.stop()
     if catalog == "multi" then
         setScene(buildGameTitleScene(catalog, {
-            selectedIndex = getViewIndex(viewItems, returnedViewId),
-            previewEffect = options and options.previewEffect or nil,
-            previewViewId = returnedViewId,
-            previewModeId = options and options.previewModeId or nil
+            selectedIndex = getViewIndex(viewItems, returnedViewId)
         }))
         return
     elseif catalog == "vibes" then
         setScene(buildVibesTitleScene({
-            selectedIndex = getViewIndex(viewItems, returnedViewId),
-            previewEffect = options and options.previewEffect or nil,
-            previewViewId = returnedViewId,
-            previewModeId = options and options.previewModeId or nil
+            selectedIndex = getViewIndex(viewItems, returnedViewId)
         }))
         return
     end
 
-    setScene(buildGameTitleScene("single", {
-        selectedIndex = getViewIndex(viewItems, returnedViewId),
-        previewEffect = options and options.previewEffect or nil,
-        previewViewId = returnedViewId,
-        previewModeId = options and options.previewModeId or nil
+    setScene(buildGameTitleScene(catalog, {
+        selectedIndex = getViewIndex(viewItems, returnedViewId)
     }))
 end
 
@@ -432,9 +446,9 @@ local function startVibesFolderExitTransition(onComplete)
         flashFrames = 7,
         flashColor = gfx.kColorBlack,
         onFlashBuildScene = function()
-            app.session:setCatalog("single")
-            return buildGameTitleScene("single", {
-                selectedIndex = getViewIndex(SINGLE_VIEW_ITEMS, "vibes")
+            app.session:setCatalog("root")
+            return buildGameTitleScene("root", {
+                selectedIndex = getViewIndex(ROOT_VIEW_ITEMS, "vibes")
             })
         end,
         onComplete = onComplete
@@ -569,12 +583,12 @@ end
 
 buildGameTitleScene = function(catalog, options)
     options = options or {}
-    app.session:setCatalog(catalog or "single")
+    app.session:setCatalog(catalog or "root")
     ViewAudio.stop()
     local viewItems = getCatalogViewItems(catalog)
     local subtitle = catalog == "multi"
         and string.format("Multiplayer Games  %d Beings", app.session.playerCount)
-        or "Single Player"
+        or (catalog == "single" and "Low-Key Games" or (catalog == "utilities" and "Utilities" or "Choose a folder"))
     safeCall("buildSystemMenu", function()
         buildSystemMenu(viewItems, nil, nil)
     end)
@@ -591,13 +605,20 @@ buildGameTitleScene = function(catalog, options)
         onBack = function()
             if catalog == "multi" then
                 app.session:setPlayerCount(1)
-                app.session:setCatalog("single")
-                setScene(buildGameTitleScene("single", {
-                    selectedIndex = getViewIndex(SINGLE_VIEW_ITEMS, "multiplayer")
+                app.session:setCatalog("root")
+                setScene(buildGameTitleScene("root", {
+                    selectedIndex = getViewIndex(ROOT_VIEW_ITEMS, "multiplayer")
                 }))
                 return
             end
-            setScene(buildSplashScene())
+            if catalog == "single" or catalog == "utilities" then
+                app.session:setCatalog("root")
+                setScene(buildGameTitleScene("root", {
+                    selectedIndex = getViewIndex(ROOT_VIEW_ITEMS, catalog == "utilities" and "utilities" or "lowkey")
+                }))
+            else
+                setScene(buildSplashScene())
+            end
         end,
         onResetSelection = function()
             return false
@@ -610,6 +631,16 @@ buildGameTitleScene = function(catalog, options)
                         selectedIndex = 1
                     }))
                 end)
+                return
+            end
+            if viewId == "lowkey" then
+                app.session:setCatalog("single")
+                setScene(buildGameTitleScene("single"))
+                return
+            end
+            if viewId == "utilities" then
+                app.session:setCatalog("utilities")
+                setScene(buildGameTitleScene("utilities"))
                 return
             end
             logModeSelection("title", viewId)
@@ -641,9 +672,9 @@ buildVibesTitleScene = function(options)
         headerSubtitle = "Vibes",
         onBack = function()
             startVibesFolderExitTransition(function(nextScene)
-                app.session:setCatalog("single")
-                setScene(nextScene or buildGameTitleScene("single", {
-                    selectedIndex = getViewIndex(SINGLE_VIEW_ITEMS, "vibes")
+                app.session:setCatalog("root")
+                setScene(nextScene or buildGameTitleScene("root", {
+                    selectedIndex = getViewIndex(ROOT_VIEW_ITEMS, "vibes")
                 }))
             end)
         end,
@@ -668,7 +699,7 @@ buildSplashScene = function()
         onContinue = function()
             app.session:setPlayerCount(1)
             StarryLog.info("splash requested title scene")
-            setScene(buildGameTitleScene("single"))
+            setScene(buildGameTitleScene("root"))
         end
     })
 end
@@ -689,7 +720,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
                 selectedIndex = selectedIndex
             }))
         else
-            setScene(buildGameTitleScene("single", {
+            setScene(buildGameTitleScene(app.session.catalog or "root", {
                 selectedIndex = selectedIndex
             }))
         end
@@ -805,7 +836,7 @@ StarryLog.forceWrite("info", "%s v%s", APP_NAME, APP_VERSION)
 StarryLog.info("boot begin")
 safeCall("buildSystemMenu", function()
     StarryLog.info("building initial system menu")
-    buildSystemMenu(SINGLE_VIEW_ITEMS, nil)
+    buildSystemMenu(ROOT_VIEW_ITEMS, nil)
 end)
 
 local initialScene = safeCall("buildSplashScene", function()

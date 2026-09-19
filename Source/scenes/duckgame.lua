@@ -1062,9 +1062,23 @@ end
 function DuckGameScene:drawPondBackdrop()
     gfx.clear(gfx.kColorWhite)
     gfx.setColor(gfx.kColorBlack)
-    gfx.drawRect(PLAYFIELD_LEFT, PLAYFIELD_TOP, PLAYFIELD_RIGHT - PLAYFIELD_LEFT, PLAYFIELD_BOTTOM - PLAYFIELD_TOP)
-    gfx.drawLine(PLAYFIELD_LEFT, PLAYFIELD_TOP, PLAYFIELD_RIGHT, PLAYFIELD_TOP)
-    gfx.drawLine(PLAYFIELD_LEFT, PLAYFIELD_BOTTOM, PLAYFIELD_RIGHT, PLAYFIELD_BOTTOM)
+    -- A light, irregular shoreline reads as a pond without adding per-frame simulation cost.
+    gfx.fillEllipseInRect(PLAYFIELD_LEFT - 18, PLAYFIELD_TOP - 10,
+        (PLAYFIELD_RIGHT - PLAYFIELD_LEFT) + 36, (PLAYFIELD_BOTTOM - PLAYFIELD_TOP) + 20)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillEllipseInRect(PLAYFIELD_LEFT - 11, PLAYFIELD_TOP - 4,
+        (PLAYFIELD_RIGHT - PLAYFIELD_LEFT) + 22, (PLAYFIELD_BOTTOM - PLAYFIELD_TOP) + 8)
+    gfx.setColor(gfx.kColorBlack)
+    for row = PLAYFIELD_TOP + 16, PLAYFIELD_BOTTOM - 12, 22 do
+        local offset = ((row / 22) % 2) * 17
+        for column = PLAYFIELD_LEFT + 18 + offset, PLAYFIELD_RIGHT - 18, 48 do
+            gfx.drawLine(column - 7, row, column + 7, row)
+        end
+    end
+    for column = PLAYFIELD_LEFT + 12, PLAYFIELD_RIGHT - 12, 36 do
+        local shoreY = (column % 3 == 0) and PLAYFIELD_TOP + 4 or PLAYFIELD_BOTTOM - 4
+        gfx.drawLine(column, shoreY, column + 3, shoreY + (shoreY < 100 and 8 or -8))
+    end
 end
 
 function DuckGameScene:drawReeds(reeds, time)

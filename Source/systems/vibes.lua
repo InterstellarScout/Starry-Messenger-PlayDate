@@ -1225,7 +1225,7 @@ end
 
 function VibesEffect:draw()
     local effectId = self:getEffect().id
-    local useDarkBackground = effectId == "smoothsailing" or effectId == "loopfall"
+    local useDarkBackground = effectId == "smoothsailing" or effectId == "loopfall" or effectId == "bubblepop"
 
     gfx.setColor(useDarkBackground and gfx.kColorBlack or gfx.kColorWhite)
     gfx.fillRect(0, 0, self.width, self.height)

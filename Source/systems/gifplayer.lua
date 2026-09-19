@@ -755,6 +755,13 @@ function GifPlayerEffect:updateDirectionalInput(upPressed, downPressed, leftPres
     end
 
     if self.gifState == GifPlayerEffect.GIF_STATE_SPIN then
+        if upPressed then
+            self:stepSpeed(1)
+            self:syncAudioToCurrentState(true)
+        elseif downPressed then
+            self:stepSpeed(-1)
+            self:syncAudioToCurrentState(true)
+        end
         return
     end
 

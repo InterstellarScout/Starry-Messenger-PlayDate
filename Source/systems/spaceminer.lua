@@ -700,6 +700,9 @@ function SpaceMiner.new(width, height, options)
     self.homeMenuScreen = "directory"
     self.menuIndex = 1
     self.menuInputIgnoreFrames = 0
+    self.menuVelocity = 0
+    self.menuStepAccumulator = 0
+    self.menuCrankAccumulator = 0
     self.homeDirectoryIndex = 1
     self.menuOpenedAtX = 0
     self.menuOpenedAtY = 0
@@ -1253,7 +1256,7 @@ function SpaceMiner:applyShieldUpgradeLevel(level)
     self.playerShieldHits = math.min(self.playerShieldHits or self.playerShieldMax, self.playerShieldMax)
 end
 
-function SpaceMiner:updateMenuInput(upPressed, downPressed, leftPressed, rightPressed, aPressed)
+function SpaceMiner:updateMenuInput(upPressed, downPressed, leftPressed, rightPressed, aPressed, downHeld)
     if not self.menuOpen then
         return
     end
@@ -1272,6 +1275,25 @@ function SpaceMiner:updateMenuInput(upPressed, downPressed, leftPressed, rightPr
     if itemCount <= 0 then
         return
     end
+    if downPressed and math.abs(self.menuVelocity or 0) > 0.15 then
+        -- A second Down tap catches the freely coasting carousel at its current choice.
+        self.menuVelocity = 0
+        self.menuStepAccumulator = 0
+        return
+    end
+    if downHeld then
+        self.menuVelocity = math.min(1.7, (self.menuVelocity or 0) + 0.055)
+    else
+        self.menuVelocity = (self.menuVelocity or 0) * 0.91
+        if math.abs(self.menuVelocity) < 0.02 then
+            self.menuVelocity = 0
+        end
+    end
+    self.menuStepAccumulator = (self.menuStepAccumulator or 0) + self.menuVelocity
+    while self.menuStepAccumulator >= 1 do
+        self.menuIndex = (self.menuIndex % itemCount) + 1
+        self.menuStepAccumulator = self.menuStepAccumulator - 1
+    end
     if upPressed then
         self.menuIndex = self.menuIndex - 1
         if self.menuIndex < 1 then
@@ -1285,6 +1307,10 @@ function SpaceMiner:updateMenuInput(upPressed, downPressed, leftPressed, rightPr
     elseif leftPressed and self.menuType == "home" and self.homeMenuScreen ~= "directory" then
         self.homeMenuScreen = "directory"
         self.menuIndex = self.homeDirectoryIndex or 1
+    elseif (leftPressed or rightPressed) and self.menuType == "home" and self.homeMenuScreen == "directory" then
+        local direction = rightPressed and 1 or -1
+        self.menuIndex = ((self.menuIndex - 1 + direction) % itemCount) + 1
+        self.homeDirectoryIndex = self.menuIndex
     elseif leftPressed or rightPressed or aPressed then
         if aPressed and self.menuType == "home" then
             self.homeMenuScoutHidden = true
@@ -2475,6 +2501,15 @@ end
 
 function SpaceMiner:applyCrank(change)
     if self.menuOpen then
+        self.menuCrankAccumulator = (self.menuCrankAccumulator or 0) + ((change or 0) * 0.5)
+        while math.abs(self.menuCrankAccumulator) >= 18 do
+            local direction = self.menuCrankAccumulator > 0 and 1 or -1
+            local itemCount = #self:getMenuItems()
+            if itemCount > 0 then
+                self.menuIndex = ((self.menuIndex - 1 + direction) % itemCount) + 1
+            end
+            self.menuCrankAccumulator = self.menuCrankAccumulator - (18 * direction)
+        end
         return
     end
     if math.abs(change) <= 0.001 then
