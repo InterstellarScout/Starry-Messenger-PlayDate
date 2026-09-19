@@ -1216,7 +1216,7 @@ function TitleScene:drawModeCarousel(selectedView, centerY)
     end
 
     local modeCount = #selectedView.modes
-    local spacing = 164
+    local spacing = 142
     local visibilityRange = 1.1
     local entries = {}
 
@@ -1225,13 +1225,16 @@ function TitleScene:drawModeCarousel(selectedView, centerY)
             local offset = (index + (wrap * modeCount)) - (self.modeDisplayPosition or index)
             if math.abs(offset) <= visibilityRange then
                 local label = selectedView.getModeLabel and selectedView.getModeLabel(modeId) or tostring(modeId)
-                local x = 200 + (offset * spacing)
+                -- Alternate choices fan around the selected title without crossing it.
+                local arcOffset = math.max(-1, math.min(1, offset))
+                local x = 200 + (math.sin(arcOffset * (math.pi * 0.5)) * spacing)
+                local y = centerY - 20 + ((1 - math.cos(arcOffset * (math.pi * 0.5))) * 34)
                 local emphasis = math.max(0, 1 - math.min(1, math.abs(offset)))
                 local scale = TITLE_SIDE_SCALE + ((TITLE_CENTER_SCALE - TITLE_SIDE_SCALE) * emphasis)
                 entries[#entries + 1] = {
                     label = label,
                     x = x,
-                    centerY = centerY + 8,
+                    centerY = y + 8,
                     scale = scale,
                     offset = offset
                 }
@@ -1291,21 +1294,20 @@ function TitleScene:drawMenu()
 
     local hasModes = selectedView and selectedView.modes ~= nil and not self.freeSpinActive and not self.freeSpinSettling
     local centerY = 146
-    local arcWidth = 142
+    local spacing = 56
     local visibilityRange = 1.35
 
     for index, item in ipairs(self.viewItems) do
         local offset = self:getWrappedOffset(index)
         if math.abs(offset) <= visibilityRange then
-            -- Neighboring choices travel around the center on a shallow loop instead
-            -- of crossing through its text, so they stay legible while coasting.
-            local arcOffset = math.max(-1, math.min(1, offset))
-            local x = 200 + (math.sin(arcOffset * (math.pi * 0.5)) * arcWidth)
-            local y = centerY - 20 + ((1 - math.cos(arcOffset * (math.pi * 0.5))) * 34)
+            -- Titles and folders retain the vertical slot-machine path.
+            local x = 200
+            local y = centerY + (offset * spacing)
             local label = item.label
 
             if math.abs(offset) < 0.35 then
                 if hasModes then
+                    self:drawScaledText(item.label, self.largeFont or self.smallFont, "view", 200, y - 27, TITLE_SIDE_SCALE)
                     self:drawModeCarousel(selectedView, y)
                 else
                     self:drawScaledText(item.label, self.largeFont or self.smallFont, "view", x, y + 8, TITLE_CENTER_SCALE)
