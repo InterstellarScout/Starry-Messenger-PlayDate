@@ -38,6 +38,12 @@ local PLAYFIELD_LEFT <const> = 16
 local PLAYFIELD_TOP <const> = 18
 local PLAYFIELD_RIGHT <const> = 384
 local PLAYFIELD_BOTTOM <const> = 222
+local POND_LEFT <const> = 10
+local POND_TOP <const> = 10
+local POND_RIGHT <const> = 390
+local POND_BOTTOM <const> = 230
+local POND_CORNER_RADIUS <const> = 12
+local SHORE_GRASS_REPEL_RADIUS <const> = 36
 local POND_CENTER_X <const> = 200
 local POND_CENTER_Y <const> = 120
 local CENTER_NEST_X <const> = 200
@@ -233,6 +239,7 @@ function DuckGameScene.new(config)
     self.players = {}
     self.freeChicks = {}
     self.reeds = {}
+    self.pondGrass = self:buildPondGrass()
     self.ripples = {}
     self.nestPixels = {}
     self.frame = 0
@@ -1059,25 +1066,85 @@ function DuckGameScene:getDuckScale(player)
     return 1.5
 end
 
+function DuckGameScene:buildPondGrass()
+    local blades = {}
+    local function addBlade(x, y, normalX, normalY, seed)
+        blades[#blades + 1] = {
+            x = x,
+            y = y,
+            normalX = normalX,
+            normalY = normalY,
+            length = 7 + ((seed * 7) % 7),
+            lean = 0,
+            velocity = 0,
+            seed = seed
+        }
+    end
+
+    local seed = 1
+    for x = POND_LEFT + 18, POND_RIGHT - 18, 11 do
+        addBlade(x, POND_TOP + 7, 0, 1, seed)
+        seed = seed + 1
+        addBlade(x, POND_BOTTOM - 7, 0, -1, seed)
+        seed = seed + 1
+    end
+    for y = POND_TOP + 25, POND_BOTTOM - 25, 11 do
+        addBlade(POND_LEFT + 7, y, 1, 0, seed)
+        seed = seed + 1
+        addBlade(POND_RIGHT - 7, y, -1, 0, seed)
+        seed = seed + 1
+    end
+    return blades
+end
+
+function DuckGameScene:updatePondGrass(players)
+    local radiusSquared = SHORE_GRASS_REPEL_RADIUS * SHORE_GRASS_REPEL_RADIUS
+    for _, blade in ipairs(self.pondGrass or {}) do
+        local tangentX = -blade.normalY
+        local tangentY = blade.normalX
+        local targetLean = 0
+        for _, player in ipairs(players or {}) do
+            local dx = player.x - blade.x
+            local dy = player.y - blade.y
+            local distanceSquared = (dx * dx) + (dy * dy)
+            if distanceSquared < radiusSquared then
+                local tangentDistance = (dx * tangentX) + (dy * tangentY)
+                local strength = 1 - (math.sqrt(distanceSquared) / SHORE_GRASS_REPEL_RADIUS)
+                local direction = tangentDistance >= 0 and -1 or 1
+                targetLean = targetLean + (direction * strength * 0.9)
+            end
+        end
+        targetLean = clamp(targetLean, -1, 1)
+        blade.velocity = ((blade.velocity or 0) + ((targetLean - (blade.lean or 0)) * 0.11)) * 0.78
+        blade.lean = clamp((blade.lean or 0) + blade.velocity, -1.1, 1.1)
+    end
+end
+
+function DuckGameScene:drawPondGrass()
+    gfx.setColor(gfx.kColorBlack)
+    for _, blade in ipairs(self.pondGrass or {}) do
+        local tangentX = -blade.normalY
+        local tangentY = blade.normalX
+        local tipX = blade.x + (blade.normalX * blade.length) + (tangentX * blade.length * (blade.lean or 0))
+        local tipY = blade.y + (blade.normalY * blade.length) + (tangentY * blade.length * (blade.lean or 0))
+        gfx.drawLine(math.floor(blade.x + 0.5), math.floor(blade.y + 0.5), math.floor(tipX + 0.5), math.floor(tipY + 0.5))
+    end
+end
+
 function DuckGameScene:drawPondBackdrop()
     gfx.clear(gfx.kColorWhite)
     gfx.setColor(gfx.kColorBlack)
-    -- A light, irregular shoreline reads as a pond without adding per-frame simulation cost.
-    gfx.fillEllipseInRect(PLAYFIELD_LEFT - 18, PLAYFIELD_TOP - 10,
-        (PLAYFIELD_RIGHT - PLAYFIELD_LEFT) + 36, (PLAYFIELD_BOTTOM - PLAYFIELD_TOP) + 20)
+    -- A one-pixel rounded shoreline, inset ten pixels from every screen edge.
+    gfx.fillRoundRect(POND_LEFT, POND_TOP, POND_RIGHT - POND_LEFT, POND_BOTTOM - POND_TOP, POND_CORNER_RADIUS)
     gfx.setColor(gfx.kColorWhite)
-    gfx.fillEllipseInRect(PLAYFIELD_LEFT - 11, PLAYFIELD_TOP - 4,
-        (PLAYFIELD_RIGHT - PLAYFIELD_LEFT) + 22, (PLAYFIELD_BOTTOM - PLAYFIELD_TOP) + 8)
+    gfx.fillRoundRect(POND_LEFT + 1, POND_TOP + 1, POND_RIGHT - POND_LEFT - 2, POND_BOTTOM - POND_TOP - 2, POND_CORNER_RADIUS - 1)
+    self:drawPondGrass()
     gfx.setColor(gfx.kColorBlack)
     for row = PLAYFIELD_TOP + 16, PLAYFIELD_BOTTOM - 12, 22 do
         local offset = ((row / 22) % 2) * 17
         for column = PLAYFIELD_LEFT + 18 + offset, PLAYFIELD_RIGHT - 18, 48 do
             gfx.drawLine(column - 7, row, column + 7, row)
         end
-    end
-    for column = PLAYFIELD_LEFT + 12, PLAYFIELD_RIGHT - 12, 36 do
-        local shoreY = (column % 3 == 0) and PLAYFIELD_TOP + 4 or PLAYFIELD_BOTTOM - 4
-        gfx.drawLine(column, shoreY, column + 3, shoreY + (shoreY < 100 and 8 or -8))
     end
 end
 
@@ -1281,6 +1348,7 @@ function DuckGameScene:drawGameState(state)
     end
 
     local time = state.frame or 0
+    self:updatePondGrass(state.players)
     self:drawPondBackdrop()
     self:drawReeds(state.reeds or {}, time)
 
