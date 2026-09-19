@@ -200,6 +200,21 @@ function TitleScene:usesDarkText()
         return false
     end
 
+    -- Most Vibes previews are pale, so their title text needs to be black.
+    -- These effects deliberately keep their dark presentation and white labels.
+    if self.catalog == "vibes" then
+        local whiteLabelEffects = {
+            smokebloom_billowing = true,
+            smokebloom_raising = true,
+            dropper = true,
+            dimensionalsplit = true,
+            smoothsailing = true,
+            tunnelbars = true,
+            loopfall = true
+        }
+        return not whiteLabelEffects[selectedView.id]
+    end
+
     if selectedView.id == "duck" then
         return true
     end

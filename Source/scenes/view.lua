@@ -1003,10 +1003,10 @@ function ViewScene:update()
         )
     elseif self.viewId == "crankblocks" then
         self.effect:handleDirectionalInput(
-            pd.buttonJustPressed(pd.kButtonLeft),
-            pd.buttonJustPressed(pd.kButtonRight),
-            pd.buttonJustPressed(pd.kButtonUp),
-            pd.buttonJustPressed(pd.kButtonDown)
+            pd.buttonIsPressed(pd.kButtonLeft),
+            pd.buttonIsPressed(pd.kButtonRight),
+            pd.buttonIsPressed(pd.kButtonUp),
+            pd.buttonIsPressed(pd.kButtonDown)
         )
     elseif self.viewId == "snake" then
         if self.effect.isMenuOpen and self.effect:isMenuOpen() then

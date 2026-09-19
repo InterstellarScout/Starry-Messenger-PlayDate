@@ -1,5 +1,10 @@
 #### Starry Messenger Updates
 
+##### Current Request
+| Request | Status |
+| --- | --- |
+| Improve Vibes title contrast, make inward Warp stars shrink at center, extend Fractal Tree growth with orbiting particles, add Touching Grass hand shadow, and accelerate held Crank Blocks movement. | Done |
+
 ##### Build Pipeline
 | Request | Status |
 | --- | --- |

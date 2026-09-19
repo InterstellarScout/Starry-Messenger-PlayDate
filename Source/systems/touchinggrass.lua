@@ -20,6 +20,7 @@ local HAND_CRANK_LIFT_STEP <const> = 0.008
 local BLADE_UPDATES_PER_SECOND <const> = 40
 local HAND_HIDE_DELAY_SECONDS <const> = 5
 local HAND_HIDDEN_LIFT_THRESHOLD <const> = 0.97
+local HAND_LIFT_PIXELS <const> = 14
 local WIND_MIN_SECONDS <const> = 10
 local WIND_MAX_SECONDS <const> = 20
 local WIND_DURATION_SECONDS <const> = 4
@@ -485,7 +486,7 @@ function TouchingGrass:drawHand()
     end
 
     local x = roundToInt(self.handX)
-    local liftPixels = roundToInt((self.handLift or 0) * 14)
+    local liftPixels = roundToInt((self.handLift or 0) * HAND_LIFT_PIXELS)
     local y = roundToInt(self.handY - liftPixels)
     gfx.fillCircleAtPoint(x, y, 9)
     gfx.drawCircleAtPoint(x, y, HAND_RADIUS)
@@ -499,5 +500,17 @@ end
 
 function TouchingGrass:draw()
     self:drawGrass()
+    -- The shadow remains on the grass plane, making its separation from the
+    -- hand exactly match the hand's lift distance.
+    if not self.handHidden then
+        gfx.setColor(gfx.kColorBlack)
+        local shadowRadius = math.max(3, 9 - roundToInt((self.handLift or 0) * 4))
+        gfx.fillEllipseInRect(
+            roundToInt(self.handX - shadowRadius),
+            roundToInt(self.handY - math.max(2, shadowRadius * 0.35)),
+            shadowRadius * 2,
+            math.max(3, roundToInt(shadowRadius * 0.7))
+        )
+    end
     self:drawHand()
 end

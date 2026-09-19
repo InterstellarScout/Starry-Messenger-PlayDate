@@ -21,6 +21,8 @@ local BOARD_Y <const> = 28
 local CRANK_STEP <const> = 18
 local ALLOW_UP_MOVE <const> = CRANK_BLOCKS_CONFIG.allowUpMove ~= false
 local SAVE_KEY <const> = "crankblocks_stats"
+local HOLD_INITIAL_DELAY <const> = 10
+local HOLD_MAX_INTERVAL <const> = 1
 
 local SHAPES <const> = {
     { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } },
@@ -55,6 +57,9 @@ function CrankBlocks.new(width, height, options)
     self.sessionBlocksDropped = 0
     self.statusMessage = nil
     self.statusFrames = 0
+    self.heldDirection = nil
+    self.heldDirectionFrames = 0
+    self.heldMoveTimer = 0
     self:loadStats()
     self:spawnPiece()
     return self
@@ -204,16 +209,40 @@ function CrankBlocks:applyCrank(change)
     end
 end
 
-function CrankBlocks:handleDirectionalInput(leftPressed, rightPressed, upPressed, downPressed)
-    if leftPressed then
-        self:move(-1, 0)
-    elseif rightPressed then
-        self:move(1, 0)
+function CrankBlocks:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHeld)
+    local direction = nil
+    if leftHeld then
+        direction = { -1, 0, "left" }
+    elseif rightHeld then
+        direction = { 1, 0, "right" }
+    elseif downHeld then
+        direction = { 0, 1, "down" }
+    elseif upHeld and ALLOW_UP_MOVE then
+        direction = { 0, -1, "up" }
     end
-    if upPressed and ALLOW_UP_MOVE then
-        self:move(0, -1)
-    elseif downPressed then
-        self:move(0, 1)
+
+    if direction == nil then
+        self.heldDirection = nil
+        self.heldDirectionFrames = 0
+        self.heldMoveTimer = 0
+        return
+    end
+
+    if self.heldDirection ~= direction[3] then
+        self.heldDirection = direction[3]
+        self.heldDirectionFrames = 0
+        self.heldMoveTimer = 0
+        self:move(direction[1], direction[2])
+        return
+    end
+
+    self.heldDirectionFrames = self.heldDirectionFrames + 1
+    local progress = math.min(1, self.heldDirectionFrames / 45)
+    local interval = math.max(HOLD_MAX_INTERVAL, math.floor(HOLD_INITIAL_DELAY * (1 - (progress * progress))))
+    self.heldMoveTimer = self.heldMoveTimer + 1
+    if self.heldMoveTimer >= interval then
+        self.heldMoveTimer = 0
+        self:move(direction[1], direction[2])
     end
 end
 

@@ -1241,7 +1241,12 @@ function Starfield:updateSmoothWarpSpeed()
         local depthSizeBoost = clamp((1.26 - z) / 1.18, 0, 1)
         local centerSizeBoost = clamp(1 - (distanceSquared / WARP_SMOOTH_CENTER_SIZE_RADIUS_SQUARED), 0, 1)
         local styleSizeBoost = self.warpStyleDifferentSizes and centerSizeBoost or 0
-        local sizeBoost = speed < 0 and math.max(centerSizeBoost, styleSizeBoost) or math.max(depthSizeBoost, centerSizeBoost * 0.55, styleSizeBoost)
+        -- Inward travel must shrink toward the center. The previous shared
+        -- center boost made inward stars swell just before they disappeared.
+        local inwardOuterBoost = clamp(distanceSquared / (WARP_SMOOTH_CENTER_SIZE_RADIUS_SQUARED * 9), 0, 1)
+        local sizeBoost = speed < 0
+            and math.max(inwardOuterBoost * 0.55, styleSizeBoost * inwardOuterBoost)
+            or math.max(depthSizeBoost, centerSizeBoost * 0.55, styleSizeBoost)
         star.size = math.max(1, math.floor(((star.baseSize or 1) + (sizeBoost * 4)) + 0.5))
 
         if respawned then
