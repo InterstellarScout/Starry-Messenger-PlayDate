@@ -104,9 +104,8 @@ function ControlHelp.getEntrySpec(viewId, modeId)
     elseif viewId == "starrytop" then
         return buildSpec("Starry Top Controls", {
             "Crank: step center rotation through 3, 2, 1, 0.9 down to 0 and into reverse, then continue faster without a cap.",
-            "Left/Right: decrease or increase the separate warp speed.",
-            "Up/Down: move through the same rotating stars forward or backward using the current warp speed.",
-            "A: lock or unlock controls while keeping the current motion running.",
+            "Up/Down: start outward or inward star motion; hold to accelerate.",
+            "A: stop the star motion at zero while keeping crank rotation.",
             "B: return to title."
         })
     elseif viewId == "vibes" then

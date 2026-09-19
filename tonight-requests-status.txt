@@ -8,6 +8,7 @@
 | Add Snake God Mode and optional 3-6 second NPC Auto respawn; reorganize root folders; finish the listed Space Miner, Bubble Pop, Wacky, GIF, Duck, RC Arena, and Snake updates. | Done |
 | Restore slot-machine browsing for title folders/games; place the arc-style neighbor layout on each title's Left/Right option picker. | Done |
 | Restore Saoirse and the Ducks, show four Text Viewer titles at once, and defer reader parsing until a title is opened. | Done |
+| Align selected title options with normal title formatting and add Starry Top Up/Down speed with A-stop behavior. | Done |
 | Derive implementation directives and a family-only companion transcript from the supplied Playdate verbal suggestions. | Done |
 | Add the supplied Alan Watts “Form and Void” notes and transcript to Text Viewer. | Done |
 | Consolidate the supplied Alan Watts excerpts into a cleaned Text Viewer entry and Markdown export. | Done |

@@ -18,7 +18,9 @@ local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
 
 local SPIN_CRANK_STEP_DEGREES <const> = 18
 local DEFAULT_SPIN_SPEED <const> = 0
-local WARP_SPEED_STEP <const> = 1
+local WARP_SPEED_TAP <const> = 0.6
+local WARP_SPEED_HOLD_ACCELERATION <const> = 0.035
+local WARP_SPEED_HOLD_MAX_ACCELERATION <const> = 0.22
 local CIRCULAR_SPAWN_MARGIN <const> = 8
 
 local SPIN_SPEED_STEPS <const> = {
@@ -58,6 +60,7 @@ function StarryTop.new(width, height, options)
     self.spinSpeed = SPIN_SPEED_STEPS[self.spinSpeedIndex] or DEFAULT_SPIN_SPEED
     self.warpSpeed = 0
     self.warpDirection = 0
+    self.verticalHoldFrames = 0
     self.crankStepAccumulator = 0
     self.controlsLocked = false
     return self
@@ -140,26 +143,28 @@ function StarryTop:handlePrimaryAction()
     if self.preview then
         return
     end
-    self.controlsLocked = not self.controlsLocked
+    self.warpSpeed = 0
+    self.warpDirection = 0
+    self.verticalHoldFrames = 0
 end
 
-function StarryTop:handleDirectionalInput(_leftHeld, _rightHeld, upHeld, downHeld, leftJustPressed, rightJustPressed)
+function StarryTop:handleDirectionalInput(_leftHeld, _rightHeld, upHeld, downHeld, _leftJustPressed, _rightJustPressed)
     if self.preview or self.controlsLocked then
         return
     end
 
-    if leftJustPressed then
-        self.warpSpeed = math.max(0, (self.warpSpeed or 0) - WARP_SPEED_STEP)
-    end
-    if rightJustPressed then
-        self.warpSpeed = (self.warpSpeed or 0) + WARP_SPEED_STEP
-    end
-
     if upHeld and not downHeld then
+        self.verticalHoldFrames = (self.verticalHoldFrames or 0) + 1
+        local acceleration = WARP_SPEED_TAP + math.min(WARP_SPEED_HOLD_MAX_ACCELERATION, self.verticalHoldFrames * WARP_SPEED_HOLD_ACCELERATION)
+        self.warpSpeed = (self.warpSpeed or 0) + acceleration
         self.warpDirection = 1
     elseif downHeld and not upHeld then
+        self.verticalHoldFrames = (self.verticalHoldFrames or 0) + 1
+        local acceleration = WARP_SPEED_TAP + math.min(WARP_SPEED_HOLD_MAX_ACCELERATION, self.verticalHoldFrames * WARP_SPEED_HOLD_ACCELERATION)
+        self.warpSpeed = (self.warpSpeed or 0) - acceleration
         self.warpDirection = -1
     else
+        self.verticalHoldFrames = 0
         self.warpDirection = 0
     end
 end
@@ -169,7 +174,7 @@ function StarryTop:update()
         self.warpDirection = 0
     end
 
-    self.field.speed = (self.warpSpeed or 0) * (self.warpDirection or 0)
+    self.field.speed = self.warpSpeed or 0
     self.field.screenAngle = (self.field.screenAngle or 0) + (self.spinSpeed or 0)
     self.field.screenAngleRadians = math.rad(self.field.screenAngle)
     self.field.screenCos = math.cos(self.field.screenAngleRadians)
@@ -184,7 +189,7 @@ function StarryTop:drawHud()
 
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawText("Starry Top", 10, 8)
-    gfx.drawText(string.format("Spin %.1f  Warp %d Dir %d%s", self.spinSpeed or 0, self.warpSpeed or 0, self.warpDirection or 0, self.controlsLocked and "  Locked" or ""), 10, 24)
+    gfx.drawText(string.format("Spin %.1f  Warp %.1f  A: stop", self.spinSpeed or 0, self.warpSpeed or 0), 10, 24)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
