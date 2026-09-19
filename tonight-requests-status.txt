@@ -4,6 +4,7 @@
 | Request | Status |
 | --- | --- |
 | Improve Vibes title contrast, make inward Warp stars shrink at center, extend Fractal Tree growth with orbiting particles, add Touching Grass hand shadow, and accelerate held Crank Blocks movement. | Done |
+| Derive implementation directives and a family-only companion transcript from the supplied Playdate verbal suggestions. | Done |
 
 ##### Build Pipeline
 | Request | Status |
