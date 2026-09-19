@@ -274,7 +274,6 @@ function CrankBlocks:draw()
     gfx.setColor(gfx.kColorBlack)
     gfx.fillRect(0, 0, self.width, self.height)
     gfx.setColor(gfx.kColorWhite)
-    gfx.drawRect(BOARD_X - 2, BOARD_Y - 2, COLS * CELL + 4, ROWS * CELL + 4)
 
     for y = 1, ROWS do
         for x = 1, COLS do
