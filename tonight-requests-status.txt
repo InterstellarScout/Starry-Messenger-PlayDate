@@ -12,7 +12,7 @@
 | Rename Snake, extend Crank Blocks to the screen bottom with fast held-Down movement, and correct Touching Grass hand/shadow/settling. | Done |
 | Replace Duck Game's oversized oval with an inset rounded pond and reactive shoreline grass. | Done |
 | Make Duck Game nests bumpable relocating objects and make B return from Orbital Defense. | Done |
-| Convert Peep-And-The-Big-Wide-World-The-Origin-Trimmed.mp4 into the Duck GIF category with audio. | Waiting for source video |
+| Convert Peep-And-The-Big-Wide-World-The-Origin-Trimmed.mp4 into the Duck GIF category with audio. | Done |
 | Derive implementation directives and a family-only companion transcript from the supplied Playdate verbal suggestions. | Done |
 | Add the supplied Alan Watts “Form and Void” notes and transcript to Text Viewer. | Done |
 | Consolidate the supplied Alan Watts excerpts into a cleaned Text Viewer entry and Markdown export. | Done |

@@ -152,6 +152,16 @@ GIF_CATALOG = {
         category = "Duck"
     },
     {
+        label = "Peep and the Big Wide World - The Origin",
+        path = "gifs/Duck/peep-and-the-big-wide-world-the-origin-trimmed",
+        width = 400,
+        height = 240,
+        frameCount = 48,
+        fps = 1,
+        category = "Duck",
+        audioKey = "peep-and-the-big-wide-world-the-origin-trimmed"
+    },
+    {
         label = "Duck Ducks GIF - Duck Ducks Confused",
         path = "gifs/Duck/duck-ducks-gif-duck-ducks-confused",
         width = 182,
