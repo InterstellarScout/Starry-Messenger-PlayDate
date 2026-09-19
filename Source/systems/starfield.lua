@@ -482,6 +482,10 @@ function Starfield:seedSmoothWarpStar(star, randomizeDepth)
     star.screenX = self.centerX
     star.screenY = self.centerY
     star.trailVisible = false
+    -- Starry Tunnel steering belongs to each star, not the entire screen.
+    -- A fresh star therefore always begins on the normal radial path.
+    star.tunnelCurveX = 0
+    star.tunnelCurveY = 0
 end
 
 function Starfield:buildSmoothWarpStars(count)
@@ -1187,14 +1191,17 @@ function Starfield:updateSmoothWarpSpeed()
     self:ensureSmoothWarpStars()
     self.smoothWarpSpeed = (self.smoothWarpSpeed or 0) + (((self.speed or 0) - (self.smoothWarpSpeed or 0)) * 0.18)
 
-    local steerScale = self.warpStyleStarryTunnel and 0.42 or 0.28
+    local steerScale = self.warpStyleStarryTunnel and 0 or 0.28
     local targetDriftX
     local targetDriftY
     if self.warpStyleStarryTunnel then
         local inputX = self.starryTunnelInputLocked and (self.starryTunnelLockedX or 0) or (self.starryTunnelInputX or 0)
         local inputY = self.starryTunnelInputLocked and (self.starryTunnelLockedY or 0) or (self.starryTunnelInputY or 0)
-        targetDriftX = -inputX * steerScale
-        targetDriftY = -inputY * steerScale
+        -- Do not shift the whole field.  Bend each active star instead, so
+        -- holding a direction makes a real tunnel curve and releasing it
+        -- leaves newly spawned stars on their ordinary straight trajectory.
+        targetDriftX = 0
+        targetDriftY = 0
     else
         local directionX, directionY = vectorFromAngle(self.directionAngle)
         targetDriftX = directionX * steerScale
@@ -1215,6 +1222,14 @@ function Starfield:updateSmoothWarpSpeed()
         star.prevScreenY = star.screenY or centerY
         star.z = (star.z or 1) - (travel * (star.depthSpeed or 1))
 
+        if self.warpStyleStarryTunnel then
+            local inputX = self.starryTunnelInputLocked and (self.starryTunnelLockedX or 0) or (self.starryTunnelInputX or 0)
+            local inputY = self.starryTunnelInputLocked and (self.starryTunnelLockedY or 0) or (self.starryTunnelInputY or 0)
+            local curveScale = 0.006 + (math.min(8, math.abs(speed)) * 0.0009)
+            star.tunnelCurveX = (star.tunnelCurveX or 0) - (inputX * curveScale)
+            star.tunnelCurveY = (star.tunnelCurveY or 0) - (inputY * curveScale)
+        end
+
         local respawned = false
         if star.z <= 0.08 or star.z > 1.26 then
             self:seedSmoothWarpStar(star, speed < 0)
@@ -1223,16 +1238,16 @@ function Starfield:updateSmoothWarpSpeed()
 
         local z = math.max(0.08, star.z or 1)
         local perspective = 1 / z
-        local screenX = centerX + (((star.x or 0) + (self.smoothWarpDriftX or 0)) * perspective * 118)
-        local screenY = centerY + (((star.y or 0) + (self.smoothWarpDriftY or 0)) * perspective * 86)
+        local screenX = centerX + (((star.x or 0) + (star.tunnelCurveX or 0) + (self.smoothWarpDriftX or 0)) * perspective * 118)
+        local screenY = centerY + (((star.y or 0) + (star.tunnelCurveY or 0) + (self.smoothWarpDriftY or 0)) * perspective * 86)
 
         if screenX < -8 or screenX > self.width + 8 or screenY < -8 or screenY > self.height + 8 then
             self:seedSmoothWarpStar(star, speed < 0)
             respawned = true
             z = math.max(0.08, star.z or 1)
             perspective = 1 / z
-            screenX = centerX + (((star.x or 0) + (self.smoothWarpDriftX or 0)) * perspective * 118)
-            screenY = centerY + (((star.y or 0) + (self.smoothWarpDriftY or 0)) * perspective * 86)
+            screenX = centerX + (((star.x or 0) + (star.tunnelCurveX or 0) + (self.smoothWarpDriftX or 0)) * perspective * 118)
+            screenY = centerY + (((star.y or 0) + (star.tunnelCurveY or 0) + (self.smoothWarpDriftY or 0)) * perspective * 86)
         end
 
         local distanceX = screenX - centerX

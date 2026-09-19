@@ -1309,7 +1309,6 @@ function TitleScene:drawMenu()
 
             if math.abs(offset) < 0.35 then
                 if hasModes then
-                    self:drawScaledText(item.label, self.largeFont or self.smallFont, "view", 200, y - 27, TITLE_SIDE_SCALE)
                     self:drawModeCarousel(selectedView, y)
                 else
                     self:drawScaledText(item.label, self.largeFont or self.smallFont, "view", x, y + 8, TITLE_CENTER_SCALE)
