@@ -550,5 +550,26 @@ Not too long ago, people believed the earth was flat. They knew it to be true wi
 
 In the same way, it will one day be a matter of common sense to most people that we’re all one with the universe. It’ll be so simple. And maybe when that happens, we’ll handle our technology with better sense. Maybe we’ll act with love toward our environment, instead of hate.
 ]==]
+    },
+    {
+        id = "saoirse-and-the-ducks",
+        source = [==[
+Saoirse and the Ducks
+A little pond story for bedtime.
+
+Saoirse stood at the edge of the pond just as the morning mist began to lift.
+
+One duck paddled past. Then another duck peeked out from the reeds. Soon there were ducks everywhere: little ducks, tall ducks, quiet ducks, and one very splashy duck.
+
+"Where are you all going?" Saoirse asked.
+
+"To the sunny side of the pond," said the oldest duck. "There is room for everyone there."
+
+So Saoirse walked along the shore while the ducks swam beside her. Whenever a duckling fell behind, the others made a little circle and waited.
+
+At the sunny side, the ducks floated together in a soft, wobbly line. Saoirse counted them once, then twice, and laughed because another duck had joined while she was counting.
+
+The pond sparkled. The ducks quacked goodnight to the morning. And Saoirse knew that tomorrow there would be room for every duck again.
+]==]
     }
 }

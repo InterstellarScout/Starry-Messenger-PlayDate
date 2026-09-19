@@ -105,7 +105,7 @@ local function wrapText(text, maxWidth)
     return lines
 end
 
-local function buildDocument(rawDocument)
+local function parseDocument(rawDocument)
     local source = rawDocument.source or ""
     local lines = {}
     for line in (source .. "\n"):gmatch("(.-)\n") do
@@ -157,11 +157,27 @@ local function buildDocument(rawDocument)
     return doc
 end
 
+local function buildDocumentStub(rawDocument)
+    local source = rawDocument.source or ""
+    local title, description = source:match("^([^\n]*)\n?([^\n]*)")
+    return {
+        id = rawDocument.id,
+        title = title ~= "" and title or rawDocument.title or "Untitled",
+        description = description or rawDocument.description or "",
+        rawDocument = rawDocument,
+        loaded = false,
+        properties = {},
+        bodyLines = {}
+    }
+end
+
 local function buildDocuments()
     local documents = {}
     local rawDocuments = TEXT_VIEWER_DOCUMENTS or {}
     for i = 1, #rawDocuments do
-        documents[#documents + 1] = buildDocument(rawDocuments[i])
+        -- Keep the reader body unparsed until A opens the document.  Large files
+        -- should never make browsing a title in the library feel slow.
+        documents[#documents + 1] = buildDocumentStub(rawDocuments[i])
     end
     return documents
 end
@@ -202,7 +218,6 @@ function TextViewerEffect.new(width, height, options)
     self.readerLines = {}
     self.totalReaderHeight = 0
     self.previewPulse = 0
-    self:rebuildReader()
     return self
 end
 
@@ -260,8 +275,20 @@ function TextViewerEffect:getCurrentDocument()
     return self.documents[self.index]
 end
 
-function TextViewerEffect:rebuildReader()
+function TextViewerEffect:ensureCurrentDocumentLoaded()
     local doc = self:getCurrentDocument()
+    if doc ~= nil and not doc.loaded then
+        local loadedDocument = parseDocument(doc.rawDocument or doc)
+        loadedDocument.rawDocument = doc.rawDocument
+        loadedDocument.loaded = true
+        self.documents[self.index] = loadedDocument
+        doc = loadedDocument
+    end
+    return doc
+end
+
+function TextViewerEffect:rebuildReader()
+    local doc = self:ensureCurrentDocumentLoaded()
     self.readerLines = {}
     self.totalReaderHeight = 0
     if doc == nil then
@@ -347,7 +374,6 @@ function TextViewerEffect:setIndex(index)
     self.scrollY = 0
     self.cursorLineIndex = 1
     self.crankAccumulator = 0
-    self:rebuildReader()
 end
 
 function TextViewerEffect:stepDocument(direction)
@@ -453,6 +479,7 @@ function TextViewerEffect:handlePrimaryAction()
         self.view = VIEW_READER
         self.scrollY = 0
         self.cursorLineIndex = 1
+        self:ensureCurrentDocumentLoaded()
         self:rebuildReader()
     else
         local line = self:getCursorLine()
@@ -477,7 +504,9 @@ function TextViewerEffect:handleBack()
     if self.view == VIEW_READER then
         self.view = VIEW_LIBRARY
         self.scrollY = 0
-        self:rebuildReader()
+        self.readerLines = {}
+        self.totalReaderHeight = 0
+        self.maxScrollY = 0
         return true
     end
     return false
@@ -531,7 +560,6 @@ function TextViewerEffect:drawPanel()
 end
 
 function TextViewerEffect:drawLibrary()
-    local doc = self:getCurrentDocument()
     self:setDrawingFont(self.defaultFont)
     self:drawPanel()
 
@@ -539,19 +567,30 @@ function TextViewerEffect:drawLibrary()
     gfx.drawTextAligned("Text Viewer", 200, 18, kTextAlignment.center)
     gfx.drawLine(22, 39, 378, 39)
 
-    if doc == nil then
+    if #self.documents == 0 then
         gfx.drawTextAligned("No documents found.", 200, 112, kTextAlignment.center)
         return
     end
 
-    gfx.fillRoundRect(22, 62, 356, 84, 6)
-    gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-    gfx.drawTextInRect(doc.title, 32, 74, 336, 20)
-    gfx.drawTextInRect(doc.description, 32, 98, 336, 30)
-    gfx.drawTextAligned(string.format("%d / %d", self.index, #self.documents), 366, 130, kTextAlignment.right)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
-
-    gfx.drawTextInRect("A open   Crank or D-pad choose   B title", 32, 180, 336, 36)
+    local visibleCount = 4
+    local firstIndex = clamp(self.index - (visibleCount - 1), 1, math.max(1, #self.documents - visibleCount + 1))
+    for row = 1, visibleCount do
+        local documentIndex = firstIndex + row - 1
+        local doc = self.documents[documentIndex]
+        if doc ~= nil then
+            local y = 52 + ((row - 1) * 34)
+            if documentIndex == self.index then
+                gfx.fillRoundRect(18, y - 2, 364, 28, 4)
+                gfx.setImageDrawMode(gfx.kDrawModeInverted)
+            end
+            gfx.drawTextInRect(doc.title, 28, y + 2, 310, 16)
+            if documentIndex == self.index then
+                gfx.setImageDrawMode(gfx.kDrawModeCopy)
+            end
+        end
+    end
+    gfx.drawTextAligned(string.format("%d / %d", self.index, #self.documents), 370, 190, kTextAlignment.right)
+    gfx.drawTextInRect("A open   Crank or D-pad choose   B title", 24, 205, 352, 18, nil, nil, kTextAlignment.center)
 end
 
 function TextViewerEffect:drawReader()
