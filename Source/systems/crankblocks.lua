@@ -14,10 +14,10 @@ CrankBlocks = {}
 CrankBlocks.__index = CrankBlocks
 
 local COLS <const> = 10
-local ROWS <const> = 18
+local ROWS <const> = 21
 local CELL <const> = 10
 local BOARD_X <const> = 150
-local BOARD_Y <const> = 28
+local BOARD_Y <const> = 30
 local CRANK_STEP <const> = 18
 local ALLOW_UP_MOVE <const> = CRANK_BLOCKS_CONFIG.allowUpMove ~= false
 local SAVE_KEY <const> = "crankblocks_stats"
@@ -237,8 +237,10 @@ function CrankBlocks:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHel
     end
 
     self.heldDirectionFrames = self.heldDirectionFrames + 1
-    local progress = math.min(1, self.heldDirectionFrames / 45)
-    local interval = math.max(HOLD_MAX_INTERVAL, math.floor(HOLD_INITIAL_DELAY * (1 - (progress * progress))))
+    local isDown = direction[3] == "down"
+    local progress = math.min(1, self.heldDirectionFrames / (isDown and 18 or 45))
+    local initialDelay = isDown and 3 or HOLD_INITIAL_DELAY
+    local interval = math.max(HOLD_MAX_INTERVAL, math.floor(initialDelay * (1 - (progress * progress))))
     self.heldMoveTimer = self.heldMoveTimer + 1
     if self.heldMoveTimer >= interval then
         self.heldMoveTimer = 0

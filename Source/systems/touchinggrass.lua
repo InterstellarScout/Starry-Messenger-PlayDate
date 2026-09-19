@@ -33,6 +33,8 @@ local ACTIVE_VELOCITY_EPSILON <const> = 0.015
 local GRID_CELL_SIZE <const> = 32
 local CACHE_REDRAW_PADDING <const> = 34
 local LEAN_DIRTY_EPSILON <const> = 0.003
+local INTERACTED_SETTLE_RESPONSE <const> = 0.025
+local INTERACTED_SETTLE_DAMPING <const> = 0.86
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then
@@ -62,6 +64,7 @@ function TouchingGrass.new(width, height, options)
     self.handLift = 0
     self.handLiftTarget = 0
     self.phase = 0
+    self.frame = 0
     self.blades = {}
     self.gridCells = {}
     self.gridColumns = math.max(1, math.ceil(width / GRID_CELL_SIZE))
@@ -238,10 +241,10 @@ function TouchingGrass:getEffectiveRepelRadius()
     return LIFTED_RADIUS + ((REPEL_RADIUS - LIFTED_RADIUS) * (1 - (self.handLift or 0)))
 end
 
-function TouchingGrass:updateBladeToward(blade, targetLean)
+function TouchingGrass:updateBladeToward(blade, targetLean, response, damping)
     local previousLean = blade.lean or 0
     self:markDirtyAroundBlade(blade)
-    blade.velocity = ((blade.velocity or 0) + ((targetLean - (blade.lean or 0)) * 0.18)) * 0.72
+    blade.velocity = ((blade.velocity or 0) + ((targetLean - (blade.lean or 0)) * (response or 0.18))) * (damping or 0.72)
     blade.lean = clamp((blade.lean or 0) + blade.velocity, -1.4, 1.4)
     blade.active = math.abs(blade.lean or 0) > ACTIVE_LEAN_EPSILON
         or math.abs(blade.velocity or 0) > ACTIVE_VELOCITY_EPSILON
@@ -259,6 +262,7 @@ function TouchingGrass:updateInteractedBlade(blade, dx, distance, radius)
     local push = (1 - (distance / radius)) * 1.45
     self:updateBladeToward(blade, (dx / distance) * push)
     blade.active = true
+    blade.wasInteracted = true
     blade.lastInteractedFrame = self.frame
     self.activeBladeIndexes[blade.index] = true
 end
@@ -283,7 +287,12 @@ end
 function TouchingGrass:updateAmbientBlade(blade)
     local targetLean = math.sin(self.phase + blade.seed) * 0.08
     targetLean = targetLean + self:getWindLean(blade)
-    self:updateBladeToward(blade, targetLean)
+    if blade.wasInteracted then
+        -- A touched blade eases back over several seconds instead of snapping upright.
+        self:updateBladeToward(blade, targetLean, INTERACTED_SETTLE_RESPONSE, INTERACTED_SETTLE_DAMPING)
+    else
+        self:updateBladeToward(blade, targetLean)
+    end
 end
 
 function TouchingGrass:updateBudgetedAmbientBlades()
@@ -389,6 +398,7 @@ function TouchingGrass:updateHandVisibility()
 end
 
 function TouchingGrass:update()
+    self.frame = (self.frame or 0) + 1
     self.phase = self.phase + 0.045
     self.handLift = self.handLift + ((self.handLiftTarget - self.handLift) * HAND_LIFT_SPEED)
     self:updateWind()
@@ -488,6 +498,7 @@ function TouchingGrass:drawHand()
     local x = roundToInt(self.handX)
     local liftPixels = roundToInt((self.handLift or 0) * HAND_LIFT_PIXELS)
     local y = roundToInt(self.handY - liftPixels)
+    gfx.setColor(gfx.kColorWhite)
     gfx.fillCircleAtPoint(x, y, 9)
     gfx.drawCircleAtPoint(x, y, HAND_RADIUS)
     gfx.setColor(gfx.kColorBlack)
@@ -504,13 +515,10 @@ function TouchingGrass:draw()
     -- hand exactly match the hand's lift distance.
     if not self.handHidden then
         gfx.setColor(gfx.kColorBlack)
+        gfx.setDitherPattern(0.32, gfx.image.kDitherTypeBayer8x8)
         local shadowRadius = math.max(3, 9 - roundToInt((self.handLift or 0) * 4))
-        gfx.fillEllipseInRect(
-            roundToInt(self.handX - shadowRadius),
-            roundToInt(self.handY - math.max(2, shadowRadius * 0.35)),
-            shadowRadius * 2,
-            math.max(3, roundToInt(shadowRadius * 0.7))
-        )
+        gfx.fillCircleAtPoint(roundToInt(self.handX), roundToInt(self.handY), shadowRadius)
+        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     end
     self:drawHand()
 end

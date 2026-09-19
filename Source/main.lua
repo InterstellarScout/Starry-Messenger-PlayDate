@@ -54,7 +54,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.10"
+local APP_VERSION <const> = "0.2.11"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -216,7 +216,7 @@ local SINGLE_VIEW_ITEMS <const> = {
     { id = "crankblocks", label = "Crank Blocks" },
     {
         id = "snake",
-        label = "Snake",
+        label = "Crank Snake",
         modes = {
             SnakeGame.MODE_STANDARD,
             SnakeGame.MODE_COMPETITIVE
