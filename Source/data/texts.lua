@@ -443,6 +443,112 @@ We say: “Crystal clear.”
 Nothing is what brings something into focus.
 
 And this nothingness, symbolized by the crystal, is your own eyeball, your own consciousness, and the clear space in which all the stars have freedom to be seen.
+
+#### Story: The Body Is Omnipotent
+
+When people in our culture slip into a certain state of consciousness and proclaim that they’re God, we call these people delusional or insane. It happens to people here and there. In the same way people can catch the flu or measles, you can catch this way of thinking and believe you’re God.
+
+And when you catch it, your interpretation of the experience all depends on your background. For example, if you think you’re the God of popular Christianity—God as king, as the political head of the universe—you might expect omniscient powers and tell everyone to bow down and worship you.
+
+But if you live in a Hindu culture and suddenly tell your friends, “Hey, I’m God!” they won’t denounce you as insane as much as they’ll congratulate you. “Congrats! You finally found out!” Because the Hindu idea of God is not autocratic.
+
+Shiva has ten arms. How do you use ten arms? It’s hard enough to use two. Try playing the organ—you need both hands for the keys, both feet for the pedals, and you have to play all these different rhythms. It’s tricky.
+
+But, actually, we’re masters at this. How do you grow each hair? How do you beat your heart? How do you digest your food? And how do you do all this without thinking about it?
+
+In your very body, you are omnipotent in the truest sense of the word. You are able to do an infinite number of necessary tasks without giving them the slightest thought.
+
+#### Story: Birth, Death, and One Life at a Time
+
+Let’s connect this with the problem of birth and death. A lot of people are afraid that when they die, they’re going to have to put up with everlasting nonexistence, but that’s not actually an experience.
+
+When I was a child, I often imagined what it would be like to go to sleep and never wake up. But if you think about that long enough, another question will come to you. That is, what was it like to wake up after having never gone to sleep? I mean, what was it like to wake up when you were born?
+
+See, you can’t have the experience of nothing, so after you’re dead, the only thing that can happen is the same experience that happened when you were born.
+
+After people die, other people are born, and they’re all you. It’s just that you can only experience one life at a time. Wherever beings exist throughout all the galaxies, you are all of them—when they come into being, that’s you coming into being.
+
+You don’t remember the past in the same way that you don’t have to think about how to make your thyroid work. You don’t have to know how to shine the sun, you just do it, just as you breathe without thinking about it.
+
+Doesn’t this astonish you? That you’re this fantastically complex thing, that you’re performing all these seemingly impossible functions without any education in how to do it? You’re a miracle.
+
+#### Story: The Ego as a Troubleshooter
+
+The point is that from a strictly physical, scientific standpoint, this organism is a continuous energy with everything else that’s going on. If I am my foot, I am the sun.
+
+And yet we persist with our little, partial view: “No, I’m just something in this body. I’m just this ego.” What a joke.
+
+The ego is nothing other than the focus of conscious attention. It’s like radar on a ship—it’s a troubleshooter. Conscious attention is a designed function of the brain to scan the environment for trouble.
+
+And if you identify yourself as the troubleshooter, you define yourself as living in a perpetual state of anxiety.
+
+#### Story: Harmony Beyond Discord
+
+The moment you cease to identify with the ego and become aware that you are the whole organism, you realize how harmonious it all is. Your organism is a miracle of harmony.
+
+All these things function together—even minuscule creatures fighting each other in your bloodstream and eating each other up. If they weren’t doing that, you wouldn’t be healthy.
+
+What appears to be discord on one level is harmony at a higher level. All the discord in your life and in the lives of others—at a higher level of the universe, all of that is healthy and harmonious.
+
+Everything you are and do at that higher level is magnificent and free of blemish, just like patterns in waves, markings in marble, or the rippling movements of a cat. The world is really okay, and it couldn’t be anything else. Otherwise, it couldn’t exist.
+
+#### Story: Life Is Pattern
+
+Physical and spiritual are out-of-date categories. It’s all a process. There isn’t stuff on one hand and form on the other—it’s just pattern. Life is pattern; it’s a dance of energy.
+
+I don’t claim to have any private revelations about this. I don’t have any mystical knowledge about any higher vibratory plane. All this is standing right in front of you. It’s just a question of how you look at it.
+
+When you realize this, the most extraordinary thing happens. Some people use the symbolism of God as a brilliant light, somehow veiled underneath all the forms you see. But the truth is actually funnier than that—you’re looking at the brilliant light right now.
+
+The experience you’re having right now—which you might call ordinary, everyday consciousness—is it. And when you find that out, you laugh yourself silly. That’s the great discovery.
+
+In other words, when you really start to see things and you look at an old paper cup, you realize that old paper cup is the brilliant light of the cosmos. Nothing could be brighter—ten thousand suns couldn’t be brighter.
+
+Actually, the source of light is in the eye. If there were no eyes to see the world, the sun would not be light. You evoke light out of the universe in the same way you evoke hardness out of wood by virtue of having soft skin. Wood is only hard in relation to soft skin. Your eardrum evokes sound out of the air.
+
+#### Story: There Is No Road to Here
+
+What if this moment—this one right now—is eternity? We have somehow convinced ourselves that this moment is ordinary, that we don’t feel very well, that we’re vaguely frustrated and worried, and that all this ought to change.
+
+But you don’t need to do anything at all. This is it. And you mustn’t try not to do anything either, because that’s still doing something.
+
+That’s why Zen teachers use shock treatment. Zen stories are full of teachers unexpectedly hitting their students, shouting at them, or surprising them in some way, because it’s that jolt that suddenly brings you here.
+
+And there’s no road to here, because you’re already here. It’s like the story of the American tourist in England who asks a yokel the way to Upper Tottenham. The yokel thinks about it and says, “Well, I do know where it is, but if I were you, I wouldn’t start from here.”
+
+So whether you ask how you can know God, or how you can attain nirvana, they’re the wrong questions. Why do you want nirvana? The fact that you want to attain it is the one thing preventing you from achieving it. You already have nirvana.
+
+#### Story: Waking Up Without Superpowers
+
+When you realize this, the distinction between voluntary and involuntary behavior disappears. The things you think are under your control and the things you think go on outside of you begin to feel exactly the same.
+
+At this point, if you don’t fully understand, you might go crazy in the sense of feeling you are God in some kind of Jehovah sense of the word—that is to say, that you actually have power over other people and can alter what they’re doing.
+
+It’s not that you discover omnipotence in some crude, literal kind of biblical way. If you actually think that you’re Jesus Christ and that everybody ought to fall down and worship you, then you have your wires crossed. You may have had an experience of realization, but you went astray—you didn’t know how to interpret it.
+
+But if you discover that you are God, you should also see that everybody else is, too.
+
+#### Story: The World Is Not Outside You
+
+We open our eyes and look around and think that everything we see is outside. It seems that way, because that’s how it feels in our head.
+
+But there’s this space behind the eyes where all this—people sitting around, the colors of the room—is appearing in the nervous system. What we see out there is actually a neurological experience.
+
+If you realize that—if it hits you as deeply true—then you might assume that all the external world is inside your skull. But you’ve got your wires crossed. You haven’t realized that your skull is in the external world. It’s inside you and you’re inside it. What kind of situation is this?
+
+#### Story: A New Common Sense
+
+Here’s what awakening really involves: a reexamination of our common sense. We have all these ideas built into us that seem unquestioned and obvious, and our speech reflects them. “Face the facts” is a common phrase, as if facts were something outside of us, as if life were something we encounter as foreigners.
+
+Our common sense has been rigged. That’s why we feel like strangers or aliens in this world, and that separation feels utterly plausible. It’s only because that’s how we’re accustomed to thinking.
+
+But when you really start questioning this and exploring other ideas, you see it ain’t necessarily so.
+
+When you question the basic assumptions that underlie our culture, you find you get a new kind of common sense, and it will become absolutely obvious to you that you are continuous with the universe.
+
+Not too long ago, people believed the earth was flat. They knew it to be true with all their hearts. But then people started sailing all the way around the world and flying from here to there, and we gradually got used to thinking of the earth as globular. We just got used to it.
+
+In the same way, it will one day be a matter of common sense to most people that we’re all one with the universe. It’ll be so simple. And maybe when that happens, we’ll handle our technology with better sense. Maybe we’ll act with love toward our environment, instead of hate.
 ]==]
     }
 }
