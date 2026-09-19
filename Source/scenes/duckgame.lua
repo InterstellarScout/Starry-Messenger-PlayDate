@@ -280,6 +280,10 @@ function DuckGameScene:getTargetGoal()
 end
 
 function DuckGameScene:getNestPosition(slot)
+    local nest = self.nests and self.nests[slot]
+    if nest ~= nil then
+        return nest.x, nest.y
+    end
     if self:isCenterNestMode() then
         return CENTER_NEST_X, CENTER_NEST_Y
     end
@@ -427,6 +431,7 @@ function DuckGameScene:resetMatch(modeId, localSlot)
     self.freeChicks = {}
     self.ripples = {}
     self.nestPixels = {}
+    self.nests = {}
     self.frame = 0
     self.state = "playing"
     self.winnerSlot = nil
@@ -444,6 +449,10 @@ function DuckGameScene:resetMatch(modeId, localSlot)
     for slot = 1, activeCount do
         self.activeSlots[#self.activeSlots + 1] = slot
         self.nestPixels[slot] = {}
+        local layout = SLOT_LAYOUT[slot]
+        self.nests[slot] = self:isCenterNestMode() and slot == 1
+            and { x = CENTER_NEST_X, y = CENTER_NEST_Y }
+            or { x = layout.nestX, y = layout.nestY }
         local controlKind = "remote"
         if modeId == "single" then
             controlKind = slot == self.localSlot and "local" or "bot"
@@ -515,9 +524,7 @@ function DuckGameScene:updateBotInput(player)
     local targetY = nil
 
     if #player.chicks > 0 then
-        local nest = SLOT_LAYOUT[player.slot]
-        targetX = nest.nestX
-        targetY = nest.nestY
+        targetX, targetY = self:getNestPosition(player.slot)
     else
         local nearestTrail = nil
         local nearestTrailDistanceSquared = math.huge
@@ -881,11 +888,33 @@ function DuckGameScene:stealTrailSegments()
     end
 end
 
+function DuckGameScene:relocateNest(slot)
+    local oldX, oldY = self:getNestPosition(slot)
+    local nextX, nextY = randomPondPoint()
+    for _ = 1, 12 do
+        local clear = true
+        for otherSlot, nest in pairs(self.nests or {}) do
+            if otherSlot ~= slot and squaredDistance(nextX, nextY, nest.x, nest.y) < ((NEST_RADIUS * 3) * (NEST_RADIUS * 3)) then
+                clear = false
+                break
+            end
+        end
+        if clear then
+            break
+        end
+        nextX, nextY = randomPondPoint()
+    end
+    self.nests[slot] = { x = nextX, y = nextY }
+    self.nestPixels[slot] = {}
+    self:addRipple(oldX, oldY, 5)
+    self:addRipple(nextX, nextY, 5)
+end
+
 function DuckGameScene:deliverChicks()
     for _, slot in ipairs(self.activeSlots) do
         local player = self.players[slot]
         local nestX, nestY = self:getNestPosition(slot)
-        if player ~= nil and squaredDistance(player.x, player.y, nestX, nestY) <= (NEST_RADIUS * NEST_RADIUS) then
+        if player ~= nil and squaredDistance(player.x, player.y, nestX, nestY) <= ((NEST_RADIUS + 4) * (NEST_RADIUS + 4)) then
             local startedDelivery = false
             for _, chick in ipairs(player.chicks) do
                 if chick.state ~= "delivering" then
@@ -896,6 +925,8 @@ function DuckGameScene:deliverChicks()
             if startedDelivery then
                 self:addRipple(nestX, nestY, 6)
             end
+            -- The nest is a bumpable object: it hops away after every contact.
+            self:relocateNest(slot)
         end
     end
 end
@@ -977,6 +1008,11 @@ function DuckGameScene:serializeState()
         end
     end
 
+    local nests = {}
+    for slot, nest in pairs(self.nests or {}) do
+        nests[slot] = { x = nest.x, y = nest.y }
+    end
+
     return {
         state = self.state,
         frame = self.frame,
@@ -987,6 +1023,7 @@ function DuckGameScene:serializeState()
         freeChicks = freeChicks,
         ripples = ripples,
         reeds = reeds,
+        nests = nests,
         nestPixels = nestPixels,
         targetScore = self:getTargetGoal()
     }
@@ -1235,8 +1272,13 @@ function DuckGameScene:drawTrail(chicks, slot, time)
     end
 end
 
-function DuckGameScene:drawNest(slot, score, pixels)
-    local x, y = self:getNestPosition(slot)
+function DuckGameScene:drawNest(slot, score, pixels, nest)
+    local x, y
+    if nest ~= nil then
+        x, y = nest.x, nest.y
+    else
+        x, y = self:getNestPosition(slot)
+    end
     gfx.setColor(gfx.kColorBlack)
     for index = 0, 5 do
         local offset = -10 + (index * 4)
@@ -1361,7 +1403,7 @@ function DuckGameScene:drawGameState(state)
                 break
             end
         end
-        self:drawNest(slot, score, state.nestPixels and state.nestPixels[slot] or nil)
+        self:drawNest(slot, score, state.nestPixels and state.nestPixels[slot] or nil, state.nests and state.nests[slot] or nil)
     end
 
     for _, chick in ipairs(state.freeChicks or {}) do

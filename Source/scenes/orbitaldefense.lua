@@ -383,7 +383,7 @@ function OrbitalDefenseScene:readLocalControls()
 
     local crankChange = pd.getCrankChange()
     local laserOn = pd.buttonIsPressed(pd.kButtonA)
-    local missileTriggered = pd.buttonJustPressed(pd.kButtonB)
+    local missileTriggered = false
     local interacted = aimInput ~= 0
         or moveInput ~= 0
         or math.abs(crankChange) >= LOCAL_IDLE_CRANK_THRESHOLD
@@ -808,7 +808,7 @@ function OrbitalDefenseScene:drawHud(state)
         scoreLine[#scoreLine + 1] = string.format("%s %d", PLAYER_ANCHORS[index].label, player.score or 0)
     end
     gfx.drawText(table.concat(scoreLine, "   "), 10, 40)
-    gfx.drawText(self.networked and "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B missile  pdportal live" or "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B missile", 10, 220)
+    gfx.drawText(self.networked and "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B back  pdportal live" or "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B back", 10, 220)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -824,6 +824,11 @@ end
 
 function OrbitalDefenseScene:update()
     if self.preview then
+        return
+    end
+
+    if pd.buttonJustPressed(pd.kButtonB) and self.onReturnToTitle then
+        self.onReturnToTitle("orbital")
         return
     end
 
@@ -857,13 +862,6 @@ function OrbitalDefenseScene:update()
             end
             return
         end
-    end
-
-    if self.gameOver and pd.buttonJustPressed(pd.kButtonB) then
-        if self.onReturnToTitle then
-            self.onReturnToTitle("orbital")
-        end
-        return
     end
 
     self:updateLocalGame()
