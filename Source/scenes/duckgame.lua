@@ -223,6 +223,7 @@ function DuckGameScene.new(config)
     local self = setmetatable({}, DuckGameScene)
     self.onReturnToTitle = config.onReturnToTitle
     self.tutorialOpen = config.preview ~= true and Tutorials.shouldShow("duck", config.multiplayer and "multi" or "single")
+    self.tutorialScroll = 0
     self.preview = config.preview == true
     self.multiplayer = config.multiplayer == true
     self.modeId = config.modeId or DuckGameScene.MODE_SOLO_4
@@ -1482,11 +1483,15 @@ function DuckGameScene:update()
     end
 
     if self.tutorialOpen then
+        local tutorialMode = self.multiplayer and "multi" or "single"
+        self.tutorialScroll = Tutorials.updateScroll(self.tutorialScroll, "duck", tutorialMode, pd.getCrankChange(), pd.buttonJustPressed(pd.kButtonUp), pd.buttonJustPressed(pd.kButtonDown))
         self:draw()
-        Tutorials.draw("duck", self.multiplayer and "multi" or "single")
-        if pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonB) then
-            Tutorials.markSeen("duck", self.multiplayer and "multi" or "single")
+        Tutorials.draw("duck", tutorialMode, self.tutorialScroll)
+        if pd.buttonJustPressed(pd.kButtonA) then
+            Tutorials.markSeen("duck", tutorialMode)
             self.tutorialOpen = false
+        elseif pd.buttonJustPressed(pd.kButtonB) and self.onReturnToTitle then
+            self.onReturnToTitle("duck")
         end
         return
     end

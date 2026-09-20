@@ -56,6 +56,7 @@ function ViewScene.new(config)
     self.starryTunnelDirectionLocked = false
     self.entryOverlayFrames = 0
     self.tutorialOpen = Tutorials.shouldShow(self.viewId, self.modeId)
+    self.tutorialScroll = 0
 
     if config.effect then
         self.effect = config.effect
@@ -651,15 +652,21 @@ end
 
 function ViewScene:update()
     if self.tutorialOpen then
-        if pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonB) then
+        local change = pd.getCrankChange()
+        self.tutorialScroll = Tutorials.updateScroll(self.tutorialScroll, self.viewId, self.modeId, change, pd.buttonJustPressed(pd.kButtonUp), pd.buttonJustPressed(pd.kButtonDown))
+        if pd.buttonJustPressed(pd.kButtonA) then
             Tutorials.markSeen(self.viewId, self.modeId)
             self.tutorialOpen = false
+            return
+        end
+        if pd.buttonJustPressed(pd.kButtonB) and self.onReturnToTitle then
+            self.onReturnToTitle(self.returnViewId or self.viewId, self.effect)
             return
         end
         if self.effect and self.effect.draw then
             self.effect:draw()
         end
-        Tutorials.draw(self.viewId, self.modeId)
+        Tutorials.draw(self.viewId, self.modeId, self.tutorialScroll)
         return
     end
     local aJustPressed = pd.buttonJustPressed(pd.kButtonA)

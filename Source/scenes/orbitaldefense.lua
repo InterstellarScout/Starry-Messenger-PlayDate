@@ -191,6 +191,7 @@ function OrbitalDefenseScene.new(config)
     self.onReturnToTitle = config.onReturnToTitle
     self.preview = config.preview == true
     self.tutorialOpen = not self.preview and Tutorials.shouldShow("orbital", config.multiplayer and "multi" or "single")
+    self.tutorialScroll = 0
     self.multiplayer = config.multiplayer == true
     self.portalService = config.portalService
     self.networked = self.multiplayer and self.portalService ~= nil
@@ -1185,11 +1186,15 @@ function OrbitalDefenseScene:update()
     end
 
     if self.tutorialOpen then
+        local tutorialMode = self.multiplayer and "multi" or "single"
+        self.tutorialScroll = Tutorials.updateScroll(self.tutorialScroll, "orbital", tutorialMode, pd.getCrankChange(), pd.buttonJustPressed(pd.kButtonUp), pd.buttonJustPressed(pd.kButtonDown))
         self:draw()
-        Tutorials.draw("orbital", self.multiplayer and "multi" or "single")
-        if pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonB) then
-            Tutorials.markSeen("orbital", self.multiplayer and "multi" or "single")
+        Tutorials.draw("orbital", tutorialMode, self.tutorialScroll)
+        if pd.buttonJustPressed(pd.kButtonA) then
+            Tutorials.markSeen("orbital", tutorialMode)
             self.tutorialOpen = false
+        elseif pd.buttonJustPressed(pd.kButtonB) and self.onReturnToTitle then
+            self.onReturnToTitle("orbital")
         end
         return
     end
