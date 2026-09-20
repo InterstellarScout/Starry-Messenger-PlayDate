@@ -36,12 +36,16 @@ local MISSILE_LIFE_FRAMES <const> = ORBITAL_CONFIG.missileLifeFrames or 90
 local WEAPON_UPGRADE_COST <const> = ORBITAL_CONFIG.weaponUpgradeCost or 5
 local ENEMY_BASE_SPEED <const> = ORBITAL_CONFIG.enemyBaseSpeed or 0.58
 local ENEMY_SPAWN_FRAMES <const> = ORBITAL_CONFIG.enemySpawnFrames or 16
+local EARTH_MAX_HEALTH <const> = ORBITAL_CONFIG.earthMaxHealth or 100
+local SHIELD_MAX_HEALTH <const> = ORBITAL_CONFIG.shieldMaxHealth or 80
 local MATCH_DURATION_FRAMES <const> = ORBITAL_CONFIG.matchDurationFrames or (30 * 90)
 local SNAPSHOT_INTERVAL_FRAMES <const> = ORBITAL_CONFIG.snapshotIntervalFrames or 3
 local LOCAL_IDLE_TIMEOUT_FRAMES <const> = ORBITAL_CONFIG.localIdleTimeoutFrames or (30 * 5)
 local LOCAL_IDLE_CRANK_THRESHOLD <const> = ORBITAL_CONFIG.localIdleCrankThreshold or 0.5
 local ENDLESS_TIER_FRAMES <const> = 30 * 30
 local PLANNED_TIER_COUNT <const> = 6
+local RESULTS_SAVE_KEY <const> = "orbital-defense-results-v1"
+local cachedResults = nil
 
 local PLAYER_ANCHORS <const> = {
     [1] = { orbitAngle = -60, defaultAngle = 18, label = "P1" },
@@ -110,6 +114,28 @@ local function randomSign()
     return math.random() < 0.5 and -1 or 1
 end
 
+local function loadResults()
+    if cachedResults ~= nil then
+        return cachedResults
+    end
+    if pd.datastore and pd.datastore.read then
+        local saved = pd.datastore.read(RESULTS_SAVE_KEY)
+        if type(saved) == "table" then
+            cachedResults = saved
+            return saved
+        end
+    end
+    cachedResults = { highScore = 0 }
+    return cachedResults
+end
+
+local function saveResults(results)
+    cachedResults = results
+    if pd.datastore and pd.datastore.write then
+        pd.datastore.write(results, RESULTS_SAVE_KEY)
+    end
+end
+
 -- Keep the distant field deliberately quiet.  The defense ring, elevator,
 -- and weapons are the visual focus; clustered stars read as foreground noise.
 local ORBITAL_BACKGROUND_STAR_COUNT <const> = ORBITAL_CONFIG.backgroundStarCount or 86
@@ -174,8 +200,8 @@ function OrbitalDefenseScene.new(config)
     self.backgroundStars = createOrbitalBackgroundStars()
     self.frame = 0
     self.spawnTimer = ENEMY_SPAWN_FRAMES
-    self.earthHealth = 24
-    self.ringHealth = 80
+    self.earthHealth = EARTH_MAX_HEALTH
+    self.ringHealth = SHIELD_MAX_HEALTH
     self.remainingFrames = MATCH_DURATION_FRAMES
     self.elapsedFrames = 0
     self.gameOver = false
@@ -288,11 +314,13 @@ function OrbitalDefenseScene:resetMatch(modeId, localSlot)
     self.explosions = {}
     self.frame = 0
     self.spawnTimer = ENEMY_SPAWN_FRAMES
-    self.earthHealth = 24
-    self.ringHealth = 80
+    self.earthHealth = EARTH_MAX_HEALTH
+    self.ringHealth = SHIELD_MAX_HEALTH
     self.remainingFrames = MATCH_DURATION_FRAMES
     self.elapsedFrames = 0
     self.gameOver = false
+    self.resultsRecorded = false
+    self.matchResults = nil
     self.localSlot = localSlot or 1
     self.localIdleFrames = 0
 
@@ -320,6 +348,7 @@ function OrbitalDefenseScene:resetMatch(modeId, localSlot)
             pendingMissileTrigger = false,
             controlKind = controlKind,
             score = 0,
+            kills = 0,
             laserLevel = 1,
             missileLevel = 1
         }
@@ -657,6 +686,10 @@ function OrbitalDefenseScene:updateEnemies()
             self.earthHealth = math.max(0, self.earthHealth - 1)
             self:addExplosion(enemy.x, enemy.y, 10, 7)
             table.remove(self.enemies, enemyIndex)
+            if self.earthHealth <= 0 then
+                self:finishMatch()
+                return
+            end
         end
     end
 end
@@ -671,6 +704,7 @@ function OrbitalDefenseScene:explodeMissile(player, impactX, impactY)
             enemy.hp = enemy.hp - MISSILE_DAMAGE
             if enemy.hp <= 0 then
                 player.score = player.score + 1
+                player.kills = (player.kills or 0) + 1
                 table.remove(self.enemies, enemyIndex)
             end
         end
@@ -746,6 +780,7 @@ function OrbitalDefenseScene:applyLasers()
                     enemy.hp = enemy.hp - laserDamage
                     if enemy.hp <= 0 then
                         player.score = player.score + 1
+                        player.kills = (player.kills or 0) + 1
                         self:addExplosion(enemy.x, enemy.y, 12, 8)
                         table.remove(self.enemies, enemyIndex)
                     end
@@ -778,6 +813,7 @@ function OrbitalDefenseScene:serializeState()
                 y = player.missile.y
             } or nil,
             score = player.score,
+            kills = player.kills or 0,
             laserLevel = player.laserLevel,
             missileLevel = player.missileLevel
         }
@@ -810,6 +846,7 @@ function OrbitalDefenseScene:serializeState()
         ringHealth = self.ringHealth,
         remainingFrames = self.remainingFrames,
         gameOver = self.gameOver,
+        matchResults = self.matchResults,
         players = players,
         enemies = enemies,
         explosions = explosions
@@ -821,6 +858,42 @@ function OrbitalDefenseScene:getRenderState()
         return self.remoteState
     end
     return self:serializeState()
+end
+
+function OrbitalDefenseScene:finishMatch()
+    if self.gameOver then
+        return
+    end
+
+    self.gameOver = true
+    self.menuOpen = false
+    local playerKills = {}
+    local totalKills = 0
+    for index, player in ipairs(self.players) do
+        local kills = math.max(0, math.floor(tonumber(player.kills) or 0))
+        playerKills[index] = kills
+        totalKills = totalKills + kills
+        player.laserOn = false
+    end
+
+    local saved = loadResults()
+    local highScore = math.max(math.max(0, math.floor(tonumber(saved.highScore) or 0)), totalKills)
+    self.matchResults = {
+        totalKills = totalKills,
+        playerKills = playerKills,
+        highScore = highScore
+    }
+    self.resultsRecorded = true
+    saveResults(self.matchResults)
+end
+
+function OrbitalDefenseScene.getLastMatchSummary()
+    local saved = loadResults()
+    local highScore = math.max(0, math.floor(tonumber(saved.highScore) or 0))
+    if saved.totalKills == nil then
+        return string.format("High score: %d enemies", highScore)
+    end
+    return string.format("Last: %d enemies  High: %d", math.max(0, math.floor(tonumber(saved.totalKills) or 0)), highScore)
 end
 
 function OrbitalDefenseScene:updateLocalGame()
@@ -956,14 +1029,50 @@ function OrbitalDefenseScene:drawHud(state)
     local elapsedFrames = state.elapsedFrames or 0
     local difficultyTier = math.max(1, math.floor(elapsedFrames / ENDLESS_TIER_FRAMES) + 1)
     gfx.drawText(title, 10, 8)
-    gfx.drawText(string.format("Earth %d  Ring %d  Tier %d  Endless", state.earthHealth or 0, math.ceil(state.ringHealth or 0), difficultyTier), 10, 24)
+    gfx.drawText(string.format("Tier %d  Endless", difficultyTier), 10, 24)
 
     local scoreLine = {}
     for index, player in ipairs(state.players or {}) do
-        scoreLine[#scoreLine + 1] = string.format("%s %d", PLAYER_ANCHORS[index].label, player.score or 0)
+        scoreLine[#scoreLine + 1] = string.format("%s %d", PLAYER_ANCHORS[index].label, player.kills or 0)
     end
     gfx.drawText(table.concat(scoreLine, "   "), 10, 40)
-    gfx.drawText(self.networked and "Crank aim  Left laser  Right missile  Up/Down orbit  A upgrades  pdportal live" or "Crank aim  Left laser  Right missile  Up/Down orbit  A upgrades", 10, 220)
+    local shieldUp = (state.ringHealth or 0) > 0
+    local value = shieldUp and (state.ringHealth or 0) or (EARTH_MAX_HEALTH - (state.earthHealth or 0))
+    local maximum = shieldUp and SHIELD_MAX_HEALTH or EARTH_MAX_HEALTH
+    local ratio = clamp(value / maximum, 0, 1)
+    local barX, barY, barWidth, barHeight = 10, 211, 380, 16
+    gfx.drawRect(barX, barY, barWidth, barHeight)
+    if ratio > 0 then
+        gfx.fillRect(barX + 2, barY + 2, math.floor((barWidth - 4) * ratio), barHeight - 4)
+    end
+    local label = shieldUp and string.format("EARTH SHIELD  %d%%", math.ceil(ratio * 100)) or string.format("EARTH DAMAGE  %d%%", math.ceil(ratio * 100))
+    gfx.setImageDrawMode(ratio > 0.5 and gfx.kDrawModeFillBlack or gfx.kDrawModeInverted)
+    gfx.drawTextAligned(label, 200, 213, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawText("Crank aim  L laser  R missile  Up/Down orbit  A upgrades", 10, 194)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function OrbitalDefenseScene:drawGameOver(state)
+    if not state.gameOver then
+        return
+    end
+    local results = state.matchResults or self.matchResults or loadResults()
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRoundRect(36, 62, 328, 112, 10)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawRoundRect(36, 62, 328, 112, 10)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned("EARTH DESTROYED :(", 200, 76, kTextAlignment.center)
+    local playerKills = results.playerKills or {}
+    local scoreLine = {}
+    for index, kills in ipairs(playerKills) do
+        scoreLine[#scoreLine + 1] = string.format("%s: %d", PLAYER_ANCHORS[index].label, kills or 0)
+    end
+    gfx.drawTextAligned(table.concat(scoreLine, "   "), 200, 100, kTextAlignment.center)
+    gfx.drawTextAligned(string.format("Enemies destroyed: %d", results.totalKills or 0), 200, 120, kTextAlignment.center)
+    gfx.drawTextAligned(string.format("High score: %d", results.highScore or 0), 200, 138, kTextAlignment.center)
+    gfx.drawTextAligned("B: return to title", 200, 158, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -1061,6 +1170,7 @@ function OrbitalDefenseScene:drawGameState(state)
     self:drawWorld(state)
     self:drawHud(state)
     self:drawUpgradeMenu(state)
+    self:drawGameOver(state)
 end
 
 function OrbitalDefenseScene:draw()
@@ -1121,6 +1231,11 @@ function OrbitalDefenseScene:update()
         if self.onReturnToTitle then
             self.onReturnToTitle("orbital")
         end
+        return
+    end
+
+    if self.gameOver then
+        self:draw()
         return
     end
 

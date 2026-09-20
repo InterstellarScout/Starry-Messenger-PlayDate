@@ -1256,6 +1256,9 @@ function TitleScene:drawBottomInstructions()
     gfx.drawTextInRect(titleLine, 16, topY, 368, 14, nil, nil, kTextAlignment.center)
 
     local modeLine = spec and spec.lines and spec.lines[1] or "B: return to title."
+    if self:getSelectedActualViewId() == "orbital" and OrbitalDefenseScene and OrbitalDefenseScene.getLastMatchSummary then
+        modeLine = OrbitalDefenseScene.getLastMatchSummary()
+    end
     gfx.drawTextInRect(modeLine, 16, topY + 15, 368, 14, nil, nil, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
