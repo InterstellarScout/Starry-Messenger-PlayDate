@@ -316,12 +316,13 @@ function ControlHelp.getEntrySpec(viewId, modeId)
         })
     elseif viewId == "orbital" then
         return buildSpec("Orbital Defense Controls", {
-            "Crank or D-pad Left/Right: aim the local turret.",
+            "Crank: turn the local weapon.",
             "D-pad Up/Down: move the turret around the defense shield.",
-            "Hold A: fire the laser.",
-            "B: launch a missile, then press B again to detonate the current missile.",
+            "Left: fire the laser.",
+            "Right: launch a missile, then press Right again to detonate the current missile.",
+            "A: open the weapon tuning menu to spend kills on stronger lasers or wider missile blasts.",
+            "B: return to title. B closes the tuning menu first.",
             "In single-player, your turret hands off to bot control after 5 seconds of no input, and any new input immediately gives control back to you.",
-            "Use the Home menu Title Menu entry to exit mid-run.",
             "Single-player uses one NPC wingmate; multiplayer uses pdportal host/client play with exactly the chosen 2-4 turrets."
         })
     elseif viewId == "fishpond" then

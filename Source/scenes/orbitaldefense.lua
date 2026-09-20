@@ -27,10 +27,13 @@ local AI_AIM_SPEED <const> = ORBITAL_CONFIG.aiAimSpeed or 2.8
 local LASER_RANGE <const> = ORBITAL_CONFIG.laserRange or 190
 local LASER_WIDTH <const> = ORBITAL_CONFIG.laserWidth or 4
 local LASER_DAMAGE <const> = ORBITAL_CONFIG.laserDamage or 0.34
+local LASER_DAMAGE_PER_LEVEL <const> = ORBITAL_CONFIG.laserDamagePerLevel or 0.18
 local MISSILE_SPEED <const> = ORBITAL_CONFIG.missileSpeed or 3.8
 local MISSILE_DAMAGE <const> = ORBITAL_CONFIG.missileDamage or 6
 local MISSILE_BLAST_RADIUS <const> = ORBITAL_CONFIG.missileBlastRadius or 18
+local MISSILE_BLAST_RADIUS_PER_LEVEL <const> = ORBITAL_CONFIG.missileBlastRadiusPerLevel or 4
 local MISSILE_LIFE_FRAMES <const> = ORBITAL_CONFIG.missileLifeFrames or 90
+local WEAPON_UPGRADE_COST <const> = ORBITAL_CONFIG.weaponUpgradeCost or 5
 local ENEMY_BASE_SPEED <const> = ORBITAL_CONFIG.enemyBaseSpeed or 0.58
 local ENEMY_SPAWN_FRAMES <const> = ORBITAL_CONFIG.enemySpawnFrames or 16
 local MATCH_DURATION_FRAMES <const> = ORBITAL_CONFIG.matchDurationFrames or (30 * 90)
@@ -107,6 +110,105 @@ local function randomSign()
     return math.random() < 0.5 and -1 or 1
 end
 
+local ORBITAL_BACKGROUND_STAR_COUNT <const> = ORBITAL_CONFIG.backgroundStarCount or 220
+
+local function makeOrbitalBackgroundStar(size, x, y, kind, extra)
+    return {
+        x = x,
+        y = y,
+        size = size,
+        kind = kind or "star",
+        extra = extra
+    }
+end
+
+local function createOrbitalBackgroundStars()
+    local stars = {}
+    local function addStar(x, y, size, kind, extra)
+        stars[#stars + 1] = makeOrbitalBackgroundStar(size, x, y, kind, extra)
+    end
+
+    local clusterCount = 8
+    local clusterSize = 5
+    local galaxyCount = 3
+    local galaxyStarCount = 10
+    local fieldBudget = math.max(0, ORBITAL_BACKGROUND_STAR_COUNT - (clusterCount * clusterSize) - (galaxyCount * galaxyStarCount))
+
+    for _ = 1, fieldBudget do
+        local depth = math.random()
+        local size = depth < 0.65 and 1 or 2
+        addStar(
+            math.random(2, SCREEN_WIDTH - 2),
+            math.random(2, 220),
+            size,
+            "star"
+        )
+    end
+
+    for _ = 1, clusterCount do
+        local centerX = math.random(24, SCREEN_WIDTH - 24)
+        local centerY = math.random(24, 160)
+        for index = 1, clusterSize do
+            local angle = (index / clusterSize) * math.pi * 2
+            local radius = math.random(2, 9)
+            addStar(
+                centerX + (math.cos(angle) * radius) + math.random(-1, 1),
+                centerY + (math.sin(angle) * radius) + math.random(-1, 1),
+                1 + math.random(0, 1),
+                "cluster",
+                { centerX = centerX, centerY = centerY }
+            )
+        end
+    end
+
+    for _ = 1, galaxyCount do
+        local centerX = math.random(36, SCREEN_WIDTH - 36)
+        local centerY = math.random(32, 164)
+        local spiralDirection = math.random() < 0.5 and 1 or -1
+        for index = 1, galaxyStarCount do
+            local progress = index / galaxyStarCount
+            local angle = (progress * math.pi * 2.2 * spiralDirection) + (math.random() * 0.35)
+            local radius = 5 + (progress * math.random(8, 18))
+            addStar(
+                centerX + (math.cos(angle) * radius),
+                centerY + (math.sin(angle) * radius),
+                progress > 0.65 and 2 or 1,
+                "galaxy",
+                { centerX = centerX, centerY = centerY }
+            )
+        end
+    end
+
+    return stars
+end
+
+local function drawOrbitalBackgroundStars(stars)
+    gfx.setColor(gfx.kColorWhite)
+    for _, star in ipairs(stars or {}) do
+        local size = star.size or 1
+        if star.kind == "galaxy" then
+            local extra = star.extra or {}
+            local centerX = extra.centerX or star.x
+            local centerY = extra.centerY or star.y
+            local dx = star.x - centerX
+            local dy = star.y - centerY
+            gfx.drawLine(centerX, centerY, centerX + (dx * 0.7), centerY + (dy * 0.7))
+            gfx.fillCircleAtPoint(star.x, star.y, size)
+        elseif star.kind == "cluster" then
+            local extra = star.extra or {}
+            local centerX = extra.centerX or star.x
+            local centerY = extra.centerY or star.y
+            gfx.drawLine(centerX - 1, centerY, centerX + 1, centerY)
+            gfx.drawLine(centerX, centerY - 1, centerX, centerY + 1)
+            gfx.fillCircleAtPoint(star.x, star.y, size)
+        elseif size >= 2 then
+            gfx.drawRect(star.x, star.y, size, size)
+        else
+            gfx.fillRect(star.x, star.y, 1, 1)
+        end
+    end
+end
+
 OrbitalDefenseScene = {}
 OrbitalDefenseScene.__index = OrbitalDefenseScene
 
@@ -122,6 +224,7 @@ function OrbitalDefenseScene.new(config)
     self.players = {}
     self.enemies = {}
     self.explosions = {}
+    self.backgroundStars = createOrbitalBackgroundStars()
     self.frame = 0
     self.spawnTimer = ENEMY_SPAWN_FRAMES
     self.earthHealth = 24
@@ -137,6 +240,10 @@ function OrbitalDefenseScene.new(config)
     self.lastSentOrbitAngle = PLAYER_ANCHORS[1].orbitAngle
     self.lastSentLaser = false
     self.localIdleFrames = 0
+    self.menuOpen = false
+    self.menuIndex = 1
+    self.menuStatusMessage = nil
+    self.menuStatusFrames = 0
 
     if self.preview then
         self:resetMatch(self.multiplayer and "networked" or "single", 1)
@@ -265,7 +372,9 @@ function OrbitalDefenseScene:resetMatch(modeId, localSlot)
             missile = nil,
             pendingMissileTrigger = false,
             controlKind = controlKind,
-            score = 0
+            score = 0,
+            laserLevel = 1,
+            missileLevel = 1
         }
     end
 
@@ -296,6 +405,78 @@ function OrbitalDefenseScene:getPlayerOrigin(index, player)
     local x = PLANET_X + (math.cos(radians) * DEFAULT_DISTANCE)
     local y = PLANET_Y + (math.sin(radians) * DEFAULT_DISTANCE)
     return x, y
+end
+
+function OrbitalDefenseScene:getLaserDamage(player)
+    local level = math.max(1, tonumber(player and player.laserLevel) or 1)
+    return LASER_DAMAGE + ((level - 1) * LASER_DAMAGE_PER_LEVEL)
+end
+
+function OrbitalDefenseScene:getMissileBlastRadius(player)
+    local level = math.max(1, tonumber(player and player.missileLevel) or 1)
+    return MISSILE_BLAST_RADIUS + ((level - 1) * MISSILE_BLAST_RADIUS_PER_LEVEL)
+end
+
+function OrbitalDefenseScene:getUpgradeMenuItems()
+    local player = self.players[self.localSlot]
+    if player == nil then
+        return {}
+    end
+
+    local laserLevel = math.max(1, tonumber(player.laserLevel) or 1)
+    local missileLevel = math.max(1, tonumber(player.missileLevel) or 1)
+    return {
+        {
+            id = "laser",
+            label = string.format("Laser booster  Lv %d", laserLevel),
+            detail = string.format("Damage %.2f  Cost %d kills", self:getLaserDamage(player), WEAPON_UPGRADE_COST)
+        },
+        {
+            id = "missile",
+            label = string.format("Missile booster  Lv %d", missileLevel),
+            detail = string.format("Blast radius %d  Cost %d kills", math.floor(self:getMissileBlastRadius(player) + 0.5), WEAPON_UPGRADE_COST)
+        }
+    }
+end
+
+function OrbitalDefenseScene:openUpgradeMenu()
+    if self.gameOver then
+        return
+    end
+
+    self.menuOpen = true
+    self.menuIndex = math.max(1, math.min(self.menuIndex or 1, math.max(1, #self:getUpgradeMenuItems())))
+    self.menuStatusMessage = nil
+    self.menuStatusFrames = 0
+end
+
+function OrbitalDefenseScene:closeUpgradeMenu()
+    self.menuOpen = false
+    self.menuStatusMessage = nil
+    self.menuStatusFrames = 0
+end
+
+function OrbitalDefenseScene:purchaseUpgrade(item)
+    local player = self.players[self.localSlot]
+    if player == nil or item == nil then
+        return
+    end
+
+    if (player.score or 0) < WEAPON_UPGRADE_COST then
+        self.menuStatusMessage = "Need more kills."
+        self.menuStatusFrames = 90
+        return
+    end
+
+    player.score = player.score - WEAPON_UPGRADE_COST
+    if item.id == "laser" then
+        player.laserLevel = math.max(1, (tonumber(player.laserLevel) or 1) + 1)
+        self.menuStatusMessage = "Laser upgraded."
+    elseif item.id == "missile" then
+        player.missileLevel = math.max(1, (tonumber(player.missileLevel) or 1) + 1)
+        self.menuStatusMessage = "Missile upgraded."
+    end
+    self.menuStatusFrames = 90
 end
 
 function OrbitalDefenseScene:addExplosion(x, y, radius, life)
@@ -366,14 +547,7 @@ function OrbitalDefenseScene:readLocalControls()
         return false
     end
 
-    local aimInput = 0
     local moveInput = 0
-    if pd.buttonIsPressed(pd.kButtonLeft) then
-        aimInput = aimInput - 1
-    end
-    if pd.buttonIsPressed(pd.kButtonRight) then
-        aimInput = aimInput + 1
-    end
     if pd.buttonIsPressed(pd.kButtonUp) then
         moveInput = moveInput + 1
     end
@@ -382,15 +556,16 @@ function OrbitalDefenseScene:readLocalControls()
     end
 
     local crankChange = pd.getCrankChange()
-    local laserOn = pd.buttonIsPressed(pd.kButtonA)
-    local missileTriggered = false
-    local interacted = aimInput ~= 0
-        or moveInput ~= 0
+    local laserOn = pd.buttonIsPressed(pd.kButtonLeft)
+    local missileTriggered = pd.buttonJustPressed(pd.kButtonRight)
+    local menuPressed = pd.buttonJustPressed(pd.kButtonA)
+    local interacted = moveInput ~= 0
         or math.abs(crankChange) >= LOCAL_IDLE_CRANK_THRESHOLD
         or laserOn
         or missileTriggered
+        or menuPressed
 
-    player.angle = normalizeAngle(player.angle + (aimInput * PLAYER_AIM_SPEED) + (crankChange * 0.8))
+    player.angle = normalizeAngle(player.angle + (crankChange * 0.8))
     -- Up and down advance the turret around the shield so the player can reposition along the ring.
     player.orbitAngle = normalizeAngle((player.orbitAngle or PLAYER_ANCHORS[self.localSlot].orbitAngle) + (moveInput * PLAYER_ORBIT_SPEED))
     player.laserOn = laserOn
@@ -414,7 +589,9 @@ function OrbitalDefenseScene:sendClientInput()
             missile = nil,
             pendingMissileTrigger = false,
             controlKind = "local",
-            score = 0
+            score = 0,
+            laserLevel = 1,
+            missileLevel = 1
         }
     end
 
@@ -538,10 +715,11 @@ function OrbitalDefenseScene:updateEnemies()
 end
 
 function OrbitalDefenseScene:explodeMissile(player, impactX, impactY)
-    self:addExplosion(impactX, impactY, MISSILE_BLAST_RADIUS, 9)
+    local blastRadius = self:getMissileBlastRadius(player)
+    self:addExplosion(impactX, impactY, blastRadius, 9)
     for enemyIndex = #self.enemies, 1, -1 do
         local enemy = self.enemies[enemyIndex]
-        local hitRadius = MISSILE_BLAST_RADIUS + enemy.size
+        local hitRadius = blastRadius + enemy.size
         if distanceSquared(impactX, impactY, enemy.x, enemy.y) <= (hitRadius * hitRadius) then
             enemy.hp = enemy.hp - MISSILE_DAMAGE
             if enemy.hp <= 0 then
@@ -612,12 +790,13 @@ function OrbitalDefenseScene:applyLasers()
             local radians = math.rad(player.angle)
             local endX = originX + (math.cos(radians) * LASER_RANGE)
             local endY = originY + (math.sin(radians) * LASER_RANGE)
+            local laserDamage = self:getLaserDamage(player)
             for enemyIndex = #self.enemies, 1, -1 do
                 local enemy = self.enemies[enemyIndex]
                 local hitDistanceSquared = linePointDistanceSquared(enemy.x, enemy.y, originX, originY, endX, endY)
                 local hitRadius = enemy.size + LASER_WIDTH
                 if hitDistanceSquared <= (hitRadius * hitRadius) then
-                    enemy.hp = enemy.hp - LASER_DAMAGE
+                    enemy.hp = enemy.hp - laserDamage
                     if enemy.hp <= 0 then
                         player.score = player.score + 1
                         self:addExplosion(enemy.x, enemy.y, 12, 8)
@@ -651,7 +830,9 @@ function OrbitalDefenseScene:serializeState()
                 x = player.missile.x,
                 y = player.missile.y
             } or nil,
-            score = player.score
+            score = player.score,
+            laserLevel = player.laserLevel,
+            missileLevel = player.missileLevel
         }
     end
 
@@ -714,11 +895,7 @@ end
 
 function OrbitalDefenseScene:drawBackground(frame)
     gfx.clear(gfx.kColorBlack)
-    for index = 0, 10 do
-        local x = (index * 37 + 9 + math.floor(frame * 0.2)) % SCREEN_WIDTH
-        local y = (index * 17 + 13 + math.floor(frame * 0.1)) % 150
-        gfx.fillRect(x, y, 1, 1)
-    end
+    drawOrbitalBackgroundStars(self.backgroundStars)
 end
 
 function OrbitalDefenseScene:drawLobby()
@@ -756,6 +933,7 @@ end
 
 function OrbitalDefenseScene:drawWorld(state)
     gfx.setColor(gfx.kColorWhite)
+    gfx.fillCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
     gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
     if (state.ringHealth or 0) > 0 then
         gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, RING_RADIUS)
@@ -795,6 +973,9 @@ function OrbitalDefenseScene:drawHud(state)
     if UIState and not UIState.isShown() then
         return
     end
+    if self.menuOpen then
+        return
+    end
 
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     local title = self.multiplayer and ("Orbital Defense  " .. tostring(self.playerCount) .. "P") or "Orbital Defense"
@@ -808,7 +989,96 @@ function OrbitalDefenseScene:drawHud(state)
         scoreLine[#scoreLine + 1] = string.format("%s %d", PLAYER_ANCHORS[index].label, player.score or 0)
     end
     gfx.drawText(table.concat(scoreLine, "   "), 10, 40)
-    gfx.drawText(self.networked and "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B back  pdportal live" or "Crank/Left/Right aim  Up/Down orbit  Hold A laser  B back", 10, 220)
+    gfx.drawText(self.networked and "Crank aim  Left laser  Right missile  Up/Down orbit  A upgrades  pdportal live" or "Crank aim  Left laser  Right missile  Up/Down orbit  A upgrades", 10, 220)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function OrbitalDefenseScene:updateUpgradeMenu()
+    if not self.menuOpen then
+        return
+    end
+
+    if self.menuStatusFrames > 0 then
+        self.menuStatusFrames = self.menuStatusFrames - 1
+    end
+
+    if pd.buttonJustPressed(pd.kButtonB) then
+        self:closeUpgradeMenu()
+        return
+    end
+
+    local items = self:getUpgradeMenuItems()
+    if #items <= 0 then
+        return
+    end
+
+    if pd.buttonJustPressed(pd.kButtonUp) then
+        self.menuIndex = self.menuIndex - 1
+        if self.menuIndex < 1 then
+            self.menuIndex = #items
+        end
+    elseif pd.buttonJustPressed(pd.kButtonDown) then
+        self.menuIndex = self.menuIndex + 1
+        if self.menuIndex > #items then
+            self.menuIndex = 1
+        end
+    elseif pd.buttonJustPressed(pd.kButtonA) then
+        self:purchaseUpgrade(items[self.menuIndex])
+    end
+end
+
+function OrbitalDefenseScene:drawUpgradeMenu(state)
+    if not self.menuOpen then
+        return
+    end
+
+    local player = self.players[self.localSlot]
+    if player == nil then
+        return
+    end
+
+    local items = self:getUpgradeMenuItems()
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(0.45, gfx.image.kDitherTypeBayer8x8)
+    gfx.fillRect(0, 0, SCREEN_WIDTH, 240)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+
+    local panelX = 48
+    local panelY = 44
+    local panelW = 304
+    local panelH = 152
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRoundRect(panelX, panelY, panelW, panelH, 8)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawRoundRect(panelX, panelY, panelW, panelH, 8)
+    gfx.drawTextAligned("Weapon Tuning", 200, panelY + 8, kTextAlignment.center)
+    gfx.drawLine(panelX + 12, panelY + 24, panelX + panelW - 12, panelY + 24)
+
+    gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+    gfx.drawTextAligned(string.format("Kills available: %d", math.max(0, player.score or 0)), 200, panelY + 30, kTextAlignment.center)
+
+    for index, item in ipairs(items) do
+        local rowY = panelY + 50 + ((index - 1) * 36)
+        local selected = self.menuIndex == index
+        if selected then
+            gfx.fillRoundRect(panelX + 14, rowY, panelW - 28, 28, 5)
+            gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+        else
+            gfx.drawRoundRect(panelX + 14, rowY, panelW - 28, 28, 5)
+            gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+        end
+        gfx.drawText(item.label, panelX + 26, rowY + 6)
+        gfx.drawTextAligned(item.detail or "", panelX + panelW - 26, rowY + 6, kTextAlignment.right)
+    end
+
+    if self.menuStatusFrames > 0 and self.menuStatusMessage ~= nil then
+        gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+        gfx.drawTextAligned(self.menuStatusMessage, 200, panelY + panelH - 24, kTextAlignment.center)
+    else
+        gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+        gfx.drawTextAligned("A buy   B close", 200, panelY + panelH - 24, kTextAlignment.center)
+    end
+
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -816,6 +1086,7 @@ function OrbitalDefenseScene:drawGameState(state)
     self:drawBackground(state.frame or 0)
     self:drawWorld(state)
     self:drawHud(state)
+    self:drawUpgradeMenu(state)
 end
 
 function OrbitalDefenseScene:draw()
@@ -827,7 +1098,9 @@ function OrbitalDefenseScene:update()
         return
     end
 
-    if pd.buttonJustPressed(pd.kButtonB) and self.onReturnToTitle then
+    -- Keep B consistent with the rest of Starry Messenger: it returns to the
+    -- title from play, while the tuning menu handles B locally to close itself.
+    if not self.menuOpen and pd.buttonJustPressed(pd.kButtonB) and self.onReturnToTitle then
         self.onReturnToTitle("orbital")
         return
     end
@@ -849,6 +1122,12 @@ function OrbitalDefenseScene:update()
             return
         end
 
+        if self.menuOpen then
+            self:updateUpgradeMenu()
+            self:draw()
+            return
+        end
+
         if self.portalService:isClient() then
             self:sendClientInput()
             local state = self:getRenderState()
@@ -862,6 +1141,25 @@ function OrbitalDefenseScene:update()
             end
             return
         end
+    end
+
+    if self.gameOver and pd.buttonJustPressed(pd.kButtonB) then
+        if self.onReturnToTitle then
+            self.onReturnToTitle("orbital")
+        end
+        return
+    end
+
+    if self.menuOpen then
+        self:updateUpgradeMenu()
+        self:draw()
+        return
+    end
+
+    if pd.buttonJustPressed(pd.kButtonA) then
+        self:openUpgradeMenu()
+        self:draw()
+        return
     end
 
     self:updateLocalGame()

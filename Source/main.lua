@@ -53,7 +53,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.18"
+local APP_VERSION <const> = "0.2.19"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -196,7 +196,7 @@ local SINGLE_VIEW_ITEMS <const> = {
         label = "Space Miner: Story",
         modes = {
             SpaceMiner.MODE_STORY,
-            SpaceMiner.MODE_CONTINUE,
+            SpaceMiner.MODE_CONTINUE_STORY,
             SpaceMiner.MODE_NEW_SAVE
         },
         modeId = SpaceMiner.MODE_STORY,

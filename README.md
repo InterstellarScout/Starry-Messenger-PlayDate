@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.2.18`
-- Build number: `204`
+- Version: `0.2.19`
+- Build number: `205`
 
 ## Install
 
