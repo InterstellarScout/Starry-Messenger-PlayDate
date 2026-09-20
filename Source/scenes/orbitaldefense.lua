@@ -110,7 +110,9 @@ local function randomSign()
     return math.random() < 0.5 and -1 or 1
 end
 
-local ORBITAL_BACKGROUND_STAR_COUNT <const> = ORBITAL_CONFIG.backgroundStarCount or 220
+-- Keep the distant field deliberately quiet.  The defense ring, elevator,
+-- and weapons are the visual focus; clustered stars read as foreground noise.
+local ORBITAL_BACKGROUND_STAR_COUNT <const> = ORBITAL_CONFIG.backgroundStarCount or 86
 
 local function makeOrbitalBackgroundStar(size, x, y, kind, extra)
     return {
@@ -128,55 +130,15 @@ local function createOrbitalBackgroundStars()
         stars[#stars + 1] = makeOrbitalBackgroundStar(size, x, y, kind, extra)
     end
 
-    local clusterCount = 8
-    local clusterSize = 5
-    local galaxyCount = 3
-    local galaxyStarCount = 10
-    local fieldBudget = math.max(0, ORBITAL_BACKGROUND_STAR_COUNT - (clusterCount * clusterSize) - (galaxyCount * galaxyStarCount))
-
-    for _ = 1, fieldBudget do
+    for _ = 1, ORBITAL_BACKGROUND_STAR_COUNT do
         local depth = math.random()
-        local size = depth < 0.65 and 1 or 2
+        local size = depth < 0.94 and 1 or 2
         addStar(
             math.random(2, SCREEN_WIDTH - 2),
-            math.random(2, 220),
+            math.random(2, 208),
             size,
             "star"
         )
-    end
-
-    for _ = 1, clusterCount do
-        local centerX = math.random(24, SCREEN_WIDTH - 24)
-        local centerY = math.random(24, 160)
-        for index = 1, clusterSize do
-            local angle = (index / clusterSize) * math.pi * 2
-            local radius = math.random(2, 9)
-            addStar(
-                centerX + (math.cos(angle) * radius) + math.random(-1, 1),
-                centerY + (math.sin(angle) * radius) + math.random(-1, 1),
-                1 + math.random(0, 1),
-                "cluster",
-                { centerX = centerX, centerY = centerY }
-            )
-        end
-    end
-
-    for _ = 1, galaxyCount do
-        local centerX = math.random(36, SCREEN_WIDTH - 36)
-        local centerY = math.random(32, 164)
-        local spiralDirection = math.random() < 0.5 and 1 or -1
-        for index = 1, galaxyStarCount do
-            local progress = index / galaxyStarCount
-            local angle = (progress * math.pi * 2.2 * spiralDirection) + (math.random() * 0.35)
-            local radius = 5 + (progress * math.random(8, 18))
-            addStar(
-                centerX + (math.cos(angle) * radius),
-                centerY + (math.sin(angle) * radius),
-                progress > 0.65 and 2 or 1,
-                "galaxy",
-                { centerX = centerX, centerY = centerY }
-            )
-        end
     end
 
     return stars
@@ -186,22 +148,7 @@ local function drawOrbitalBackgroundStars(stars)
     gfx.setColor(gfx.kColorWhite)
     for _, star in ipairs(stars or {}) do
         local size = star.size or 1
-        if star.kind == "galaxy" then
-            local extra = star.extra or {}
-            local centerX = extra.centerX or star.x
-            local centerY = extra.centerY or star.y
-            local dx = star.x - centerX
-            local dy = star.y - centerY
-            gfx.drawLine(centerX, centerY, centerX + (dx * 0.7), centerY + (dy * 0.7))
-            gfx.fillCircleAtPoint(star.x, star.y, size)
-        elseif star.kind == "cluster" then
-            local extra = star.extra or {}
-            local centerX = extra.centerX or star.x
-            local centerY = extra.centerY or star.y
-            gfx.drawLine(centerX - 1, centerY, centerX + 1, centerY)
-            gfx.drawLine(centerX, centerY - 1, centerX, centerY + 1)
-            gfx.fillCircleAtPoint(star.x, star.y, size)
-        elseif size >= 2 then
+        if size >= 2 then
             gfx.drawRect(star.x, star.y, size, size)
         else
             gfx.fillRect(star.x, star.y, 1, 1)
@@ -935,6 +882,25 @@ function OrbitalDefenseScene:drawWorld(state)
     gfx.setColor(gfx.kColorWhite)
     gfx.fillCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
     gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
+    -- A solid Earth silhouette with a few dark surface marks reads much more
+    -- clearly than a featureless disc at game speed.
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS - 5)
+    gfx.fillRoundRect(PLANET_X - 25, PLANET_Y - 8, 16, 8, 3)
+    gfx.fillRoundRect(PLANET_X + 8, PLANET_Y - 22, 13, 10, 3)
+    gfx.fillRoundRect(PLANET_X + 14, PLANET_Y + 12, 18, 7, 3)
+    gfx.fillRoundRect(PLANET_X - 30, PLANET_Y + 17, 14, 6, 3)
+    gfx.drawLine(PLANET_X - 30, PLANET_Y + 2, PLANET_X + 31, PLANET_Y + 2)
+    gfx.setColor(gfx.kColorWhite)
+    -- The elevator rises out of the planet and terminates in a visible dock.
+    gfx.fillRect(PLANET_X - 3, 34, 7, PLANET_Y - PLANET_RADIUS - 28)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRect(PLANET_X - 1, 38, 3, PLANET_Y - PLANET_RADIUS - 32)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(PLANET_X - 12, 24, 25, 10, 4)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRect(PLANET_X - 5, 27, 11, 3)
+    gfx.setColor(gfx.kColorWhite)
     if (state.ringHealth or 0) > 0 then
         gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, RING_RADIUS)
         gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, RING_RADIUS + 2)
@@ -942,11 +908,19 @@ function OrbitalDefenseScene:drawWorld(state)
 
     for index, player in ipairs(state.players or {}) do
         local originX, originY = self:getPlayerOrigin(index, player)
-        gfx.drawCircleAtPoint(originX, originY, 5)
+        gfx.fillCircleAtPoint(originX, originY, 8)
+        gfx.setColor(gfx.kColorBlack)
+        gfx.fillCircleAtPoint(originX, originY, 4)
+        gfx.setColor(gfx.kColorWhite)
+        gfx.drawCircleAtPoint(originX, originY, 8)
         local beamRadians = math.rad(player.angle)
-        local tipX = originX + (math.cos(beamRadians) * 24)
-        local tipY = originY + (math.sin(beamRadians) * 24)
-        gfx.drawLine(originX, originY, tipX, tipY)
+        local tipX = originX + (math.cos(beamRadians) * 30)
+        local tipY = originY + (math.sin(beamRadians) * 30)
+        local sideX = math.cos(beamRadians + (math.pi * 0.5))
+        local sideY = math.sin(beamRadians + (math.pi * 0.5))
+        gfx.drawLine(originX + (sideX * 2), originY + (sideY * 2), tipX + (sideX * 2), tipY + (sideY * 2))
+        gfx.drawLine(originX - (sideX * 2), originY - (sideY * 2), tipX - (sideX * 2), tipY - (sideY * 2))
+        gfx.fillCircleAtPoint(tipX, tipY, 3)
         gfx.drawText(PLAYER_ANCHORS[index].label, originX - 8, originY + 8)
         if player.laserOn then
             local endX = originX + (math.cos(beamRadians) * LASER_RANGE)
