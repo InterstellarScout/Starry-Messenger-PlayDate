@@ -682,8 +682,30 @@ function RCCarArena:drawHud()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function RCCarArena:drawPuckScoreboards()
+    if self.modeId ~= RCCarArena.MODE_HOCKEY then
+        return
+    end
+
+    local boardWidth = 82
+    local boardHeight = 28
+    local boardY = 5
+    local rightBoardX = self.width - boardWidth - 6
+
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRoundRect(6, boardY, boardWidth, boardHeight, 4)
+    gfx.fillRoundRect(rightBoardX, boardY, boardWidth, boardHeight, 4)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawText("LEFT", 12, boardY + 3)
+    gfx.drawTextAligned(tostring(self.leftNetCount or 0), 80, boardY + 3, kTextAlignment.right)
+    gfx.drawText("RIGHT", rightBoardX + 6, boardY + 3)
+    gfx.drawTextAligned(tostring(self.rightNetCount or 0), self.width - 12, boardY + 3, kTextAlignment.right)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 function RCCarArena:draw()
     self:drawFloor()
+    self:drawPuckScoreboards()
 
     for _, object in ipairs(self.objects) do
         self:drawObject(object)

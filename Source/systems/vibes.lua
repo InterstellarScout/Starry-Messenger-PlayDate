@@ -168,6 +168,13 @@ function VibesEffect.getCatalogItems()
     return buildCatalogItems()
 end
 
+-- Keep title-menu contrast tied to the exact same background choice as the
+-- live effect.  Any Vibe with a black base gets white title text; every other
+-- Vibe gets black title text.
+function VibesEffect.usesDarkBackground(effectId)
+    return effectId == "smoothsailing" or effectId == "loopfall" or effectId == "bubblepop"
+end
+
 function VibesEffect.getGraveyardCatalogItems()
     local items = {}
     for index, effect in ipairs(GRAVEYARD_EFFECTS) do
@@ -1225,7 +1232,7 @@ end
 
 function VibesEffect:draw()
     local effectId = self:getEffect().id
-    local useDarkBackground = effectId == "smoothsailing" or effectId == "loopfall" or effectId == "bubblepop"
+    local useDarkBackground = VibesEffect.usesDarkBackground(effectId)
 
     gfx.setColor(useDarkBackground and gfx.kColorBlack or gfx.kColorWhite)
     gfx.fillRect(0, 0, self.width, self.height)

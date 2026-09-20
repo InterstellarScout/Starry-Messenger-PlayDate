@@ -264,3 +264,10 @@
 | Reconcile substantive enhancements from the former offline Starry Messenger working tree without rolling back newer title navigation, Duck, Snake, Crank Blocks, Fractal Tree, Wacky, RC Arena, and Starry Tunnel work. | Done — restored Orbital Defense weapon tuning (laser/missile upgrades), corrected its controls and B-back behavior, and corrected Space Miner Story continuation to use its distinct save flow. |
 
 | Make Orbital Defense's background stars less clustered and visually dominant, while making Earth, its space elevator, and weapon platforms more substantial. | Done — sparse small star field; detailed Earth and elevator; heavier double-barrel turret silhouettes. |
+
+##### Latest Fixes
+| Request | Status |
+| --- | --- |
+| Make Bubble Pop title text white and make every title label strictly the inverse of the selected title's main background color. | Done — title contrast now shares the Vibes live-background rule, so Bubble Pop and every black-base Vibe use white menu text while white-base Vibes use black. |
+| In Puck Ring, add a rectangular score board to each top corner showing pucks scored. | Done — Left and Right score boards now track each net's puck total. |
+| Fix the Duck Game crash when starting play. | Done — restored the distance result used by nest-push calculations, eliminating the nil comparison at `duckgame.lua:899`. |

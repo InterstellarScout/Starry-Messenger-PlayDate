@@ -86,9 +86,9 @@ end
 local function normalize(x, y)
     local magnitude = length(x, y)
     if magnitude <= 0.0001 then
-        return 0, 0
+        return 0, 0, 0
     end
-    return x / magnitude, y / magnitude
+    return x / magnitude, y / magnitude, magnitude
 end
 
 local function wrapAxis(value, minValue, maxValue, margin)
