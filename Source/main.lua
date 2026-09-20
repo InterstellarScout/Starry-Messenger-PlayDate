@@ -32,7 +32,6 @@ import "systems/snakegame"
 import "systems/smokebloom"
 import "systems/touchinggrass"
 import "systems/fractaltree"
-import "systems/brickbuilder"
 import "systems/crankblocks"
 import "systems/vibes"
 import "systems/puddledrops"
@@ -54,7 +53,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.16"
+local APP_VERSION <const> = "0.2.17"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -212,7 +211,6 @@ local SINGLE_VIEW_ITEMS <const> = {
     { id = "marblemadness", label = "Marble Madness" },
     { id = "touchinggrass", label = "Touching Grass" },
     { id = "fractaltree", label = "Fractal Tree" },
-    { id = "brickbuilder", label = "Brick Builder" },
     { id = "crankblocks", label = "Crank Blocks" },
     {
         id = "snake",

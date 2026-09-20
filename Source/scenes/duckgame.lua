@@ -888,26 +888,25 @@ function DuckGameScene:stealTrailSegments()
     end
 end
 
-function DuckGameScene:relocateNest(slot)
-    local oldX, oldY = self:getNestPosition(slot)
-    local nextX, nextY = randomPondPoint()
-    for _ = 1, 12 do
-        local clear = true
-        for otherSlot, nest in pairs(self.nests or {}) do
-            if otherSlot ~= slot and squaredDistance(nextX, nextY, nest.x, nest.y) < ((NEST_RADIUS * 3) * (NEST_RADIUS * 3)) then
-                clear = false
-                break
+function DuckGameScene:updateNestPushes()
+    for slot, nest in pairs(self.nests or {}) do
+        local player = self.players[slot]
+        if player ~= nil then
+            local dx = nest.x - player.x
+            local dy = nest.y - player.y
+            local directionX, directionY, distance = normalize(dx, dy)
+            local pushRadius = NEST_RADIUS + 10
+            if distance < pushRadius then
+                if distance <= 0.01 then
+                    directionX = player.facingX or 1
+                    directionY = player.facingY or 0
+                end
+                local push = math.max(0.45, (pushRadius - distance) * 0.22)
+                nest.x = clamp(nest.x + (directionX * push), POND_LEFT + NEST_RADIUS + 2, POND_RIGHT - NEST_RADIUS - 2)
+                nest.y = clamp(nest.y + (directionY * push), POND_TOP + NEST_RADIUS + 2, POND_BOTTOM - NEST_RADIUS - 2)
             end
         end
-        if clear then
-            break
-        end
-        nextX, nextY = randomPondPoint()
     end
-    self.nests[slot] = { x = nextX, y = nextY }
-    self.nestPixels[slot] = {}
-    self:addRipple(oldX, oldY, 5)
-    self:addRipple(nextX, nextY, 5)
 end
 
 function DuckGameScene:deliverChicks()
@@ -925,8 +924,6 @@ function DuckGameScene:deliverChicks()
             if startedDelivery then
                 self:addRipple(nestX, nestY, 6)
             end
-            -- The nest is a bumpable object: it hops away after every contact.
-            self:relocateNest(slot)
         end
     end
 end
@@ -1056,6 +1053,8 @@ function DuckGameScene:updateLocalGame()
         end
     end
 
+    self:updateNestPushes()
+
     self:updateFreeChicks(dt)
     self:updateTrails()
     self:collectFreeChicks()
@@ -1119,16 +1118,18 @@ function DuckGameScene:buildPondGrass()
     end
 
     local seed = 1
+    -- Every blade grows upright relative to the console, including the grass
+    -- beside the pond.  Duck contact only bends it sideways.
     for x = POND_LEFT + 18, POND_RIGHT - 18, 11 do
-        addBlade(x, POND_TOP + 7, 0, 1, seed)
+        addBlade(x, POND_TOP - 2, 0, -1, seed)
         seed = seed + 1
-        addBlade(x, POND_BOTTOM - 7, 0, -1, seed)
+        addBlade(x, POND_BOTTOM + 2, 0, -1, seed)
         seed = seed + 1
     end
     for y = POND_TOP + 25, POND_BOTTOM - 25, 11 do
-        addBlade(POND_LEFT + 7, y, 1, 0, seed)
+        addBlade(POND_LEFT - 2, y, 0, -1, seed)
         seed = seed + 1
-        addBlade(POND_RIGHT - 7, y, -1, 0, seed)
+        addBlade(POND_RIGHT + 2, y, 0, -1, seed)
         seed = seed + 1
     end
     return blades

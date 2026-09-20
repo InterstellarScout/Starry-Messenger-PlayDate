@@ -62,27 +62,38 @@ function FractalTree:update()
     end
 end
 
-function FractalTree:drawBranch(x1, y1, length, angle, depth, branchIndex)
-    if depth <= 0 or length < (self.minBranchLength or MIN_LENGTH) or self.branchBudget <= 0 then
+function FractalTree:drawBranch(x1, y1, length, angle, generation, branchIndex)
+    if length < (self.minBranchLength or MIN_LENGTH) or self.branchBudget <= 0 then
+        return
+    end
+
+    -- Each generation takes one growth step to extend from zero to twice its
+    -- seed length.  Only then do its four evenly spaced offshoots begin at
+    -- zero, eliminating the old abrupt full-size branch pop-in.
+    local progress = clamp((self.growth or 0) - generation, 0, 1)
+    if progress <= 0 then
         return
     end
     self.branchBudget = self.branchBudget - 1
 
-    local x2 = x1 + (math.cos(angle) * length)
-    local y2 = y1 + (math.sin(angle) * length)
-    local lineWidth = clamp(math.floor(depth * 0.42), 1, 4)
+    local visibleLength = length * 2 * progress
+    local x2 = x1 + (math.cos(angle) * visibleLength)
+    local y2 = y1 + (math.sin(angle) * visibleLength)
+    local lineWidth = clamp(4 - math.floor(generation * 0.32), 1, 4)
     gfx.setLineWidth(lineWidth)
     gfx.drawLine(math.floor(x1), math.floor(y1), math.floor(x2), math.floor(y2))
 
-    local sway = math.sin(self.phase + branchIndex * 0.7) * 0.08
-    local split = 0.42 + ((self.growth % 1) * 0.1)
-    local sideLength = length * ((self.branchLengthFactor or 0.64) + (math.sin(self.growth + depth) * 0.02))
-    local centerLength = length * ((self.branchLengthFactor or 0.64) - 0.06)
-    self:drawBranch(x2, y2, sideLength, angle - split + sway, depth - 1, branchIndex + 1)
-    self:drawBranch(x2, y2, sideLength, angle + split + sway, depth - 1, branchIndex + 2)
-
-    if depth > 3 and (depth + branchIndex) % 2 == 0 then
-        self:drawBranch(x2, y2, centerLength, angle + (sway * 0.5), depth - 2, branchIndex + 3)
+    if progress >= 1 then
+        local childLength = length * (self.branchLengthFactor or 0.5)
+        for point = 1, 4 do
+            local along = point / 5
+            local childX = x1 + (math.cos(angle) * visibleLength * along)
+            local childY = y1 + (math.sin(angle) * visibleLength * along)
+            local sway = math.sin(self.phase + branchIndex + point) * 0.07
+            local side = point % 2 == 0 and 1 or -1
+            local split = 0.32 + (point * 0.08)
+            self:drawBranch(childX, childY, childLength, angle + (side * split) + sway, generation + 1, (branchIndex * 4) + point)
+        end
     end
 end
 
@@ -116,20 +127,20 @@ function FractalTree:draw()
     gfx.fillRect(0, 0, self.width, self.height)
     gfx.setColor(gfx.kColorWhite)
 
-    -- Growth depth is intentionally not capped.  A draw budget keeps the
-    -- Playdate safe while the tree's finer upper branches keep extending.
-    local depth = clamp(math.floor(3 + self.growth), 3, MAX_DEPTH + 18)
+    -- Growth depth is intentionally not capped. A draw budget keeps the
+    -- Playdate safe while every new generation grows in smoothly.
+    local depth = clamp(math.floor(self.growth) + 1, 1, MAX_DEPTH + 18)
     local excessDepth = math.max(0, depth - MAX_DEPTH)
-    local treeScale = math.max(0.38, 1 - (excessDepth * 0.035))
-    local trunkLength = (36 + math.min(self.growth, 8) * 6) * treeScale
+    local treeScale = math.max(0.3, 1 - (excessDepth * 0.03))
+    local trunkLength = 42 * treeScale
     local rootX = self.width * 0.5
     local rootY = self.height - 6
 
     self.branchBudget = MAX_BRANCHES_PER_FRAME
     self.minBranchLength = math.max(0.7, MIN_LENGTH - (excessDepth * 0.14))
-    self.branchLengthFactor = math.min(0.82, 0.64 + (excessDepth * 0.014))
+    self.branchLengthFactor = math.max(0.34, 0.5 - (excessDepth * 0.006))
     self:drawParticles()
-    self:drawBranch(rootX, rootY, trunkLength, -math.pi * 0.5, depth, 1)
+    self:drawBranch(rootX, rootY, trunkLength, -math.pi * 0.5, 0, 1)
     self:drawCanopyHints(depth)
     gfx.setLineWidth(1)
 

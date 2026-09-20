@@ -14,6 +14,7 @@
 | Make Duck Game nests bumpable relocating objects and make B return from Orbital Defense. | Done |
 | Convert Peep-And-The-Big-Wide-World-The-Origin-Trimmed.mp4 into the Duck GIF category with audio. | Done |
 | Make Starry Tunnel bend active stars continuously with held D-pad input while new stars return to a normal path when released; hide a parent title above its mode picker. | Done |
+| Make Duck nests persistent pushable objects, keep pond grass vertically oriented, expand Crank Blocks to the full screen with crank-only vertical control, remove Block Builder, and smooth Fractal Tree branch growth. | Done |
 | Derive implementation directives and a family-only companion transcript from the supplied Playdate verbal suggestions. | Done |
 | Add the supplied Alan Watts “Form and Void” notes and transcript to Text Viewer. | Done |
 | Consolidate the supplied Alan Watts excerpts into a cleaned Text Viewer entry and Markdown export. | Done |

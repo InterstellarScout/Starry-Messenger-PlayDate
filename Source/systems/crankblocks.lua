@@ -13,13 +13,12 @@ local CRANK_BLOCKS_CONFIG <const> = GameConfig and GameConfig.crankBlocks or {}
 CrankBlocks = {}
 CrankBlocks.__index = CrankBlocks
 
-local COLS <const> = 10
-local ROWS <const> = 21
+local COLS <const> = 40
+local ROWS <const> = 24
 local CELL <const> = 10
-local BOARD_X <const> = 150
-local BOARD_Y <const> = 30
+local BOARD_X <const> = 0
+local BOARD_Y <const> = 0
 local CRANK_STEP <const> = 18
-local ALLOW_UP_MOVE <const> = CRANK_BLOCKS_CONFIG.allowUpMove ~= false
 local SAVE_KEY <const> = "crankblocks_stats"
 local HOLD_INITIAL_DELAY <const> = 10
 local HOLD_MAX_INTERVAL <const> = 1
@@ -204,7 +203,7 @@ function CrankBlocks:applyCrank(change)
     self.crankAccumulator = self.crankAccumulator + (change or 0)
     while math.abs(self.crankAccumulator) >= CRANK_STEP do
         local direction = self.crankAccumulator > 0 and 1 or -1
-        self:rotatePiece(direction)
+        self:move(0, direction)
         self.crankAccumulator = self.crankAccumulator - (CRANK_STEP * direction)
     end
 end
@@ -217,8 +216,6 @@ function CrankBlocks:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHel
         direction = { 1, 0, "right" }
     elseif downHeld then
         direction = { 0, 1, "down" }
-    elseif upHeld and ALLOW_UP_MOVE then
-        direction = { 0, -1, "up" }
     end
 
     if direction == nil then

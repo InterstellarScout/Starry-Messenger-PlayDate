@@ -110,10 +110,6 @@ function ViewScene.new(config)
         self.effect = FractalTree.new(400, 240, {
             preview = false
         })
-    elseif self.viewId == "brickbuilder" then
-        self.effect = BrickBuilder.new(400, 240, {
-            preview = false
-        })
     elseif self.viewId == "crankblocks" then
         self.effect = CrankBlocks.new(400, 240, {
             preview = false
@@ -761,8 +757,6 @@ function ViewScene:update()
             self.effect:handlePrimaryAction()
         elseif self.viewId == "touchinggrass" then
             self.effect:handlePrimaryAction()
-        elseif self.viewId == "brickbuilder" then
-            self.effect:handlePrimaryAction()
         elseif self.viewId == "crankblocks" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "rccar" then
@@ -838,9 +832,6 @@ function ViewScene:update()
         self.crankAccumulator = 0
     elseif self.viewId == "fractaltree" then
         self.effect:applyCrank(change, acceleratedChange)
-        self.crankAccumulator = 0
-    elseif self.viewId == "brickbuilder" then
-        self.effect:applyCrank(change)
         self.crankAccumulator = 0
     elseif self.viewId == "crankblocks" then
         self.effect:applyCrank(change)

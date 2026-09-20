@@ -787,10 +787,6 @@ function TitleScene:setPreview(forceFresh)
             return FractalTree.new(400, 240, {
                 preview = true
             })
-        elseif actualViewId == "brickbuilder" then
-            return BrickBuilder.new(400, 240, {
-                preview = true
-            })
         elseif actualViewId == "crankblocks" then
             return CrankBlocks.new(400, 240, {
                 preview = true
