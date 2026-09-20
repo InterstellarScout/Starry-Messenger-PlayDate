@@ -761,45 +761,47 @@ function DuckGameScene:updateFreeChicks(dt)
     end
 end
 
+function DuckGameScene:getTrailTarget(player, trailOrder)
+    local history = player.trailHistory or {}
+    local historyIndex = math.min(#history, 1 + (trailOrder * TRAIL_HISTORY_GAP))
+    return history[historyIndex] or history[#history] or {
+        x = player.x,
+        y = player.y,
+        wrapped = false
+    }
+end
+
+function DuckGameScene:joinPlayerTrail(player, chick)
+    -- A collected chick always takes the next available tail position.  We do
+    -- not search/reorder the existing flock, so the line remains stable even
+    -- after a large collection or a stolen segment changes ownership.
+    chick.state = "trail"
+    local trailOrder = 0
+    for _, existingChick in ipairs(player.chicks) do
+        if existingChick.state ~= "delivering" then
+            trailOrder = trailOrder + 1
+        end
+    end
+    local target = self:getTrailTarget(player, trailOrder)
+    chick.x = chick.x + ((target.x - chick.x) * 0.35)
+    chick.y = chick.y + ((target.y - chick.y) * 0.35)
+end
+
 function DuckGameScene:updateTrails()
     for _, slot in ipairs(self.activeSlots) do
         local player = self.players[slot]
         if player ~= nil then
-            local history = player.trailHistory or {}
             local trailOrder = 0
             for chickIndex, chick in ipairs(player.chicks) do
                 if chick.state ~= "delivering" then
-                    if chick.state == "pending" then
-                        local targetX = player.x
-                        local targetY = player.y
-                        for previousIndex = chickIndex - 1, 1, -1 do
-                            local previousChick = player.chicks[previousIndex]
-                            if previousChick ~= nil and previousChick.state ~= "delivering" then
-                                targetX = previousChick.x
-                                targetY = previousChick.y
-                                break
-                            end
-                        end
-
-                        chick.x = chick.x + ((targetX - chick.x) * PENDING_CHICK_SWIM_EASE)
-                        chick.y = chick.y + ((targetY - chick.y) * PENDING_CHICK_SWIM_EASE)
-
-                        if squaredDistance(chick.x, chick.y, targetX, targetY) <= PENDING_CHICK_JOIN_DISTANCE_SQUARED then
-                            chick.state = "trail"
-                        end
+                    trailOrder = trailOrder + 1
+                    local targetPoint = self:getTrailTarget(player, trailOrder)
+                    if targetPoint.wrapped == true then
+                        chick.x = targetPoint.x
+                        chick.y = targetPoint.y
                     else
-                        trailOrder = trailOrder + 1
-                        local historyIndex = math.min(#history, 1 + (trailOrder * TRAIL_HISTORY_GAP))
-                        local targetPoint = history[historyIndex] or history[#history]
-                        if targetPoint ~= nil then
-                            if targetPoint.wrapped == true then
-                                chick.x = targetPoint.x
-                                chick.y = targetPoint.y
-                            else
-                                chick.x = chick.x + ((targetPoint.x - chick.x) * 0.24)
-                                chick.y = chick.y + ((targetPoint.y - chick.y) * 0.24)
-                            end
-                        end
+                        chick.x = chick.x + ((targetPoint.x - chick.x) * 0.24)
+                        chick.y = chick.y + ((targetPoint.y - chick.y) * 0.24)
                     end
                 end
             end
@@ -851,8 +853,9 @@ function DuckGameScene:collectFreeChicks()
                     x = chick.x,
                     y = chick.y,
                     seed = chick.seed,
-                    state = "pending"
+                    state = "trail"
                 }
+                self:joinPlayerTrail(player, player.chicks[#player.chicks])
                 self:addRipple(chick.x, chick.y, 3)
                 table.remove(self.freeChicks, chickIndex)
                 break
@@ -874,8 +877,8 @@ function DuckGameScene:stealTrailSegments()
                             if chick.state ~= "delivering" and squaredDistance(attacker.x, attacker.y, chick.x, chick.y) <= (STEAL_RADIUS * STEAL_RADIUS) then
                                 while #defender.chicks >= chickIndex do
                                     local stolenChick = table.remove(defender.chicks, chickIndex)
-                                    stolenChick.state = "pending"
                                     attacker.chicks[#attacker.chicks + 1] = stolenChick
+                                    self:joinPlayerTrail(attacker, stolenChick)
                                     self:addRipple(stolenChick.x, stolenChick.y, 4)
                                 end
                                 break
@@ -1030,7 +1033,23 @@ function DuckGameScene:getRenderState()
     if self.networked and self.portalService:isClient() then
         return self.remoteState
     end
-    return self:serializeState()
+    -- Rendering the local/host match can use live data directly.  Deep-copying
+    -- every chick and nest pixel each frame caused visible pauses once a duck
+    -- was leading a substantial flock.  Only network snapshots need copies.
+    return {
+        state = self.state,
+        frame = self.frame,
+        winnerSlot = self.winnerSlot,
+        winMessage = self.winMessage,
+        centerNestMode = self:isCenterNestMode(),
+        players = self.players,
+        freeChicks = self.freeChicks,
+        ripples = self.ripples,
+        reeds = self.reeds,
+        nests = self.nests,
+        nestPixels = self.nestPixels,
+        targetScore = self:getTargetGoal()
+    }
 end
 
 function DuckGameScene:updateLocalGame()
@@ -1120,16 +1139,37 @@ function DuckGameScene:buildPondGrass()
     local seed = 1
     -- Every blade grows upright relative to the console, including the grass
     -- beside the pond.  Duck contact only bends it sideways.
-    for x = POND_LEFT + 18, POND_RIGHT - 18, 11 do
+    -- Double the top and bottom shore density so the long pond edges feel
+    -- planted rather than like a thin, repeated border.
+    for x = POND_LEFT + 14, POND_RIGHT - 14, 6 do
         addBlade(x, POND_TOP - 2, 0, -1, seed)
         seed = seed + 1
         addBlade(x, POND_BOTTOM + 2, 0, -1, seed)
         seed = seed + 1
     end
-    for y = POND_TOP + 25, POND_BOTTOM - 25, 11 do
-        addBlade(POND_LEFT - 2, y, 0, -1, seed)
+    -- Alternate the side blades as the shoreline rises, then lightly fill the
+    -- perimeter with irregular extras so neither bank reads as a rigid fence.
+    local leftTurn = true
+    for y = POND_TOP + 16, POND_BOTTOM - 16, 8 do
+        if leftTurn then
+            addBlade(POND_LEFT - 2, y, 0, -1, seed)
+        else
+            addBlade(POND_RIGHT + 2, y, 0, -1, seed)
+        end
         seed = seed + 1
-        addBlade(POND_RIGHT + 2, y, 0, -1, seed)
+        leftTurn = not leftTurn
+    end
+    for index = 1, 48 do
+        local edge = ((index - 1) % 4) + 1
+        if edge == 1 then
+            addBlade(math.random(POND_LEFT + 12, POND_RIGHT - 12), POND_TOP - math.random(0, 5), 0, -1, seed)
+        elseif edge == 2 then
+            addBlade(math.random(POND_LEFT + 12, POND_RIGHT - 12), POND_BOTTOM + math.random(0, 5), 0, -1, seed)
+        elseif edge == 3 then
+            addBlade(POND_LEFT - math.random(0, 5), math.random(POND_TOP + 12, POND_BOTTOM - 12), 0, -1, seed)
+        else
+            addBlade(POND_RIGHT + math.random(0, 5), math.random(POND_TOP + 12, POND_BOTTOM - 12), 0, -1, seed)
+        end
         seed = seed + 1
     end
     return blades
@@ -1294,7 +1334,11 @@ function DuckGameScene:drawNest(slot, score, pixels, nest)
     gfx.setImageDrawMode(gfx.kDrawModeNXOR)
     gfx.drawTextAligned(tostring(score or 0), x, y - 6, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    gfx.drawTextAligned(self:isCenterNestMode() and "Nest" or tostring(slot), x, y + 12, kTextAlignment.center)
+    -- The center-nest label is useful before the first delivery, then it only
+    -- clutters the nest once the player has learned what it is.
+    if not self:isCenterNestMode() or (score or 0) <= 0 then
+        gfx.drawTextAligned(self:isCenterNestMode() and "Nest" or tostring(slot), x, y + 12, kTextAlignment.center)
+    end
 end
 
 function DuckGameScene:drawLobby()
