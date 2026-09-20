@@ -222,6 +222,7 @@ end
 function DuckGameScene.new(config)
     local self = setmetatable({}, DuckGameScene)
     self.onReturnToTitle = config.onReturnToTitle
+    self.tutorialOpen = config.preview ~= true and Tutorials.shouldShow("duck", config.multiplayer and "multi" or "single")
     self.preview = config.preview == true
     self.multiplayer = config.multiplayer == true
     self.modeId = config.modeId or DuckGameScene.MODE_SOLO_4
@@ -1480,6 +1481,16 @@ function DuckGameScene:update()
         return
     end
 
+    if self.tutorialOpen then
+        self:draw()
+        Tutorials.draw("duck", self.multiplayer and "multi" or "single")
+        if pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonB) then
+            Tutorials.markSeen("duck", self.multiplayer and "multi" or "single")
+            self.tutorialOpen = false
+        end
+        return
+    end
+
     if self.entryOverlayVisible then
         if self.entryOverlayFrames > 0 then
             self.entryOverlayFrames = self.entryOverlayFrames - 1
@@ -1540,3 +1551,4 @@ function DuckGameScene:update()
     end
     self:draw()
 end
+import "systems/tutorials"

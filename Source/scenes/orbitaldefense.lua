@@ -1,5 +1,6 @@
 import "gameconfig"
 import "systems/multiplayer"
+import "systems/tutorials"
 
 --[[
 Orbital Defense scene.
@@ -189,6 +190,7 @@ function OrbitalDefenseScene.new(config)
     local self = setmetatable({}, OrbitalDefenseScene)
     self.onReturnToTitle = config.onReturnToTitle
     self.preview = config.preview == true
+    self.tutorialOpen = not self.preview and Tutorials.shouldShow("orbital", config.multiplayer and "multi" or "single")
     self.multiplayer = config.multiplayer == true
     self.portalService = config.portalService
     self.networked = self.multiplayer and self.portalService ~= nil
@@ -1179,6 +1181,16 @@ end
 
 function OrbitalDefenseScene:update()
     if self.preview then
+        return
+    end
+
+    if self.tutorialOpen then
+        self:draw()
+        Tutorials.draw("orbital", self.multiplayer and "multi" or "single")
+        if pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonB) then
+            Tutorials.markSeen("orbital", self.multiplayer and "multi" or "single")
+            self.tutorialOpen = false
+        end
         return
     end
 

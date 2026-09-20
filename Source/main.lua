@@ -43,6 +43,7 @@ import "systems/starryportal"
 import "systems/viewaudio"
 import "scenes/splash"
 import "scenes/title"
+import "scenes/settings"
 import "scenes/view"
 import "scenes/foldertransition"
 import "scenes/loadingstill"
@@ -280,7 +281,8 @@ local ROOT_VIEW_ITEMS <const> = {
         modeId = 2,
         getModeLabel = MultiplayerConfig.getBeingCountLabel
     },
-    { id = "utilities", label = "Utilities" }
+    { id = "utilities", label = "Utilities" },
+    { id = "settings", label = "Settings" }
 }
 
 local UTILITIES_VIEW_ITEMS <const> = {
@@ -471,6 +473,13 @@ local function showView(viewId, options)
             buildSystemMenu(MULTIPLAYER_VIEW_ITEMS, nil, nil)
         end)
         setScene(buildGameTitleScene("multi"))
+        return
+    end
+    if viewId == "settings" then
+        ViewAudio.stop()
+        setScene(SettingsScene.new({ onReturn = function()
+            setScene(buildGameTitleScene("root", { selectedIndex = getViewIndex(ROOT_VIEW_ITEMS, "settings") }))
+        end }))
         return
     end
     if viewId == "duck" then

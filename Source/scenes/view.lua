@@ -1,4 +1,5 @@
 import "gameconfig"
+import "systems/tutorials"
 
 --[[
 Generic single-view gameplay scene.
@@ -54,6 +55,7 @@ function ViewScene.new(config)
     self.warpMenuIndex = 1
     self.starryTunnelDirectionLocked = false
     self.entryOverlayFrames = 0
+    self.tutorialOpen = Tutorials.shouldShow(self.viewId, self.modeId)
 
     if config.effect then
         self.effect = config.effect
@@ -648,6 +650,18 @@ function ViewScene:handleTrailblazerIntroInteraction(change, acceleratedChange)
 end
 
 function ViewScene:update()
+    if self.tutorialOpen then
+        if pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonB) then
+            Tutorials.markSeen(self.viewId, self.modeId)
+            self.tutorialOpen = false
+            return
+        end
+        if self.effect and self.effect.draw then
+            self.effect:draw()
+        end
+        Tutorials.draw(self.viewId, self.modeId)
+        return
+    end
     local aJustPressed = pd.buttonJustPressed(pd.kButtonA)
     local change, acceleratedChange = pd.getCrankChange()
 
