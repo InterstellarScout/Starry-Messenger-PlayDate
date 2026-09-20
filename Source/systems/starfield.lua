@@ -222,10 +222,14 @@ local WARP_OFFSCREEN_RADIUS <const> = WARP_VISIBLE_RADIUS + 40
 local WARP_OFFSCREEN_RADIUS_SQUARED <const> = WARP_OFFSCREEN_RADIUS * WARP_OFFSCREEN_RADIUS
 local WARP_CENTER_DESPAWN_RADIUS <const> = WARP_CONFIG.centerDespawnRadius or 10
 local WARP_SPAWN_FADE_IN_FRAMES <const> = WARP_CONFIG.spawnFadeFrames or 8
-local WARP_INWARD_DESPAWN_START_RADIUS_MIN <const> = WARP_CONFIG.inwardDespawnStartRadiusMin or 2
-local WARP_INWARD_DESPAWN_START_RADIUS_MAX <const> = WARP_CONFIG.inwardDespawnStartRadiusMax or 5
-local WARP_INWARD_DESPAWN_GROWTH_MIN <const> = WARP_CONFIG.inwardDespawnGrowthMin or 0.08
-local WARP_INWARD_DESPAWN_GROWTH_MAX <const> = WARP_CONFIG.inwardDespawnGrowthMax or 0.22
+local WARP_INWARD_DESPAWN_OUTER_CHANCE <const> = WARP_CONFIG.inwardDespawnOuterChance or 0.25
+local WARP_INWARD_DESPAWN_MIDDLE_CHANCE <const> = WARP_CONFIG.inwardDespawnMiddleChance or 0.50
+local WARP_INWARD_DESPAWN_OUTER_MIN_RADIUS <const> = WARP_VISIBLE_RADIUS * (WARP_CONFIG.inwardDespawnOuterMinRatio or 0.72)
+local WARP_INWARD_DESPAWN_OUTER_MAX_RADIUS <const> = WARP_VISIBLE_RADIUS * (WARP_CONFIG.inwardDespawnOuterMaxRatio or 0.94)
+local WARP_INWARD_DESPAWN_MIDDLE_MIN_RADIUS <const> = WARP_VISIBLE_RADIUS * (WARP_CONFIG.inwardDespawnMiddleMinRatio or 0.33)
+local WARP_INWARD_DESPAWN_MIDDLE_MAX_RADIUS <const> = WARP_VISIBLE_RADIUS * (WARP_CONFIG.inwardDespawnMiddleMaxRatio or 0.65)
+local WARP_INWARD_DESPAWN_INNER_MIN_RADIUS <const> = math.max(2, WARP_CONFIG.inwardDespawnCenterGuardRadius or 12, WARP_VISIBLE_RADIUS * (WARP_CONFIG.inwardDespawnInnerMinRatio or 0.06))
+local WARP_INWARD_DESPAWN_INNER_MAX_RADIUS <const> = WARP_VISIBLE_RADIUS * (WARP_CONFIG.inwardDespawnInnerMaxRatio or 0.30)
 local WARP_FADE_DEBUG_INTERVAL_FRAMES <const> = WARP_CONFIG.fadeDebugIntervalFrames or 45
 local WARP_TAPER_HIDE_SPEED_START <const> = WARP_CONFIG.taperHideSpeedStart or 1.2
 local WARP_TAPER_HIDE_SPEED_END <const> = WARP_CONFIG.taperHideSpeedEnd or 3.2
@@ -719,7 +723,7 @@ end
 
 function Starfield:spawnWarpStar(star, spawnAtEdge)
     self:assignWarpStarVisuals(star)
-    star.despawnGrowth = WARP_INWARD_DESPAWN_GROWTH_MIN + (math.random() * (WARP_INWARD_DESPAWN_GROWTH_MAX - WARP_INWARD_DESPAWN_GROWTH_MIN))
+    star.despawnGrowth = 0
     star.spawnFadeFrames = WARP_SPAWN_FADE_IN_FRAMES
     local useCircularSpawn = self.circularWarpSpawn == true
     local circularSpawnRadius = self.circularWarpSpawnRadius or WARP_VISIBLE_RADIUS
@@ -727,7 +731,10 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
     if spawnAtEdge then
         if self.speed < 0 then
             local angle = math.random() * (math.pi * 2)
-            local useCircumference = math.random() < 0.75
+            -- Every inward star arrives from beyond the screen edge. Its
+            -- individual death radius then spreads disappearance naturally
+            -- across the view instead of feeding a black center bullseye.
+            local useCircumference = true
             local spawnRadius = useCircularSpawn and circularSpawnRadius or WARP_SPAWN_RADIUS
             local radius = useCircumference and spawnRadius or (math.sqrt(math.random()) * spawnRadius)
             local screenX = self.centerX + (math.cos(angle) * radius)
@@ -735,7 +742,7 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
             local worldX, worldY = self:screenToWorld(screenX, screenY)
             star.x = worldX - self.playerCenterX
             star.y = worldY - self.playerCenterY
-            star.despawnRadius = WARP_INWARD_DESPAWN_START_RADIUS_MIN + (math.random() * (WARP_INWARD_DESPAWN_START_RADIUS_MAX - WARP_INWARD_DESPAWN_START_RADIUS_MIN))
+            self:assignInwardWarpDespawnRadius(star)
         else
             if useCircularSpawn then
                 local angle = math.random() * (math.pi * 2)
@@ -755,7 +762,7 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
         if self.speed < 0 then
             star.x = (math.random() * 18) - 9
             star.y = (math.random() * 18) - 9
-            star.despawnRadius = WARP_INWARD_DESPAWN_START_RADIUS_MIN + (math.random() * (WARP_INWARD_DESPAWN_START_RADIUS_MAX - WARP_INWARD_DESPAWN_START_RADIUS_MIN))
+            self:assignInwardWarpDespawnRadius(star)
         else
             if useCircularSpawn then
                 local angle = math.random() * (math.pi * 2)
@@ -776,6 +783,23 @@ function Starfield:spawnWarpStar(star, spawnAtEdge)
     star.px = star.x
     star.py = star.y
     self:updateWarpStarScreenCache(star)
+end
+
+function Starfield:assignInwardWarpDespawnRadius(star)
+    local roll = math.random()
+    local minRadius
+    local maxRadius
+    if roll < WARP_INWARD_DESPAWN_OUTER_CHANCE then
+        minRadius = WARP_INWARD_DESPAWN_OUTER_MIN_RADIUS
+        maxRadius = WARP_INWARD_DESPAWN_OUTER_MAX_RADIUS
+    elseif roll < (WARP_INWARD_DESPAWN_OUTER_CHANCE + WARP_INWARD_DESPAWN_MIDDLE_CHANCE) then
+        minRadius = WARP_INWARD_DESPAWN_MIDDLE_MIN_RADIUS
+        maxRadius = WARP_INWARD_DESPAWN_MIDDLE_MAX_RADIUS
+    else
+        minRadius = WARP_INWARD_DESPAWN_INNER_MIN_RADIUS
+        maxRadius = WARP_INWARD_DESPAWN_INNER_MAX_RADIUS
+    end
+    star.despawnRadius = minRadius + (math.random() * math.max(0, maxRadius - minRadius))
 end
 
 function Starfield:refreshWarpFieldForDirection()
@@ -1158,11 +1182,6 @@ function Starfield:updateWarpSpeed()
             local scaleFactor = clamp(1 + (speedScale * 0.03 * star.speed), 0.05, 8)
             star.x = (star.x * scaleFactor) + biasX
             star.y = (star.y * scaleFactor) + biasY
-
-            if signedSpeed < 0 and star.despawnRadius > 0 then
-                local growthStep = star.despawnGrowth * math.max(1, math.abs(signedSpeed))
-                star.despawnRadius = math.min(WARP_CENTER_DESPAWN_RADIUS, star.despawnRadius + growthStep)
-            end
 
             if self:warpStarTouchesCenterZone(star) then
                 self:spawnWarpStar(star, signedSpeed < 0)
