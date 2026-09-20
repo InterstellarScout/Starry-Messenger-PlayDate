@@ -14,7 +14,7 @@ FractalTree.__index = FractalTree
 local MAX_DEPTH <const> = 11
 local MIN_LENGTH <const> = 3
 local MAX_BRANCHES_PER_FRAME <const> = 1800
-local PARTICLE_COUNT <const> = 72
+local PARTICLE_COUNT <const> = 144
 
 local function clamp(value, minValue, maxValue)
     return math.max(minValue, math.min(maxValue, value))
@@ -33,8 +33,8 @@ function FractalTree.new(width, height, options)
         self.particles[index] = {
             orbitX = math.random() * width,
             orbitY = math.random() * height,
-            radiusX = 8 + math.random() * 58,
-            radiusY = 5 + math.random() * 34,
+            radiusX = 8 + math.random() * 82,
+            radiusY = 5 + math.random() * 52,
             angle = math.random() * math.pi * 2,
             speed = (0.006 + math.random() * 0.021) * (math.random() < 0.5 and -1 or 1),
             phase = math.random() * math.pi * 2

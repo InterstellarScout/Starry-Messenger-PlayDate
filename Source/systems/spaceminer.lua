@@ -3864,6 +3864,15 @@ function SpaceMiner:handleMenuVerticalInput(upPressed, downPressed)
     if self.menuDpadHoldDirection ~= direction then
         self.menuDpadHoldDirection = direction
         self.menuDpadHoldFrames = 1
+        -- A fresh tap while the carousel is coasting catches the current
+        -- selection instead of adding another impulse.  A held direction
+        -- then builds speed again through the normal inertial path.
+        if math.abs(self.menuRotaryVelocity or 0) >= 0.02 or math.abs(self.menuCrankAccumulator or 0) >= 0.02 then
+            self.menuRotaryVelocity = 0
+            self.menuCrankAccumulator = 0
+            self.menuRotaryFreeSpin = false
+            return true
+        end
         self:startMenuDpadSpin(direction)
         return true
     end
@@ -6065,7 +6074,7 @@ function SpaceMiner:applyCrank(change)
             end
             return
         end
-        self:startRotaryMenuSpin(input > 0 and 1 or -1, math.min(1.1, math.abs(input) / MENU_CRANK_STEP))
+        self:startRotaryMenuSpin(input > 0 and 1 or -1, math.min(1.1, math.abs(input) / MENU_CRANK_STEP) * 0.5)
         return
     end
     if math.abs(change) <= 0.001 then
