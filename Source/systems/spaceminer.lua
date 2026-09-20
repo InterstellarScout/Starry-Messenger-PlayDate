@@ -1562,12 +1562,15 @@ function SpaceMiner:saveModeState()
     if self:isStoryMode() then
         self.storySaveSlot = self.storySaveSlot or SpaceMiner.chooseNewStorySlot()
         self.storySaveName = self.storySaveName or STORY_SAVE_EMPTY_SLOT_NAME
-        self.storySaveSequence = SpaceMiner.markStorySlotSaved(self.storySaveSlot, self.storySaveName)
     end
     local ok, errorMessage = pcall(function()
         pd.datastore.write(self:getStorySaveData(), self:getSaveKey())
     end)
-    if not ok then
+    if ok and self:isStoryMode() then
+        -- Only advertise a slot after its payload has been written.  This
+        -- keeps Continue Story from offering a save that cannot be loaded.
+        self.storySaveSequence = SpaceMiner.markStorySlotSaved(self.storySaveSlot, self.storySaveName)
+    elseif not ok then
         StarryLog.error("space miner save failed: %s", tostring(errorMessage))
     end
 end
@@ -1726,7 +1729,7 @@ function SpaceMiner:getStorySlotSelectorItems()
                 label = string.format("Delete Save %d", slot)
             }
         else
-            local actionLabel = selectorMode == SpaceMiner.MODE_NEW_SAVE and "Create" or "Load"
+            local actionLabel = selectorMode == SpaceMiner.MODE_CONTINUE_STORY and "Start New Story" or "Create"
             items[#items + 1] = {
                 action = "new",
                 slot = slot,
@@ -2076,6 +2079,11 @@ function SpaceMiner:prepareNewStorySaveState()
     self.communicationHistoryCursorIndex = 1
     self.communicationHistoryScrollY = 0
     self.communicationHistoryCrankAccumulator = 0
+    -- A newly chosen slot is a live Story Mode run immediately.  Naming it is
+    -- optional decoration, not a gate that leaves the player in an inert menu.
+    if #self:getModeStageSchedule() > 0 then
+        self:beginStage(1)
+    end
 end
 
 function SpaceMiner:openNewStorySlot(slotOverride)
@@ -2109,6 +2117,7 @@ function SpaceMiner:openNewStorySlot(slotOverride)
     self.storyNameKeyboardText = nil
     self.storyNameAccepted = false
     self.storySlotSelectorMode = nil
+    self:saveModeState()
     self.nameEntryOpen = true
 end
 
