@@ -222,11 +222,11 @@ end
 function DuckGameScene.new(config)
     local self = setmetatable({}, DuckGameScene)
     self.onReturnToTitle = config.onReturnToTitle
-    self.tutorialOpen = config.preview ~= true and Tutorials.shouldShow("duck", config.multiplayer and "multi" or "single")
-    self.tutorialScroll = 0
     self.preview = config.preview == true
     self.multiplayer = config.multiplayer == true
     self.modeId = config.modeId or DuckGameScene.MODE_SOLO_4
+    self.tutorialOpen = not self.preview and Tutorials.shouldShow("duck", self.modeId)
+    self.tutorialScroll = 0
     self.portalService = config.portalService
     self.networked = self.multiplayer and self.portalService ~= nil
     self.playerCount = self.multiplayer
@@ -1531,7 +1531,7 @@ function DuckGameScene:update()
     end
 
     if self.tutorialOpen then
-        local tutorialMode = self.multiplayer and "multi" or "single"
+        local tutorialMode = self.modeId
         self.tutorialScroll = Tutorials.updateScroll(self.tutorialScroll, "duck", tutorialMode, pd.getCrankChange(), pd.buttonJustPressed(pd.kButtonUp), pd.buttonJustPressed(pd.kButtonDown))
         self:draw()
         Tutorials.draw("duck", tutorialMode, self.tutorialScroll)

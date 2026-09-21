@@ -1223,7 +1223,7 @@ function TitleScene:drawModeCarousel(selectedView, centerY)
                     x = x,
                     -- Keep the selected option on the same baseline as a normal
                     -- centered title.  The side-option positions stay unchanged.
-                    centerY = y + 8 + (math.abs(offset) < 0.35 and 20 or 0),
+                    centerY = y + 8 + (math.abs(offset) < 0.35 and 20 or 10),
                     scale = scale,
                     offset = offset
                 }

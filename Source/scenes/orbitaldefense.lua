@@ -969,13 +969,13 @@ function OrbitalDefenseScene:drawWorld(state)
     gfx.drawLine(PLANET_X - 30, PLANET_Y + 2, PLANET_X + 31, PLANET_Y + 2)
     gfx.setColor(gfx.kColorWhite)
     -- The elevator rises out of the planet and terminates in a visible dock.
-    gfx.fillRect(PLANET_X - 3, 34, 7, PLANET_Y - PLANET_RADIUS - 28)
+    gfx.fillRect(PLANET_X - 3, 126, 7, PLANET_Y - PLANET_RADIUS - 126)
     gfx.setColor(gfx.kColorBlack)
-    gfx.fillRect(PLANET_X - 1, 38, 3, PLANET_Y - PLANET_RADIUS - 32)
+    gfx.fillRect(PLANET_X - 1, 128, 3, PLANET_Y - PLANET_RADIUS - 128)
     gfx.setColor(gfx.kColorWhite)
-    gfx.fillRoundRect(PLANET_X - 12, 24, 25, 10, 4)
+    gfx.fillRoundRect(PLANET_X - 12, 114, 25, 10, 4)
     gfx.setColor(gfx.kColorBlack)
-    gfx.fillRect(PLANET_X - 5, 27, 11, 3)
+    gfx.fillRect(PLANET_X - 5, 117, 11, 3)
     gfx.setColor(gfx.kColorWhite)
     if (state.ringHealth or 0) > 0 then
         gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, RING_RADIUS)
@@ -1025,7 +1025,7 @@ function OrbitalDefenseScene:drawHud(state)
         local value = shieldUp and (state.ringHealth or 0) or (EARTH_MAX_HEALTH - (state.earthHealth or 0))
         local maximum = shieldUp and SHIELD_MAX_HEALTH or EARTH_MAX_HEALTH
         local ratio = clamp(value / maximum, 0, 1)
-        local barX, barY, barWidth, barHeight = 10, 211, 380, 16
+        local barX, barY, barWidth, barHeight = 10, 224, 380, 14
         gfx.setColor(gfx.kColorWhite)
         gfx.drawRect(barX, barY, barWidth, barHeight)
         if ratio > 0 then
@@ -1033,7 +1033,7 @@ function OrbitalDefenseScene:drawHud(state)
         end
         local label = shieldUp and string.format("EARTH SHIELD  %d%%", math.ceil(ratio * 100)) or string.format("EARTH DAMAGE  %d%%", math.ceil(ratio * 100))
         gfx.setImageDrawMode(ratio > 0.5 and gfx.kDrawModeFillBlack or gfx.kDrawModeInverted)
-        gfx.drawTextAligned(label, 200, 213, kTextAlignment.center)
+        gfx.drawTextAligned(label, 200, 225, kTextAlignment.center)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
         return
     end
@@ -1057,14 +1057,14 @@ function OrbitalDefenseScene:drawHud(state)
     local value = shieldUp and (state.ringHealth or 0) or (EARTH_MAX_HEALTH - (state.earthHealth or 0))
     local maximum = shieldUp and SHIELD_MAX_HEALTH or EARTH_MAX_HEALTH
     local ratio = clamp(value / maximum, 0, 1)
-    local barX, barY, barWidth, barHeight = 10, 211, 380, 16
+    local barX, barY, barWidth, barHeight = 10, 224, 380, 14
     gfx.drawRect(barX, barY, barWidth, barHeight)
     if ratio > 0 then
         gfx.fillRect(barX + 2, barY + 2, math.floor((barWidth - 4) * ratio), barHeight - 4)
     end
     local label = shieldUp and string.format("EARTH SHIELD  %d%%", math.ceil(ratio * 100)) or string.format("EARTH DAMAGE  %d%%", math.ceil(ratio * 100))
     gfx.setImageDrawMode(ratio > 0.5 and gfx.kDrawModeFillBlack or gfx.kDrawModeInverted)
-    gfx.drawTextAligned(label, 200, 213, kTextAlignment.center)
+    gfx.drawTextAligned(label, 200, 225, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawText("Crank aim  L laser  R missile  Up/Down orbit  A upgrades", 10, 194)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
