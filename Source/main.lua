@@ -112,6 +112,18 @@ local function buildVibesViewItems()
             controlViewId = "dimensionalsplit"
         },
         {
+            id = "starrytop",
+            label = "Starry Top",
+            openViewId = "starrytop",
+            controlViewId = "starrytop"
+        },
+        {
+            id = "fractaltree",
+            label = "Fractal Tree",
+            openViewId = "fractaltree",
+            controlViewId = "fractaltree"
+        },
+        {
             id = "lava",
             label = "Lava Lamp",
             modes = { LavaLamp.MODE_STANDARD, LavaLamp.MODE_INVERSE },
@@ -152,7 +164,6 @@ local SINGLE_VIEW_ITEMS <const> = {
             return Starfield.getModeLabel(modeId, "warp")
         end
     },
-    { id = "starrytop", label = "Starry Top" },
     {
         id = "life",
         label = "Game of Life",
@@ -218,7 +229,6 @@ local SINGLE_VIEW_ITEMS <const> = {
     },
     { id = "marblemadness", label = "Marble Madness" },
     { id = "touchinggrass", label = "Touching Grass" },
-    { id = "fractaltree", label = "Fractal Tree" },
     { id = "crankblocks", label = "Crank Blocks" },
     {
         id = "snake",

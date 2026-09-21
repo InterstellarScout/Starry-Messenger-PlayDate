@@ -108,6 +108,15 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "A: stop the star motion at zero while keeping crank rotation.",
             "B: return to title."
         })
+    elseif viewId == "fractaltree" then
+        return buildSpec("Fractal Tree Controls", {
+            "Crank forward: grow the 20-pixel trunk upward.",
+            "When a branch is complete, new lines begin at its 2/4, 3/4, and 4/4 points.",
+            "Each new line can grow to half of its parent line's length.",
+            "Completed lines repeat that pattern until the next half-length branch is smaller than one pixel.",
+            "Crank backward: retrace the growth.",
+            "B: return to title."
+        })
     elseif viewId == "vibes" then
         return buildSpec("Vibes Controls", {
             "A: cycle through the current Vibes prototypes. In Line Bloom, A toggles automatic spin.",
