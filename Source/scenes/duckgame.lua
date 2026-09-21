@@ -1413,7 +1413,24 @@ function DuckGameScene:drawHudFromState(state)
     end
 
     gfx.setFont(self.smallFont)
-    gfx.setColor(gfx.kColorBlack)
+    local function outlinedText(text, x, y)
+        gfx.setColor(gfx.kColorWhite)
+        gfx.drawText(text, x - 1, y)
+        gfx.drawText(text, x + 1, y)
+        gfx.drawText(text, x, y - 1)
+        gfx.drawText(text, x, y + 1)
+        gfx.setColor(gfx.kColorBlack)
+        gfx.drawText(text, x, y)
+    end
+    local function outlinedTextAligned(text, x, y, alignment)
+        gfx.setColor(gfx.kColorWhite)
+        gfx.drawTextAligned(text, x - 1, y, alignment)
+        gfx.drawTextAligned(text, x + 1, y, alignment)
+        gfx.drawTextAligned(text, x, y - 1, alignment)
+        gfx.drawTextAligned(text, x, y + 1, alignment)
+        gfx.setColor(gfx.kColorBlack)
+        gfx.drawTextAligned(text, x, y, alignment)
+    end
     local currentChickCount = 0
     for _, player in ipairs(state.players or {}) do
         if player.slot == self.localSlot then
@@ -1421,15 +1438,15 @@ function DuckGameScene:drawHudFromState(state)
         end
     end
 
-    gfx.drawText(string.format("Chicks %d", currentChickCount), 10, 4)
-    gfx.drawTextAligned(string.format("Total %d", self.totalCollectedEver or 0), 390, 4, kTextAlignment.right)
+    outlinedText(string.format("Chicks %d", currentChickCount), 10, 4)
+    outlinedTextAligned(string.format("Total %d", self.totalCollectedEver or 0), 390, 4, kTextAlignment.right)
     if state.centerNestMode then
-        gfx.drawTextAligned("Bring Birds Home", 200, 4, kTextAlignment.center)
+        outlinedTextAligned("Bring Birds Home", 200, 4, kTextAlignment.center)
     else
-        gfx.drawTextAligned(string.format("First to %d", state.targetScore or WIN_SCORE), 200, 4, kTextAlignment.center)
+        outlinedTextAligned(string.format("First to %d", state.targetScore or WIN_SCORE), 200, 4, kTextAlignment.center)
     end
     if self.networked then
-        gfx.drawText("pdportal live", 10, 4)
+        outlinedText("pdportal live", 10, 4)
     end
 end
 
