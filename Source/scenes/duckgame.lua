@@ -242,6 +242,7 @@ function DuckGameScene.new(config)
     self.freeChicks = {}
     self.reeds = {}
     self.pondGrass = self:buildPondGrass()
+    self.pondGrassChunkPhase = 0
     self.ripples = {}
     self.nestPixels = {}
     self.frame = 0
@@ -1141,7 +1142,7 @@ function DuckGameScene:buildPondGrass()
     local function addPatch(centerX, centerY, radius)
         -- One hundred blades per clump give the shore a soft, circular bank
         -- instead of another evenly spaced border.
-        for _ = 1, 100 do
+        for _ = 1, 50 do
             local angle = math.random() * math.pi * 2
             local distance = math.sqrt(math.random()) * radius
             addBlade(centerX + (math.cos(angle) * distance), centerY + (math.sin(angle) * distance), 0, -1, seed)
@@ -1153,7 +1154,7 @@ function DuckGameScene:buildPondGrass()
     -- beside the pond.  Duck contact only bends it sideways.
     -- Double the top and bottom shore density so the long pond edges feel
     -- planted rather than like a thin, repeated border.
-    for x = POND_LEFT + 14, POND_RIGHT - 14, 6 do
+    for x = POND_LEFT + 14, POND_RIGHT - 14, 12 do
         addBlade(x, POND_TOP - 2, 0, -1, seed)
         seed = seed + 1
         addBlade(x, POND_BOTTOM + 2, 0, -1, seed)
@@ -1162,7 +1163,7 @@ function DuckGameScene:buildPondGrass()
     -- Alternate the side blades as the shoreline rises, then lightly fill the
     -- perimeter with irregular extras so neither bank reads as a rigid fence.
     local leftTurn = true
-    for y = POND_TOP + 12, POND_BOTTOM - 12, 4 do
+    for y = POND_TOP + 12, POND_BOTTOM - 12, 8 do
         if leftTurn then
             addBlade(POND_LEFT - 2, y, 0, -1, seed)
         else
@@ -1171,7 +1172,7 @@ function DuckGameScene:buildPondGrass()
         seed = seed + 1
         leftTurn = not leftTurn
     end
-    for index = 1, 96 do
+    for index = 1, 48 do
         local edge = ((index - 1) % 4) + 1
         if edge == 1 then
             addBlade(math.random(POND_LEFT + 12, POND_RIGHT - 12), POND_TOP - math.random(0, 5), 0, -1, seed)
@@ -1190,7 +1191,7 @@ function DuckGameScene:buildPondGrass()
     addPatch(POND_RIGHT - 18, POND_BOTTOM - 18, 18)
     -- Tall cattails share the same bend physics as the grass, but are drawn
     -- as a stem with a dark pinecone-shaped seed head.
-    for index = 1, 18 do
+    for index = 1, 9 do
         local side = index % 2 == 0 and POND_LEFT + math.random(2, 18) or POND_RIGHT - math.random(2, 18)
         local y = POND_TOP + 12 + ((index * 19) % (POND_BOTTOM - POND_TOP - 24))
         addBlade(side, y, 0, -1, seed)
@@ -1203,7 +1204,12 @@ end
 
 function DuckGameScene:updatePondGrass(players)
     local radiusSquared = SHORE_GRASS_REPEL_RADIUS * SHORE_GRASS_REPEL_RADIUS
+    -- Alternate spatial checkerboard chunks each frame.  The visual spring
+    -- smooths the one-frame gap, while halving proximity work in a busy flock.
+    self.pondGrassChunkPhase = 1 - (self.pondGrassChunkPhase or 0)
     for _, blade in ipairs(self.pondGrass or {}) do
+        local chunk = (math.floor(blade.x / 40) + math.floor(blade.y / 40)) % 2
+        if chunk == self.pondGrassChunkPhase then
         local tangentX = -blade.normalY
         local tangentY = blade.normalX
         local targetLean = 0
@@ -1221,6 +1227,7 @@ function DuckGameScene:updatePondGrass(players)
         targetLean = clamp(targetLean, -1, 1)
         blade.velocity = ((blade.velocity or 0) + ((targetLean - (blade.lean or 0)) * 0.11)) * 0.78
         blade.lean = clamp((blade.lean or 0) + blade.velocity, -1.1, 1.1)
+        end
     end
 end
 
