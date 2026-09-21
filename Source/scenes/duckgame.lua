@@ -1137,6 +1137,16 @@ function DuckGameScene:buildPondGrass()
             seed = seed
         }
     end
+    local function addPatch(centerX, centerY, radius)
+        -- One hundred blades per clump give the shore a soft, circular bank
+        -- instead of another evenly spaced border.
+        for _ = 1, 100 do
+            local angle = math.random() * math.pi * 2
+            local distance = math.sqrt(math.random()) * radius
+            addBlade(centerX + (math.cos(angle) * distance), centerY + (math.sin(angle) * distance), 0, -1, seed)
+            seed = seed + 1
+        end
+    end
 
     local seed = 1
     -- Every blade grows upright relative to the console, including the grass
@@ -1174,6 +1184,20 @@ function DuckGameScene:buildPondGrass()
         end
         seed = seed + 1
     end
+    addPatch(POND_LEFT + 18, POND_TOP + 18, 18)
+    addPatch(POND_RIGHT - 18, POND_TOP + 18, 18)
+    addPatch(POND_LEFT + 18, POND_BOTTOM - 18, 18)
+    addPatch(POND_RIGHT - 18, POND_BOTTOM - 18, 18)
+    -- Tall cattails share the same bend physics as the grass, but are drawn
+    -- as a stem with a dark pinecone-shaped seed head.
+    for index = 1, 18 do
+        local side = index % 2 == 0 and POND_LEFT + math.random(2, 18) or POND_RIGHT - math.random(2, 18)
+        local y = POND_TOP + 12 + ((index * 19) % (POND_BOTTOM - POND_TOP - 24))
+        addBlade(side, y, 0, -1, seed)
+        blades[#blades].cattail = true
+        blades[#blades].length = 20 + (index % 3) * 3
+        seed = seed + 1
+    end
     return blades
 end
 
@@ -1208,6 +1232,9 @@ function DuckGameScene:drawPondGrass()
         local tipX = blade.x + (blade.normalX * blade.length) + (tangentX * blade.length * (blade.lean or 0))
         local tipY = blade.y + (blade.normalY * blade.length) + (tangentY * blade.length * (blade.lean or 0))
         gfx.drawLine(math.floor(blade.x + 0.5), math.floor(blade.y + 0.5), math.floor(tipX + 0.5), math.floor(tipY + 0.5))
+        if blade.cattail then
+            gfx.fillEllipseInRect(math.floor(tipX - 2), math.floor(tipY - 5), 4, 7)
+        end
     end
 end
 
