@@ -1125,6 +1125,7 @@ end
 
 function DuckGameScene:buildPondGrass()
     local blades = {}
+    local seed = 1
     local function addBlade(x, y, normalX, normalY, seed)
         blades[#blades + 1] = {
             x = x,
@@ -1148,7 +1149,6 @@ function DuckGameScene:buildPondGrass()
         end
     end
 
-    local seed = 1
     -- Every blade grows upright relative to the console, including the grass
     -- beside the pond.  Duck contact only bends it sideways.
     -- Double the top and bottom shore density so the long pond edges feel
