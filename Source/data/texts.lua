@@ -2,8 +2,8 @@ TEXT_VIEWER_DOCUMENTS = {
     {
         id = "font-sampler",
         source = [==[
-Font Sampler
-Choose the default reader font.
+Settings
+Font Selection and reader appearance.
 type: font-sampler
 
 [ ] Use selected font as default

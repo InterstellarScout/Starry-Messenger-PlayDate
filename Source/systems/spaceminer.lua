@@ -3868,26 +3868,25 @@ function SpaceMiner:handleMenuVerticalInput(upPressed, downPressed)
     if direction == 0 then
         self.menuDpadHoldDirection = 0
         self.menuDpadHoldFrames = 0
+        self.menuDpadRepeatFrames = 0
         return false
     end
     if self.menuDpadHoldDirection ~= direction then
         self.menuDpadHoldDirection = direction
         self.menuDpadHoldFrames = 1
-        -- A fresh tap while the carousel is coasting catches the current
-        -- selection instead of adding another impulse.  A held direction
-        -- then builds speed again through the normal inertial path.
-        if math.abs(self.menuRotaryVelocity or 0) >= 0.02 or math.abs(self.menuCrankAccumulator or 0) >= 0.02 then
-            self.menuRotaryVelocity = 0
-            self.menuCrankAccumulator = 0
-            self.menuRotaryFreeSpin = false
-            return true
-        end
-        self:startMenuDpadSpin(direction)
+        self.menuDpadRepeatFrames = 0
+        self.menuRotaryVelocity = 0
+        self.menuCrankAccumulator = 0
+        self:stepMenuSelection(direction)
         return true
     end
     self.menuDpadHoldFrames = (self.menuDpadHoldFrames or 0) + 1
-    if self.menuDpadHoldFrames > MENU_DPAD_HOLD_SPIN_FRAMES then
-        self:startRotaryMenuSpin(direction, 0.32)
+    if self.menuDpadHoldFrames > 15 then
+        self.menuDpadRepeatFrames = (self.menuDpadRepeatFrames or 0) + 1
+        if self.menuDpadRepeatFrames >= 5 then
+            self:stepMenuSelection(direction)
+            self.menuDpadRepeatFrames = 0
+        end
     end
     return true
 end
@@ -6083,7 +6082,15 @@ function SpaceMiner:applyCrank(change)
             end
             return
         end
-        self:startRotaryMenuSpin(input > 0 and 1 or -1, math.min(1.1, math.abs(input) / MENU_CRANK_STEP) * 0.5)
+        self.menuCrankAccumulator = (self.menuCrankAccumulator or 0) + input
+        while self.menuCrankAccumulator >= MENU_CRANK_STEP do
+            self:stepMenuSelection(1)
+            self.menuCrankAccumulator = self.menuCrankAccumulator - MENU_CRANK_STEP
+        end
+        while self.menuCrankAccumulator <= -MENU_CRANK_STEP do
+            self:stepMenuSelection(-1)
+            self.menuCrankAccumulator = self.menuCrankAccumulator + MENU_CRANK_STEP
+        end
         return
     end
     if math.abs(change) <= 0.001 then
@@ -9109,10 +9116,12 @@ function SpaceMiner:drawCommunicationBox(message, filled)
     end
     local promptHeight = message.blocking and 15 or 0
     local height = math.min(DASHBOARD_Y - y - 4, COMMUNICATION_BOX_PADDING + (#lines * COMMUNICATION_LINE_SPACING) + promptHeight)
-    local backdropDither = message.backdropDither or 0.48
+    -- Scout prompts receive a dark, nearly opaque backdrop while the ship is
+    -- settled.  Thrusting fades that backdrop away, with braking restoring it.
+    local backdropDither = message.backdropDither or 0.08
     if message.speedFade ~= nil then
         local speedFade = clamp(message.speedFade, 0, 1)
-        backdropDither = backdropDither + ((1.0 - backdropDither) * speedFade)
+        backdropDither = backdropDither + (0.76 * speedFade)
     end
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
     gfx.setColor(gfx.kColorBlack)

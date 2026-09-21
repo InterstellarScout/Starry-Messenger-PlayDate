@@ -205,6 +205,7 @@ function TextViewerEffect.new(width, height, options)
     end
     local settings = pd.datastore and pd.datastore.read(SETTINGS_KEY) or nil
     self.defaultFontId = settings and settings.defaultFontId or "default"
+    self.darkMode = settings and settings.darkMode == true
     self.samplerSetsDefault = false
     self.view = VIEW_LIBRARY
     self.scrollY = 0
@@ -257,7 +258,8 @@ function TextViewerEffect:saveSettings()
         return
     end
     pd.datastore.write({
-        defaultFontId = self.defaultFontId or "default"
+        defaultFontId = self.defaultFontId or "default",
+        darkMode = self.darkMode == true
     }, SETTINGS_KEY)
 end
 
@@ -304,6 +306,13 @@ function TextViewerEffect:rebuildReader()
             height = BODY_LINE_HEIGHT,
             y = self.totalReaderHeight
         }
+        self.readerLines[#self.readerLines + 1] = {
+            text = (self.darkMode and "[x] Dark Mode" or "[ ] Dark Mode"),
+            kind = "darkModeToggle",
+            height = BODY_LINE_HEIGHT,
+            y = self.totalReaderHeight
+        }
+        self.totalReaderHeight = self.totalReaderHeight + BODY_LINE_HEIGHT
         self.totalReaderHeight = self.totalReaderHeight + BODY_LINE_HEIGHT
         self.totalReaderHeight = self.totalReaderHeight + BLANK_LINE_HEIGHT
         for _, option in ipairs(FONT_OPTIONS) do
@@ -486,6 +495,10 @@ function TextViewerEffect:handlePrimaryAction()
         if line ~= nil and line.kind == "fontDefaultToggle" then
             self.samplerSetsDefault = not self.samplerSetsDefault
             self:rebuildReader()
+        elseif line ~= nil and line.kind == "darkModeToggle" then
+            self.darkMode = not self.darkMode
+            self:saveSettings()
+            self:rebuildReader()
         elseif line ~= nil and line.kind == "fontOption" then
             local doc = self:getCurrentDocument()
             doc.properties.font = line.fontId
@@ -553,9 +566,10 @@ function TextViewerEffect:update()
 end
 
 function TextViewerEffect:drawPanel()
-    gfx.setColor(gfx.kColorWhite)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(self.darkMode and gfx.kColorBlack or gfx.kColorWhite)
     gfx.fillRect(0, 0, self.width, self.height)
-    gfx.setColor(gfx.kColorBlack)
+    gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
     gfx.drawRect(6, 6, self.width - 12, self.height - 12)
 end
 

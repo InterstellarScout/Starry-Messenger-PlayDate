@@ -1152,7 +1152,7 @@ function DuckGameScene:buildPondGrass()
     -- Alternate the side blades as the shoreline rises, then lightly fill the
     -- perimeter with irregular extras so neither bank reads as a rigid fence.
     local leftTurn = true
-    for y = POND_TOP + 16, POND_BOTTOM - 16, 8 do
+    for y = POND_TOP + 12, POND_BOTTOM - 12, 4 do
         if leftTurn then
             addBlade(POND_LEFT - 2, y, 0, -1, seed)
         else
@@ -1161,7 +1161,7 @@ function DuckGameScene:buildPondGrass()
         seed = seed + 1
         leftTurn = not leftTurn
     end
-    for index = 1, 48 do
+    for index = 1, 96 do
         local edge = ((index - 1) % 4) + 1
         if edge == 1 then
             addBlade(math.random(POND_LEFT + 12, POND_RIGHT - 12), POND_TOP - math.random(0, 5), 0, -1, seed)
@@ -1213,11 +1213,8 @@ end
 
 function DuckGameScene:drawPondBackdrop()
     gfx.clear(gfx.kColorWhite)
-    gfx.setColor(gfx.kColorBlack)
-    -- A one-pixel rounded shoreline, inset ten pixels from every screen edge.
-    gfx.fillRoundRect(POND_LEFT, POND_TOP, POND_RIGHT - POND_LEFT, POND_BOTTOM - POND_TOP, POND_CORNER_RADIUS)
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRoundRect(POND_LEFT + 1, POND_TOP + 1, POND_RIGHT - POND_LEFT - 2, POND_BOTTOM - POND_TOP - 2, POND_CORNER_RADIUS - 1)
+    -- The pond no longer has a rigid rectangular frame; grass and reeds form
+    -- its soft shoreline instead.
     self:drawPondGrass()
     gfx.setColor(gfx.kColorBlack)
     for row = PLAYFIELD_TOP + 16, PLAYFIELD_BOTTOM - 12, 22 do
@@ -1407,9 +1404,9 @@ function DuckGameScene:drawWinner(state)
     self.winBackground:draw()
 
     gfx.setColor(gfx.kColorBlack)
-    gfx.setDitherPattern(0.55, gfx.image.kDitherTypeBayer8x8)
     gfx.fillRect(26, 82, 348, 76)
-    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawRect(26, 82, 348, 76)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawTextAligned(state.winMessage or string.format("Ducky %d Wins!", state.winnerSlot or 1), 200, 106, kTextAlignment.center)
     gfx.drawTextAligned("Press B to return to the title.", 200, 126, kTextAlignment.center)
@@ -1422,9 +1419,9 @@ function DuckGameScene:drawEntryOverlay()
     end
 
     gfx.setColor(gfx.kColorBlack)
-    gfx.setDitherPattern(0.55, gfx.image.kDitherTypeBayer8x8)
     gfx.fillRoundRect(36, 84, 328, 72, 10)
-    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawRoundRect(36, 84, 328, 72, 10)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawTextInRect(ENTRY_OVERLAY_TEXT, 52, 104, 296, 34, nil, nil, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)

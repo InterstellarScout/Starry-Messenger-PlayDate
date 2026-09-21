@@ -243,6 +243,30 @@ function CrankBlocks:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHel
         self.heldMoveTimer = 0
         self:move(direction[1], direction[2])
     end
+
+    -- A continuous vertical run is cleared too.  Clear the cells in place so
+    -- everything above can still fall naturally under the existing gravity.
+    for x = 1, COLS do
+        local runStart = nil
+        local runLength = 0
+        for scanY = 1, ROWS + 1 do
+            if scanY <= ROWS and self.grid[scanY][x] then
+                runStart = runStart or scanY
+                runLength = runLength + 1
+            else
+                if runLength >= 12 then
+                    for clearY = runStart, runStart + runLength - 1 do
+                        self.grid[clearY][x] = nil
+                    end
+                    self.lines = self.lines + 1
+                    self.totalLines = self.totalLines + 1
+                    self.sessionLines = self.sessionLines + 1
+                end
+                runStart = nil
+                runLength = 0
+            end
+        end
+    end
 end
 
 function CrankBlocks:update()

@@ -110,6 +110,13 @@ local function buildVibesViewItems()
             label = "Dimensional Split",
             openViewId = "dimensionalsplit",
             controlViewId = "dimensionalsplit"
+        },
+        {
+            id = "lava",
+            label = "Lava Lamp",
+            modes = { LavaLamp.MODE_STANDARD, LavaLamp.MODE_INVERSE },
+            modeId = LavaLamp.MODE_STANDARD,
+            getModeLabel = LavaLamp.getModeLabel
         }
     }
 
@@ -259,16 +266,6 @@ local SINGLE_VIEW_ITEMS <const> = {
         modeId = RCCarArena.MODE_HOCKEY,
         getModeLabel = RCCarArena.getModeLabel
     },
-    {
-        id = "lava",
-        label = "Lava Lamp",
-        modes = {
-            LavaLamp.MODE_STANDARD,
-            LavaLamp.MODE_INVERSE
-        },
-        modeId = LavaLamp.MODE_STANDARD,
-        getModeLabel = LavaLamp.getModeLabel
-    }
 }
 
 local ROOT_VIEW_ITEMS <const> = {

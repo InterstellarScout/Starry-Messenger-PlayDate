@@ -1021,6 +1021,20 @@ end
 
 function OrbitalDefenseScene:drawHud(state)
     if UIState and not UIState.isShown() then
+        local shieldUp = (state.ringHealth or 0) > 0
+        local value = shieldUp and (state.ringHealth or 0) or (EARTH_MAX_HEALTH - (state.earthHealth or 0))
+        local maximum = shieldUp and SHIELD_MAX_HEALTH or EARTH_MAX_HEALTH
+        local ratio = clamp(value / maximum, 0, 1)
+        local barX, barY, barWidth, barHeight = 10, 211, 380, 16
+        gfx.setColor(gfx.kColorWhite)
+        gfx.drawRect(barX, barY, barWidth, barHeight)
+        if ratio > 0 then
+            gfx.fillRect(barX + 2, barY + 2, math.floor((barWidth - 4) * ratio), barHeight - 4)
+        end
+        local label = shieldUp and string.format("EARTH SHIELD  %d%%", math.ceil(ratio * 100)) or string.format("EARTH DAMAGE  %d%%", math.ceil(ratio * 100))
+        gfx.setImageDrawMode(ratio > 0.5 and gfx.kDrawModeFillBlack or gfx.kDrawModeInverted)
+        gfx.drawTextAligned(label, 200, 213, kTextAlignment.center)
+        gfx.setImageDrawMode(gfx.kDrawModeCopy)
         return
     end
     if self.menuOpen then

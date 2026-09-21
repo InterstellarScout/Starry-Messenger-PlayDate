@@ -896,7 +896,7 @@ function GifPlayerEffect:drawOverlay()
     if self.preview then
         return
     end
-    if UIState and not UIState.isShown() then
+    if UIState and not UIState.isShown() and not self.categoryChooserOpen and not self.gifChooserOpen then
         return
     end
 
