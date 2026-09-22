@@ -1076,20 +1076,20 @@ function OrbitalDefenseScene:drawGameOver(state)
     end
     local results = state.matchResults or self.matchResults or loadResults()
     gfx.setColor(gfx.kColorBlack)
-    gfx.fillRoundRect(36, 62, 328, 112, 10)
+    gfx.fillRoundRect(36, 72, 328, 112, 10)
     gfx.setColor(gfx.kColorWhite)
-    gfx.drawRoundRect(36, 62, 328, 112, 10)
+    gfx.drawRoundRect(36, 72, 328, 112, 10)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    gfx.drawTextAligned("EARTH DESTROYED :(", 200, 76, kTextAlignment.center)
+    gfx.drawTextAligned("EARTH DESTROYED :(", 200, 86, kTextAlignment.center)
     local playerKills = results.playerKills or {}
     local scoreLine = {}
     for index, kills in ipairs(playerKills) do
         scoreLine[#scoreLine + 1] = string.format("%s: %d", PLAYER_ANCHORS[index].label, kills or 0)
     end
-    gfx.drawTextAligned(table.concat(scoreLine, "   "), 200, 100, kTextAlignment.center)
-    gfx.drawTextAligned(string.format("Enemies destroyed: %d", results.totalKills or 0), 200, 120, kTextAlignment.center)
-    gfx.drawTextAligned(string.format("High score: %d", results.highScore or 0), 200, 138, kTextAlignment.center)
-    gfx.drawTextAligned("B: return to title", 200, 158, kTextAlignment.center)
+    gfx.drawTextAligned(table.concat(scoreLine, "   "), 200, 110, kTextAlignment.center)
+    gfx.drawTextAligned(string.format("Enemies destroyed: %d", results.totalKills or 0), 200, 130, kTextAlignment.center)
+    gfx.drawTextAligned(string.format("High score: %d", results.highScore or 0), 200, 148, kTextAlignment.center)
+    gfx.drawTextAligned("B: return to title", 200, 168, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 

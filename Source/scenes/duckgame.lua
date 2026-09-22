@@ -32,7 +32,6 @@ local WIN_SCORE <const> = DUCK_CONFIG.winScore or 50
 local TURN_MODE_CRANK_DEGREES <const> = DUCK_CONFIG.turnModeCrankDegrees or 0.04
 local AUTO_DUCKY_IDLE_FRAMES <const> = DUCK_CONFIG.autoDuckyIdleFrames or 150
 local DUCK_LIFETIME_TOTAL_SAVE_KEY <const> = "duck-game-lifetime-total"
-local ENTRY_OVERLAY_TEXT <const> = "Turn the play date upside down\nand watch the ball fall to your feet!"
 
 local PLAYFIELD_LEFT <const> = 16
 local PLAYFIELD_TOP <const> = 18
@@ -44,6 +43,8 @@ local POND_RIGHT <const> = 390
 local POND_BOTTOM <const> = 230
 local POND_CORNER_RADIUS <const> = 12
 local SHORE_GRASS_REPEL_RADIUS <const> = 36
+local LOG_HALF_LENGTH <const> = 18
+local LOG_PUSH_RADIUS <const> = 19
 local POND_CENTER_X <const> = 200
 local POND_CENTER_Y <const> = 120
 local CENTER_NEST_X <const> = 200
@@ -241,6 +242,7 @@ function DuckGameScene.new(config)
     self.players = {}
     self.freeChicks = {}
     self.reeds = {}
+    self.log = nil
     self.pondGrass = self:buildPondGrass()
     self.pondGrassChunkPhase = 0
     self.ripples = {}
@@ -256,8 +258,10 @@ function DuckGameScene.new(config)
     self.winBackground = Starfield.newWarpSpeed(400, 240, 180)
     self.winBackground.speed = 9
     self.totalCollectedEver = loadLifetimeCollectedTotal()
-    self.entryOverlayFrames = math.floor((pd.display.getRefreshRate() or 30) * 5)
-    self.entryOverlayVisible = not self.preview
+    -- Duck Game begins immediately; its old orientation tip described an
+    -- unrelated prototype and blocked play for several seconds.
+    self.entryOverlayFrames = 0
+    self.entryOverlayVisible = false
 
     if self.preview then
         self:resetMatch(self.multiplayer and "networked" or "single", 1)
@@ -428,6 +432,16 @@ function DuckGameScene:seedPondDecor()
     end
 end
 
+function DuckGameScene:resetLog()
+    self.log = {
+        x = POND_CENTER_X,
+        y = POND_CENTER_Y + 42,
+        vx = 0,
+        vy = 0,
+        angle = math.random() * math.pi
+    }
+end
+
 function DuckGameScene:resetMatch(modeId, localSlot)
     self.activeSlots = {}
     self.players = {}
@@ -435,6 +449,7 @@ function DuckGameScene:resetMatch(modeId, localSlot)
     self.ripples = {}
     self.nestPixels = {}
     self.nests = {}
+    self:resetLog()
     self.frame = 0
     self.state = "playing"
     self.winnerSlot = nil
@@ -915,6 +930,25 @@ function DuckGameScene:updateNestPushes()
     end
 end
 
+function DuckGameScene:updateLog(dt)
+    local log = self.log
+    if log == nil then return end
+    for _, player in ipairs(self.players or {}) do
+        local dx, dy = log.x - player.x, log.y - player.y
+        local directionX, directionY, distance = normalize(dx, dy)
+        if distance < LOG_PUSH_RADIUS then
+            if distance <= 0.01 then directionX, directionY = player.facingX or 1, player.facingY or 0 end
+            local push = (LOG_PUSH_RADIUS - distance + 1) * 7
+            log.vx = (log.vx or 0) + (directionX * push)
+            log.vy = (log.vy or 0) + (directionY * push)
+            log.angle = math.atan(directionY, directionX)
+        end
+    end
+    log.x = clamp(log.x + ((log.vx or 0) * dt), POND_LEFT + LOG_HALF_LENGTH, POND_RIGHT - LOG_HALF_LENGTH)
+    log.y = clamp(log.y + ((log.vy or 0) * dt), POND_TOP + 8, POND_BOTTOM - 8)
+    log.vx, log.vy = (log.vx or 0) * 0.86, (log.vy or 0) * 0.86
+end
+
 function DuckGameScene:deliverChicks()
     for _, slot in ipairs(self.activeSlots) do
         local player = self.players[slot]
@@ -1026,6 +1060,7 @@ function DuckGameScene:serializeState()
         freeChicks = freeChicks,
         ripples = ripples,
         reeds = reeds,
+        log = self.log and { x = self.log.x, y = self.log.y, angle = self.log.angle } or nil,
         nests = nests,
         nestPixels = nestPixels,
         targetScore = self:getTargetGoal()
@@ -1049,6 +1084,7 @@ function DuckGameScene:getRenderState()
         freeChicks = self.freeChicks,
         ripples = self.ripples,
         reeds = self.reeds,
+        log = self.log,
         nests = self.nests,
         nestPixels = self.nestPixels,
         targetScore = self:getTargetGoal()
@@ -1076,6 +1112,7 @@ function DuckGameScene:updateLocalGame()
     end
 
     self:updateNestPushes()
+    self:updateLog(dt)
 
     self:updateFreeChicks(dt)
     self:updateTrails()
@@ -1142,7 +1179,7 @@ function DuckGameScene:buildPondGrass()
     local function addPatch(centerX, centerY, radius)
         -- One hundred blades per clump give the shore a soft, circular bank
         -- instead of another evenly spaced border.
-        for _ = 1, 50 do
+        for _ = 1, 25 do
             local angle = math.random() * math.pi * 2
             local distance = math.sqrt(math.random()) * radius
             addBlade(centerX + (math.cos(angle) * distance), centerY + (math.sin(angle) * distance), 0, -1, seed)
@@ -1374,6 +1411,18 @@ function DuckGameScene:drawNest(slot, score, pixels, nest)
     end
 end
 
+function DuckGameScene:drawLog(log)
+    if log == nil then return end
+    local angle = log.angle or 0
+    local dx, dy = math.cos(angle) * LOG_HALF_LENGTH, math.sin(angle) * LOG_HALF_LENGTH
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setLineWidth(5)
+    gfx.drawLine(log.x - dx, log.y - dy, log.x + dx, log.y + dy)
+    gfx.setLineWidth(1)
+    gfx.drawCircleAtPoint(log.x - dx, log.y - dy, 3)
+    gfx.drawCircleAtPoint(log.x + dx, log.y + dy, 3)
+end
+
 function DuckGameScene:drawLobby()
     gfx.clear(gfx.kColorBlack)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
@@ -1488,6 +1537,7 @@ function DuckGameScene:drawGameState(state)
     self:updatePondGrass(state.players)
     self:drawPondBackdrop()
     self:drawReeds(state.reeds or {}, time)
+    self:drawLog(state.log)
 
     local nestCount = state.centerNestMode and 1 or self.playerCount
     for slot = 1, nestCount do

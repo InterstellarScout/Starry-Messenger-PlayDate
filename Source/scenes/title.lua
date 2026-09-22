@@ -200,10 +200,17 @@ function TitleScene:usesDarkText()
         return false
     end
 
-    -- Vibe title text must strictly invert the selected effect's base background.
-    -- The effect owns that background decision, preventing preview/menu drift.
+    -- Vibes use a deliberately fixed title palette so labels stay legible even
+    -- when an effect's preview changes its own background.
     if self.catalog == "vibes" then
-        return not VibesEffect.usesDarkBackground(selectedView.modeId)
+        local whiteTitle = selectedView.id == "smokebloom_billowing"
+            or selectedView.id == "smokebloom_raising"
+            or selectedView.id == "dropper"
+            or selectedView.id == "dimensionalsplit"
+            or selectedView.modeId == "smoothsailing"
+            or selectedView.modeId == "tunnelbars"
+            or selectedView.modeId == "loopfall"
+        return not whiteTitle
     end
 
     if selectedView.id == "duck" then

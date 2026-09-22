@@ -235,7 +235,7 @@ function CrankBlocks:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHel
 
     self.heldDirectionFrames = self.heldDirectionFrames + 1
     local isDown = direction[3] == "down"
-    local progress = math.min(1, self.heldDirectionFrames / (isDown and 9 or 45))
+    local progress = math.min(1, self.heldDirectionFrames / (isDown and 18 or 45))
     local initialDelay = isDown and 3 or HOLD_INITIAL_DELAY
     local interval = math.max(HOLD_MAX_INTERVAL, math.floor(initialDelay * (1 - (progress * progress))))
     self.heldMoveTimer = self.heldMoveTimer + 1
@@ -297,19 +297,6 @@ function CrankBlocks:draw()
     gfx.setColor(gfx.kColorBlack)
     gfx.fillRect(0, 0, self.width, self.height)
     gfx.setColor(gfx.kColorWhite)
-
-    -- A faint board-wide grid makes every ten-pixel placement boundary clear
-    -- without competing with solid landed blocks or the active outline.
-    gfx.setDitherPattern(0.20, gfx.image.kDitherTypeBayer8x8)
-    for x = 0, COLS do
-        local gridX = BOARD_X + (x * CELL)
-        gfx.drawLine(gridX, BOARD_Y, gridX, BOARD_Y + (ROWS * CELL) - 1)
-    end
-    for y = 0, ROWS do
-        local gridY = BOARD_Y + (y * CELL)
-        gfx.drawLine(BOARD_X, gridY, BOARD_X + (COLS * CELL) - 1, gridY)
-    end
-    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 
     for y = 1, ROWS do
         for x = 1, COLS do
