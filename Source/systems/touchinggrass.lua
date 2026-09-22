@@ -515,9 +515,16 @@ function TouchingGrass:draw()
     -- hand exactly match the hand's lift distance.
     if not self.handHidden then
         gfx.setColor(gfx.kColorBlack)
-        gfx.setDitherPattern(0.32, gfx.image.kDitherTypeBayer8x8)
-        local shadowRadius = math.max(3, 9 - roundToInt((self.handLift or 0) * 4))
-        gfx.fillCircleAtPoint(roundToInt(self.handX), roundToInt(self.handY), shadowRadius)
+        -- Keep part of the ellipse below the grounded hand so it is visible
+        -- before lifting, then leave it on the grass while the hand rises.
+        gfx.setDitherPattern(0.58, gfx.image.kDitherTypeBayer8x8)
+        local shadowWidth = 28 - roundToInt((self.handLift or 0) * 6)
+        gfx.fillEllipseInRect(
+            roundToInt(self.handX - (shadowWidth * 0.5)),
+            roundToInt(self.handY + 6),
+            shadowWidth,
+            9
+        )
         gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     end
     self:drawHand()
