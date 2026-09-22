@@ -136,6 +136,9 @@ function RCCarArena.new(width, height, modeId, options)
     self.playerInputY = 0
     self.playerTargetSpeed = 0
     self.playerMaxSpeed = CAR_DEFAULT_MAX_SPEED
+    self.unlimitedSpeed = false
+    self.speedUpTapCount = 0
+    self.speedUpTapWindow = 0
     self.crankMode = "rotate"
     self.playerKnockouts = 0
     self.opponentKnockouts = 0
@@ -258,6 +261,9 @@ function RCCarArena:reset(modeId)
     self.playerInputY = 0
     self.playerTargetSpeed = 0
     self.playerMaxSpeed = CAR_DEFAULT_MAX_SPEED
+    self.unlimitedSpeed = false
+    self.speedUpTapCount = 0
+    self.speedUpTapWindow = 0
     self.crankMode = "rotate"
     self.playerKnockouts = 0
     self.opponentKnockouts = 0
@@ -300,7 +306,7 @@ function RCCarArena:toggleCrankMode()
     self.crankMode = self.crankMode == "rotate" and "speed" or "rotate"
 end
 
-function RCCarArena:updatePlayerInput(leftPressed, rightPressed, upPressed, downPressed)
+function RCCarArena:updatePlayerInput(leftPressed, rightPressed, upPressed, downPressed, upJustPressed)
     self.playerInputX = 0
     if leftPressed then
         self.playerInputX = self.playerInputX - 1
@@ -315,6 +321,18 @@ function RCCarArena:updatePlayerInput(leftPressed, rightPressed, upPressed, down
     end
     if downPressed then
         self.playerInputY = self.playerInputY - 1
+    end
+
+    if upJustPressed and self.modeId == RCCarArena.MODE_CHASE and not self.unlimitedSpeed then
+        if (self.speedUpTapWindow or 0) <= 0 then
+            self.speedUpTapCount = 0
+        end
+        self.speedUpTapCount = (self.speedUpTapCount or 0) + 1
+        self.speedUpTapWindow = 45
+        if self.speedUpTapCount >= 5 then
+            self.unlimitedSpeed = true
+            self.playerMaxSpeed = math.huge
+        end
     end
 end
 
@@ -584,6 +602,11 @@ end
 
 function RCCarArena:update()
     self.time = self.time + (1 / 30)
+    if (self.speedUpTapWindow or 0) > 0 then
+        self.speedUpTapWindow = self.speedUpTapWindow - 1
+    elseif not self.unlimitedSpeed then
+        self.speedUpTapCount = 0
+    end
     self:updateCars()
     self:handleCarCollisions()
     self:handleCarObjectCollisions()
@@ -669,7 +692,8 @@ function RCCarArena:drawHud()
 
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawText(RCCarArena.getModeLabel(self.modeId), 10, 8)
-    gfx.drawText(string.format("Speed %.1f/%.1f  Crank %s", self.playerTargetSpeed, self.playerMaxSpeed, self.crankMode), 10, 24)
+    local maxSpeedLabel = self.unlimitedSpeed and "UNLIMITED" or string.format("%.1f", self.playerMaxSpeed)
+    gfx.drawText(string.format("Speed %.1f/%s  Crank %s", self.playerTargetSpeed, maxSpeedLabel, self.crankMode), 10, 24)
 
     if self.modeId == RCCarArena.MODE_CHASE then
         gfx.drawText(string.format("Cleared %d", self.playerKnockouts), 10, 40)

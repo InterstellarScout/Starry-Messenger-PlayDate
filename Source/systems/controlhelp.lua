@@ -341,17 +341,8 @@ function ControlHelp.getEntrySpec(viewId, modeId)
                 "D-pad: no direct fish control in this mode.",
                 "A: no action.",
                 "B: return to title.",
-                "Shake: trigger a short panic burst in the school."
-            })
-        elseif modeId == FishPond.MODE_BUBBLES then
-            return buildSpec("Fishy Bubbles Controls", {
-                "Crank: move the bubble maker across the bottom.",
-                "D-pad Left/Right: move the player fish.",
-                "Hold A or Up: create bubbles repeatedly.",
-                "Press Down: add another fish to the school.",
-                "B: return to title.",
-                "Fish Spawn Mode in the system menu alternates bubble and fish spawning.",
-                "Popping a bubble adds another fish to the school."
+                "Shake: trigger a short panic burst in the school.",
+                "System Menu: Tank Fish Count sets the school size next time you enter Fishy Tank."
             })
         end
 
@@ -362,7 +353,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             "Press Down: add another fish to the school.",
             "B: return to title.",
             "Fish Spawn Mode in the system menu alternates bubble and fish spawning.",
-            "Pop bubbles by swimming into them while the rest of the school still feeds itself."
+            "Grow School per Bubble turns popped bubbles into new fish; leave it off for solo play."
         })
     elseif viewId == "rccar" then
         if modeId == RCCarArena.MODE_VERSUS then

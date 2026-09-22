@@ -245,7 +245,6 @@ local SINGLE_VIEW_ITEMS <const> = {
         label = "Fishy Pond",
         modes = {
             FishPond.MODE_POND,
-            FishPond.MODE_BUBBLES,
             FishPond.MODE_TANK
         },
         modeId = FishPond.MODE_POND,
@@ -755,6 +754,18 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
         menu:addCheckmarkMenuItem("Fish Spawn Mode", FishPond.isSpawnModeEnabled(), function(value)
             FishPond.setSpawnModeEnabled(value)
         end)
+        menu:addCheckmarkMenuItem("Grow School per Bubble", FishPond.isSchoolGrowthEnabled(), function(value)
+            FishPond.setSchoolGrowthEnabled(value)
+        end)
+
+        local tankFishCountOptions = {}
+        for _, count in ipairs(FishPond.getTankFishCountOptions()) do
+            tankFishCountOptions[#tankFishCountOptions + 1] = tostring(count)
+        end
+        local tankFishCountItem = menu:addOptionsMenuItem("Tank Fish Count", tankFishCountOptions, function(value)
+            FishPond.setTankFishCount(tonumber(value))
+        end)
+        tankFishCountItem:setValue(tostring(FishPond.getTankFishCount()))
     end
 
     if activeViewId == "duck" then

@@ -16,6 +16,7 @@ end
 function SettingsScene:getItems()
     return {
         "Show UI: " .. (UIState.isShown() and "ON" or "OFF"),
+        "Tutorials: " .. (Tutorials.isEnabled() and "ON" or "OFF"),
         "Reset Tutorials",
         "Attributions",
         "Back"
@@ -29,8 +30,9 @@ function SettingsScene:update()
     if pd.buttonJustPressed(pd.kButtonB) then self.onReturn() return end
     if pd.buttonJustPressed(pd.kButtonA) then
         if self.index == 1 then UIState.setShown(not UIState.isShown())
-        elseif self.index == 2 then Tutorials.reset(); self.message = "Tutorials reset."
-        elseif self.index == 3 then self.message = "Starry Messenger - Dean Sheldon\nBuilt with the Playdate SDK.\nOpen-source libraries and media retain\ntheir respective creator attributions."
+        elseif self.index == 2 then Tutorials.setEnabled(not Tutorials.isEnabled())
+        elseif self.index == 3 then Tutorials.reset(); self.message = "Tutorials reset."
+        elseif self.index == 4 then self.message = "Starry Messenger - Dean Sheldon\nBuilt with the Playdate SDK.\nOpen-source libraries and media retain\ntheir respective creator attributions."
         else self.onReturn() return end
     end
     gfx.clear(gfx.kColorBlack)

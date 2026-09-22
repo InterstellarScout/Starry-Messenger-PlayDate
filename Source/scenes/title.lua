@@ -938,7 +938,19 @@ function TitleScene:changeSelectedMode(delta)
     end
 
     selectedView.modeId = selectedView.modes[nextIndex]
-    self.modeTargetPosition = (self.modeTargetPosition or currentIndex) + (delta < 0 and -1 or 1)
+    -- Keep the carousel's continuous position close to the visible copy of
+    -- the selected mode.  Letting this number grow without bound made every
+    -- finite wrapped copy fall outside the draw range after enough turns.
+    local modeCount = #selectedView.modes
+    local targetPosition = nextIndex
+    local displayPosition = self.modeDisplayPosition or currentIndex
+    while (targetPosition - displayPosition) > (modeCount * 0.5) do
+        targetPosition = targetPosition - modeCount
+    end
+    while (targetPosition - displayPosition) < -(modeCount * 0.5) do
+        targetPosition = targetPosition + modeCount
+    end
+    self.modeTargetPosition = targetPosition
     self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
     StarryLog.info(
         "title mode changed: view=%s mode=%s",

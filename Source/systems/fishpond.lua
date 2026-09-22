@@ -20,12 +20,18 @@ FishPond.MODE_BUBBLES = "bubbles"
 FishPond.MODE_TANK = "tank"
 FishPond.MODE_IDLE = "idle"
 FishPond.spawnModeEnabled = false
+FishPond.schoolGrowthEnabled = false
+FishPond.tankFishCount = nil
+FishPond.settingsLoaded = false
 FishPond.idleCurrency = 0
 FishPond.idleProgressLoaded = false
 FishPond.IDLE_SAVE_KEY = "fishy-pond-idle"
+FishPond.SETTINGS_SAVE_KEY = "fishy-pond-settings"
 
 local function normalizeModeId(modeId)
-    if modeId == FishPond.MODE_IDLE then
+    -- Keep old saved/preview references to the retired Bubbles mode playable
+    -- as the unified Fishy Pond mode.
+    if modeId == FishPond.MODE_IDLE or modeId == FishPond.MODE_BUBBLES then
         return FishPond.MODE_POND
     end
     return modeId
@@ -100,6 +106,7 @@ local FLOOR_HEIGHT <const> = FISHPOND_CONFIG.floorHeight or 26
 local BUBBLE_MAKER_Y_OFFSET <const> = FISHPOND_CONFIG.bubbleMakerYOffset or 12
 local MAX_SCHOOL_FISH <const> = FISHPOND_CONFIG.maxSchoolFish or 14
 local TANK_FISH_COUNT <const> = FISHPOND_CONFIG.tankFishCount or 20
+local TANK_FISH_COUNT_OPTIONS <const> = { 5, 10, 15, 20, 25 }
 local TANK_PANIC_DURATION <const> = FISHPOND_CONFIG.tankPanicDuration or 1.0
 local TANK_SHAKE_THRESHOLD <const> = FISHPOND_CONFIG.tankShakeThreshold or 0.55
 local PLAYER_FISH_SIZE <const> = FISHPOND_CONFIG.playerFishSize or 9
@@ -145,6 +152,43 @@ local function saveIdleProgress()
     end
 end
 
+local function isTankFishCountOption(value)
+    for _, option in ipairs(TANK_FISH_COUNT_OPTIONS) do
+        if value == option then
+            return true
+        end
+    end
+    return false
+end
+
+local function loadSettings()
+    if FishPond.settingsLoaded then
+        return
+    end
+
+    local savedSettings = nil
+    if pd.datastore and pd.datastore.read then
+        savedSettings = pd.datastore.read(FishPond.SETTINGS_SAVE_KEY)
+    end
+
+    local savedTankFishCount = savedSettings and tonumber(savedSettings.tankFishCount) or TANK_FISH_COUNT
+    savedTankFishCount = math.floor(savedTankFishCount + 0.5)
+    FishPond.tankFishCount = isTankFishCountOption(savedTankFishCount) and savedTankFishCount or TANK_FISH_COUNT
+    FishPond.schoolGrowthEnabled = savedSettings and savedSettings.schoolGrowthEnabled == true or false
+    FishPond.settingsLoaded = true
+end
+
+local function saveSettings()
+    if not FishPond.settingsLoaded or not pd.datastore or not pd.datastore.write then
+        return
+    end
+
+    pd.datastore.write({
+        schoolGrowthEnabled = FishPond.schoolGrowthEnabled,
+        tankFishCount = FishPond.tankFishCount
+    }, FishPond.SETTINGS_SAVE_KEY)
+end
+
 local function nextRandomMudBubbleDelay()
     return RANDOM_MUD_BUBBLE_MIN_DELAY + (math.random() * (RANDOM_MUD_BUBBLE_MAX_DELAY - RANDOM_MUD_BUBBLE_MIN_DELAY))
 end
@@ -157,6 +201,35 @@ function FishPond.isSpawnModeEnabled()
     return FishPond.spawnModeEnabled == true
 end
 
+function FishPond.setSchoolGrowthEnabled(isEnabled)
+    loadSettings()
+    FishPond.schoolGrowthEnabled = isEnabled and true or false
+    saveSettings()
+end
+
+function FishPond.isSchoolGrowthEnabled()
+    loadSettings()
+    return FishPond.schoolGrowthEnabled == true
+end
+
+function FishPond.getTankFishCountOptions()
+    return TANK_FISH_COUNT_OPTIONS
+end
+
+function FishPond.setTankFishCount(count)
+    loadSettings()
+    count = math.floor((tonumber(count) or TANK_FISH_COUNT) + 0.5)
+    if isTankFishCountOption(count) then
+        FishPond.tankFishCount = count
+        saveSettings()
+    end
+end
+
+function FishPond.getTankFishCount()
+    loadSettings()
+    return FishPond.tankFishCount
+end
+
 function FishPond.getIdleCurrency()
     loadIdleProgress()
     return FishPond.idleCurrency
@@ -164,9 +237,7 @@ end
 
 function FishPond.getModeLabel(modeId)
     modeId = normalizeModeId(modeId)
-    if modeId == FishPond.MODE_BUBBLES then
-        return "Fishy Bubbles"
-    elseif modeId == FishPond.MODE_TANK then
+    if modeId == FishPond.MODE_TANK then
         return "Fishy Tank"
     end
 
@@ -202,6 +273,7 @@ function FishPond.new(width, height, modeId, options)
     self.lastAccelY = nil
     self.lastAccelZ = nil
     loadIdleProgress()
+    loadSettings()
     self:reset(self.modeId)
     return self
 end
@@ -236,7 +308,7 @@ function FishPond:reset(modeId)
     self.lastAccelZ = nil
 
     if self.modeId == FishPond.MODE_TANK then
-        for _ = 1, TANK_FISH_COUNT do
+        for _ = 1, FishPond.getTankFishCount() do
             self:addFish(false, true)
         end
     elseif self.idleMode then
@@ -640,7 +712,7 @@ function FishPond:popBubble(index, byPlayer, spawnFishOverride)
 
     if (spawnFishOverride or bubble.spawnFishOnPop) and #self.fishes < MAX_SCHOOL_FISH then
         self:spawnSchoolFish()
-    elseif self.modeId == FishPond.MODE_BUBBLES and byPlayer and #self.fishes < MAX_SCHOOL_FISH then
+    elseif FishPond.isSchoolGrowthEnabled() and byPlayer and #self.fishes < MAX_SCHOOL_FISH then
         self:spawnSchoolFish()
     end
 
@@ -765,7 +837,7 @@ function FishPond:updateFish(dt)
                 end
             end
 
-            if self.playerFish and self.modeId == FishPond.MODE_BUBBLES then
+            if self.playerFish and FishPond.isSchoolGrowthEnabled() then
                 steerX = steerX + ((self.playerFish.x - fish.x) * 0.03)
                 steerY = steerY + ((self.playerFish.y - fish.y) * 0.03)
             end

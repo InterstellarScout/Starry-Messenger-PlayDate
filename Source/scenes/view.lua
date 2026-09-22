@@ -1018,7 +1018,8 @@ function ViewScene:update()
             pd.buttonIsPressed(pd.kButtonLeft),
             pd.buttonIsPressed(pd.kButtonRight),
             pd.buttonIsPressed(pd.kButtonUp),
-            pd.buttonIsPressed(pd.kButtonDown)
+            pd.buttonIsPressed(pd.kButtonDown),
+            pd.buttonJustPressed(pd.kButtonUp)
         )
     elseif self.viewId == "snake" then
         if self.effect.isMenuOpen and self.effect:isMenuOpen() then

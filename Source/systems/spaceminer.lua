@@ -165,7 +165,7 @@ local STORY_SAVE_SLOT_PREFIX <const> = "spaceminer-story-v2-save-"
 local STORY_SAVE_INDEX_KEY <const> = "spaceminer-story-v2-save-index"
 local STORY_SAVE_SLOT_COUNT <const> = 3
 local STORY_SAVE_EMPTY_SLOT_NAME <const> = "(New Save)"
-local SPACE_MINER_FORCE_CLEAR_STORY_SAVES <const> = true
+local SPACE_MINER_FORCE_CLEAR_STORY_SAVES <const> = false
 local STORY_NAME_KEYBOARD_ROWS <const> = {
     { "q", "w", "e", "r", "t", "y", "u", "i", "o", "p" },
     { "a", "s", "d", "f", "g", "h", "j", "k", "l" },
@@ -1352,11 +1352,7 @@ function SpaceMiner:resolveDeferredStoryLoad()
             self.storySlotSelectorCrankAccumulator = 0
             self.storySlotSelectorDeleteMode = false
         else
-            self.storySlotSelectorMode = SpaceMiner.MODE_NEW_SAVE
-            self.storySlotSelectorOpen = true
-            self.storySlotSelectorIndex = 1
-            self.storySlotSelectorCrankAccumulator = 0
-            self.storySlotSelectorDeleteMode = false
+            self:openNewStorySlot(SpaceMiner.chooseNewStorySlot())
         end
     elseif requestedMode == SpaceMiner.MODE_CONTINUE_STORY then
         local hasExistingSaves = SpaceMiner.hasAnyStorySave()
@@ -1367,11 +1363,7 @@ function SpaceMiner:resolveDeferredStoryLoad()
             self.storySlotSelectorCrankAccumulator = 0
             self.storySlotSelectorDeleteMode = false
         else
-            self.storySlotSelectorMode = SpaceMiner.MODE_NEW_SAVE
-            self.storySlotSelectorOpen = true
-            self.storySlotSelectorIndex = 1
-            self.storySlotSelectorCrankAccumulator = 0
-            self.storySlotSelectorDeleteMode = false
+            self:openNewStorySlot(SpaceMiner.chooseNewStorySlot())
         end
     elseif requestedMode == SpaceMiner.MODE_NEW_SAVE then
         self.storySlotSelectorMode = SpaceMiner.MODE_NEW_SAVE
@@ -2588,6 +2580,9 @@ function SpaceMiner:isWithinHomeMenuRange()
 end
 
 function SpaceMiner:openShipMenu()
+    if self:isStoryMode() then
+        self:saveModeState()
+    end
     self.menuOpen = true
     self.menuType = "ship"
     self.homeMenuScreen = "directory"
@@ -2609,6 +2604,9 @@ function SpaceMiner:openShipMenu()
 end
 
 function SpaceMiner:openHomeBaseMenu()
+    if self:isStoryMode() then
+        self:saveModeState()
+    end
     self.menuOpen = true
     self.menuType = "home"
     self.homeMenuScreen = self.weaponsDisabled and "apology" or "directory"
@@ -3071,6 +3069,15 @@ function SpaceMiner:getShipMenuItems()
         action = "toggle-sound",
         kind = "toggle"
     }
+    if self:isStoryMode() then
+        items[#items + 1] = {
+            id = "save-story",
+            label = "Save Story",
+            value = "Save now",
+            action = "save-story",
+            kind = "button"
+        }
+    end
     addCommunicationHistoryShortcut(items)
     return items
 end
@@ -3508,7 +3515,11 @@ function SpaceMiner:toggleMenuSelection()
         self:closeMenu()
         return
     end
-    if item.action == "open-screen" then
+    if item.action == "save-story" then
+        self:saveModeState()
+        self:playUiClick()
+        return
+    elseif item.action == "open-screen" then
         if self.menuType == "home" then
             self.homeDirectoryIndex = self.menuIndex
             self.homeMenuScreen = item.targetScreen or item.id
@@ -5031,7 +5042,7 @@ function SpaceMiner:noteScoutToleranceBreach(text, buttonName)
     local blockedButton = string.upper(tostring(buttonName or ""))
     local message
     if self.scoutToleranceCount == 1 then
-        message = "Scout: Hey! Dude! The fuck! Fire at them. I pay you too much for this treatment."
+        message = "Scout: Do you mind? Fire at them."
     elseif self.scoutToleranceCount == 2 then
         message = "Scout: If you do that one more time, I'm gonna cry. Please stop."
     else
@@ -6070,6 +6081,10 @@ function SpaceMiner:applyCrank(change)
         if math.abs(input) <= 0.001 then
             return
         end
+        -- Menus follow the physical crank directly.  Clear any old rotary
+        -- momentum so a stopped crank can never keep changing a selection.
+        self.menuRotaryVelocity = 0
+        self.menuRotaryFreeSpin = false
         if self.menuType == "home" and self.homeMenuScreen == "communications" then
             self.communicationHistoryCrankAccumulator = (self.communicationHistoryCrankAccumulator or 0) + input
             while self.communicationHistoryCrankAccumulator >= MENU_CRANK_STEP do
