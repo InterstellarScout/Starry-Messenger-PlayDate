@@ -721,7 +721,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
     local menu = pd.getSystemMenu()
     menu:removeAllMenuItems()
 
-    menu:addMenuItem("Title Menu", function()
+    menu:addMenuItem("Go Back To Main Menu", function()
         ViewAudio.stop()
         local selectedIndex = titleReturnViewId ~= nil and getViewIndex(viewItems, titleReturnViewId) or nil
         if app.session.catalog == "multi" then
