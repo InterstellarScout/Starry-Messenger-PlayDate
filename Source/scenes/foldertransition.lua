@@ -2,16 +2,17 @@ import "gameconfig"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
-local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
-
 FolderTransitionScene = {}
 FolderTransitionScene.__index = FolderTransitionScene
 
 local function makeTransitionPreview(startSpeed)
-    local preview = Starfield.newWarpSpeed(400, 240, WARP_CONFIG.previewStarCount or 320, {
-        modeId = Starfield.MODE_STANDARD
+    local preview = VibesEffect.new(400, 240, {
+        modeId = "smoothsailing",
+        selectionLocked = true,
+        preview = true
     })
-    preview.speed = startSpeed or 1
+    preview.smoothSpeed = startSpeed or 1
+    preview.smoothTargetSpeed = preview.smoothSpeed
     return preview
 end
 
@@ -52,7 +53,9 @@ function FolderTransitionScene:update()
 
     if self.frame <= self.accelerationFrames then
         local progress = self.frame / self.accelerationFrames
-        self.preview.speed = self.startSpeed + ((self.targetSpeed - self.startSpeed) * progress)
+        -- Smooth Sailing owns its own easing curve; feed it a target rather
+        -- than forcing a Warp-style speed step each frame.
+        self.preview.smoothTargetSpeed = self.startSpeed + ((self.targetSpeed - self.startSpeed) * progress)
     end
 
     self.preview:update()

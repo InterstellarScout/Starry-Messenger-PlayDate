@@ -414,6 +414,11 @@ function OrbitalDefenseScene:getUpgradeMenuItems()
             id = "missile",
             label = string.format("Missile booster  Lv %d", missileLevel),
             detail = string.format("Blast radius %d  Cost %d kills", math.floor(self:getMissileBlastRadius(player) + 0.5), WEAPON_UPGRADE_COST)
+        },
+        {
+            id = "unlimited",
+            label = "Unlimited Weapons",
+            detail = "No kill cost"
         }
     }
 end
@@ -441,19 +446,24 @@ function OrbitalDefenseScene:purchaseUpgrade(item)
         return
     end
 
-    if (player.score or 0) < WEAPON_UPGRADE_COST then
+    if item.id ~= "unlimited" and (player.score or 0) < WEAPON_UPGRADE_COST then
         self.menuStatusMessage = "Need more kills."
         self.menuStatusFrames = 90
         return
     end
 
-    player.score = player.score - WEAPON_UPGRADE_COST
+    if item.id ~= "unlimited" then player.score = player.score - WEAPON_UPGRADE_COST end
     if item.id == "laser" then
         player.laserLevel = math.max(1, (tonumber(player.laserLevel) or 1) + 1)
         self.menuStatusMessage = "Laser upgraded."
     elseif item.id == "missile" then
         player.missileLevel = math.max(1, (tonumber(player.missileLevel) or 1) + 1)
         self.menuStatusMessage = "Missile upgraded."
+    elseif item.id == "unlimited" then
+        player.score = math.max(player.score or 0, 999999)
+        player.laserLevel = math.max(8, tonumber(player.laserLevel) or 1)
+        player.missileLevel = math.max(8, tonumber(player.missileLevel) or 1)
+        self.menuStatusMessage = "Unlimited weapons enabled."
     end
     self.menuStatusFrames = 90
 end
@@ -1144,9 +1154,9 @@ function OrbitalDefenseScene:drawUpgradeMenu(state)
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
 
     local panelX = 48
-    local panelY = 44
+    local panelY = 32
     local panelW = 304
-    local panelH = 152
+    local panelH = 184
     gfx.setColor(gfx.kColorBlack)
     gfx.fillRoundRect(panelX, panelY, panelW, panelH, 8)
     gfx.setColor(gfx.kColorWhite)
@@ -1158,7 +1168,7 @@ function OrbitalDefenseScene:drawUpgradeMenu(state)
     gfx.drawTextAligned(string.format("Kills available: %d", math.max(0, player.score or 0)), 200, panelY + 30, kTextAlignment.center)
 
     for index, item in ipairs(items) do
-        local rowY = panelY + 50 + ((index - 1) * 36)
+        local rowY = panelY + 50 + ((index - 1) * 34)
         local selected = self.menuIndex == index
         if selected then
             gfx.fillRoundRect(panelX + 14, rowY, panelW - 28, 28, 5)

@@ -578,6 +578,7 @@ function TextViewerEffect:drawLibrary()
     self:drawPanel()
 
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
     gfx.drawTextAligned("Text Viewer", 200, 18, kTextAlignment.center)
     gfx.drawLine(22, 39, 378, 39)
 
@@ -594,12 +595,14 @@ function TextViewerEffect:drawLibrary()
         if doc ~= nil then
             local y = 52 + ((row - 1) * 34)
             if documentIndex == self.index then
+                gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
                 gfx.fillRoundRect(18, y - 2, 364, 28, 4)
                 gfx.setImageDrawMode(gfx.kDrawModeInverted)
             end
             gfx.drawTextInRect(doc.title, 28, y + 2, 310, 16)
             if documentIndex == self.index then
                 gfx.setImageDrawMode(gfx.kDrawModeCopy)
+                gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
             end
         end
     end

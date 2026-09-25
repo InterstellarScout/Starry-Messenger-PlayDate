@@ -22,8 +22,8 @@ local GIF_AUDIO_SEEK_TOLERANCE <const> = GIF_PLAYER_CONFIG.audioSeekTolerance or
 local CATEGORY_CRANK_STEP <const> = GIF_PLAYER_CONFIG.categoryCrankStep or 18
 local CATEGORY_TEXT_MAX_WIDTH <const> = GIF_PLAYER_CONFIG.categoryTextMaxWidth or 360
 local CATEGORY_TEXT_MAX_HEIGHT <const> = GIF_PLAYER_CONFIG.categoryTextMaxHeight or 34
-local CATEGORY_CENTER_SCALE <const> = GIF_PLAYER_CONFIG.categoryCenterScale or 1.5
-local CATEGORY_SIDE_SCALE <const> = GIF_PLAYER_CONFIG.categorySideScale or 0.75
+local CATEGORY_CENTER_SCALE <const> = GIF_PLAYER_CONFIG.categoryCenterScale or 0.75
+local CATEGORY_SIDE_SCALE <const> = GIF_PLAYER_CONFIG.categorySideScale or 0.38
 local GIF_AUDIO_EXTENSIONS <const> = {
     ".mp3",
     ".wav",
@@ -896,9 +896,13 @@ function GifPlayerEffect:drawOverlay()
     if self.preview then
         return
     end
+    -- Playback is clean when Show UI is disabled.  Browsers remain visible so
+    -- the player can still select a GIF and category.
     if UIState and not UIState.isShown() and not self.categoryChooserOpen and not self.gifChooserOpen then
         return
     end
+
+    gfx.setFont(self.smallFont)
 
     if self.categoryChooserOpen then
         self:drawCategoryOverlay()

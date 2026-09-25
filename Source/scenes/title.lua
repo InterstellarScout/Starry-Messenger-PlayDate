@@ -12,7 +12,7 @@ local pd <const> = playdate
 local gfx <const> = pd.graphics
 local TITLE_TEXT_MAX_WIDTH <const> = 360
 local TITLE_TEXT_MAX_HEIGHT <const> = 34
-local TITLE_CENTER_SCALE <const> = 1.5
+local TITLE_CENTER_SCALE <const> = 1.7
 local TITLE_SIDE_SCALE <const> = 0.75
 local PREVIEW_RESUME_DELAY_FRAMES <const> = 15
 local TITLE_FIREWORK_MIN_DELAY_FRAMES <const> = 30
@@ -210,6 +210,10 @@ function TitleScene:usesDarkText()
             or selectedView.modeId == "smoothsailing"
             or selectedView.modeId == "tunnelbars"
             or selectedView.modeId == "loopfall"
+            or selectedView.id == "lava"
+            or selectedView.id == "starrytop"
+            or selectedView.id == "fractaltree"
+            or selectedView.id == "bubblepop"
         return not whiteTitle
     end
 
@@ -1299,8 +1303,14 @@ function TitleScene:drawMenu()
     local selectedView = self:getSelectedView()
     gfx.setImageDrawMode(self:getTextDrawMode())
     if not self.freeSpinActive and not self.freeSpinSettling then
-        gfx.drawTextAligned(self.headerTitle, 200, 20, kTextAlignment.center)
-        gfx.drawTextAligned(self.headerSubtitle, 200, 40, kTextAlignment.center)
+        if self.headerTitle ~= "" then
+            gfx.setFont(self.largeFont or self.smallFont)
+            gfx.drawTextAligned(self.headerTitle, 200, 16, kTextAlignment.center)
+            gfx.setFont(self.smallFont)
+        end
+        if self.headerSubtitle ~= "" then
+            gfx.drawTextAligned(self.headerSubtitle, 200, 42, kTextAlignment.center)
+        end
     end
 
     local hasModes = selectedView and selectedView.modes ~= nil and not self.freeSpinActive and not self.freeSpinSettling

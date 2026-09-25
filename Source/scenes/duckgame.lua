@@ -469,8 +469,8 @@ function DuckGameScene:resetMatch(modeId, localSlot)
         self.nestPixels[slot] = {}
         local layout = SLOT_LAYOUT[slot]
         self.nests[slot] = self:isCenterNestMode() and slot == 1
-            and { x = CENTER_NEST_X, y = CENTER_NEST_Y }
-            or { x = layout.nestX, y = layout.nestY }
+            and { x = CENTER_NEST_X, y = CENTER_NEST_Y, vx = 0, vy = 0 }
+            or { x = layout.nestX, y = layout.nestY, vx = 0, vy = 0 }
         local controlKind = "remote"
         if modeId == "single" then
             controlKind = slot == self.localSlot and "local" or "bot"
@@ -764,6 +764,9 @@ function DuckGameScene:updatePlayerMovement(player, dt)
 
     self:wrapPlayerPosition(player)
     self:pushTrailPoint(player, false)
+    if player.moving and (self.frame % 5 == 0) then
+        self:addRipple(player.x - ((player.facingX or 0) * 4), player.y - ((player.facingY or 0) * 4), 2)
+    end
 end
 
 function DuckGameScene:updateFreeChicks(dt)
@@ -923,10 +926,13 @@ function DuckGameScene:updateNestPushes()
                     directionY = player.facingY or 0
                 end
                 local push = math.max(0.45, (pushRadius - distance) * 0.22)
-                nest.x = clamp(nest.x + (directionX * push), POND_LEFT + NEST_RADIUS + 2, POND_RIGHT - NEST_RADIUS - 2)
-                nest.y = clamp(nest.y + (directionY * push), POND_TOP + NEST_RADIUS + 2, POND_BOTTOM - NEST_RADIUS - 2)
+                nest.vx = (nest.vx or 0) + (directionX * push)
+                nest.vy = (nest.vy or 0) + (directionY * push)
             end
         end
+        nest.x = clamp(nest.x + ((nest.vx or 0) * 0.35), POND_LEFT + NEST_RADIUS + 2, POND_RIGHT - NEST_RADIUS - 2)
+        nest.y = clamp(nest.y + ((nest.vy or 0) * 0.35), POND_TOP + NEST_RADIUS + 2, POND_BOTTOM - NEST_RADIUS - 2)
+        nest.vx, nest.vy = (nest.vx or 0) * 0.86, (nest.vy or 0) * 0.86
     end
 end
 

@@ -54,7 +54,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.44"
+local APP_VERSION <const> = "0.2.45"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -599,9 +599,8 @@ buildGameTitleScene = function(catalog, options)
     app.session:setCatalog(catalog or "root")
     ViewAudio.stop()
     local viewItems = getCatalogViewItems(catalog)
-    local subtitle = catalog == "multi"
-        and string.format("Multiplayer Games  %d Beings", app.session.playerCount)
-        or (catalog == "single" and "Low-Key Games" or (catalog == "utilities" and "Utilities" or "Choose a folder"))
+    local folderName = catalog == "multi" and "Multiplayer"
+        or (catalog == "single" and "Low-Key Games" or (catalog == "utilities" and "Utilities" or ""))
     safeCall("buildSystemMenu", function()
         buildSystemMenu(viewItems, nil, nil)
     end)
@@ -613,8 +612,8 @@ buildGameTitleScene = function(catalog, options)
         previewEffect = options.previewEffect,
         previewViewId = options.previewViewId,
         previewModeId = options.previewModeId,
-        headerTitle = "STARRY MESSENGER",
-        headerSubtitle = subtitle,
+        headerTitle = folderName == "" and "STARRY MESSENGER" or folderName,
+        headerSubtitle = folderName == "" and "" or (catalog == "multi" and string.format("%d Beings", app.session.playerCount) or ""),
         onBack = function()
             if catalog == "multi" then
                 app.session:setPlayerCount(1)
@@ -681,8 +680,8 @@ buildVibesTitleScene = function(options)
         previewEffect = options.previewEffect,
         previewViewId = options.previewViewId,
         previewModeId = options.previewModeId,
-        headerTitle = "STARRY MESSENGER",
-        headerSubtitle = "Vibes",
+        headerTitle = "Vibes",
+        headerSubtitle = "",
         onBack = function()
             startVibesFolderExitTransition(function(nextScene)
                 app.session:setCatalog("root")

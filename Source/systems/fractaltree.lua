@@ -10,8 +10,9 @@ local gfx <const> = pd.graphics
 FractalTree = {}
 FractalTree.__index = FractalTree
 
-local ROOT_LENGTH <const> = 20
-local MIN_CHILD_LENGTH <const> = 1
+local ROOT_LENGTH <const> = 120
+local MIN_CHILD_LENGTH <const> = 4
+local MAX_GENERATION <const> = 6
 local PARTICLE_COUNT <const> = 144
 local MAX_BRANCHES_PER_FRAME <const> = 300
 
@@ -96,10 +97,8 @@ function FractalTree:drawBranch(x1, y1, length, angle, generation, branchIndex)
         return
     end
 
-    local childLength = length * 0.5
-    if childLength < MIN_CHILD_LENGTH then
-        return
-    end
+    if generation >= MAX_GENERATION then return end
+    local childLength = math.max(MIN_CHILD_LENGTH, length * 0.5)
 
     local positions = { 0.5, 0.75, 1.0 }
     local offsets = { -0.62, 0.48, -0.30 }
