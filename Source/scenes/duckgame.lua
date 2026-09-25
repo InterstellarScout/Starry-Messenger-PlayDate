@@ -517,11 +517,14 @@ function DuckGameScene:wrapPlayerPosition(player)
 
     wrappedX, xWrapped = wrapAxis(player.x, PLAYFIELD_LEFT + WRAP_MARGIN, PLAYFIELD_RIGHT - WRAP_MARGIN, WRAP_MARGIN)
     wrappedY, yWrapped = wrapAxis(player.y, PLAYFIELD_TOP + WRAP_MARGIN, PLAYFIELD_BOTTOM - WRAP_MARGIN, WRAP_MARGIN)
-    player.x = wrappedX
-    player.y = wrappedY
-
     if xWrapped or yWrapped then
+        player.wrapGhost = { x = player.x, y = player.y, facingX = player.facingX, facingY = player.facingY, frames = 10 }
+        player.x = wrappedX
+        player.y = wrappedY
         self:pushTrailPoint(player, true)
+    else
+        player.x = wrappedX
+        player.y = wrappedY
     end
 end
 
@@ -930,8 +933,8 @@ function DuckGameScene:updateNestPushes()
                 nest.vy = (nest.vy or 0) + (directionY * push)
             end
         end
-        nest.x = clamp(nest.x + ((nest.vx or 0) * 0.35), POND_LEFT + NEST_RADIUS + 2, POND_RIGHT - NEST_RADIUS - 2)
-        nest.y = clamp(nest.y + ((nest.vy or 0) * 0.35), POND_TOP + NEST_RADIUS + 2, POND_BOTTOM - NEST_RADIUS - 2)
+        nest.x = select(1, wrapAxis(nest.x + ((nest.vx or 0) * 0.35), POND_LEFT + NEST_RADIUS, POND_RIGHT - NEST_RADIUS, 2))
+        nest.y = select(1, wrapAxis(nest.y + ((nest.vy or 0) * 0.35), POND_TOP + NEST_RADIUS, POND_BOTTOM - NEST_RADIUS, 2))
         nest.vx, nest.vy = (nest.vx or 0) * 0.86, (nest.vy or 0) * 0.86
     end
 end
@@ -947,11 +950,14 @@ function DuckGameScene:updateLog(dt)
             local push = (LOG_PUSH_RADIUS - distance + 1) * 7
             log.vx = (log.vx or 0) + (directionX * push)
             log.vy = (log.vy or 0) + (directionY * push)
-            log.angle = math.atan(directionY, directionX)
+            local targetAngle = math.atan(directionY, directionX)
+            local currentAngle = log.angle or targetAngle
+            local angleDelta = math.atan(math.sin(targetAngle - currentAngle), math.cos(targetAngle - currentAngle))
+            log.angle = currentAngle + (angleDelta * 0.12)
         end
     end
-    log.x = clamp(log.x + ((log.vx or 0) * dt), POND_LEFT + LOG_HALF_LENGTH, POND_RIGHT - LOG_HALF_LENGTH)
-    log.y = clamp(log.y + ((log.vy or 0) * dt), POND_TOP + 8, POND_BOTTOM - 8)
+    log.x = select(1, wrapAxis(log.x + ((log.vx or 0) * dt), POND_LEFT + LOG_HALF_LENGTH, POND_RIGHT - LOG_HALF_LENGTH, 2))
+    log.y = select(1, wrapAxis(log.y + ((log.vy or 0) * dt), POND_TOP + 8, POND_BOTTOM - 8, 2))
     log.vx, log.vy = (log.vx or 0) * 0.86, (log.vy or 0) * 0.86
 end
 
@@ -975,6 +981,12 @@ function DuckGameScene:deliverChicks()
 end
 
 function DuckGameScene:updateRipples()
+    for _, player in ipairs(self.players or {}) do
+        if player.wrapGhost then
+            player.wrapGhost.frames = player.wrapGhost.frames - 1
+            if player.wrapGhost.frames <= 0 then player.wrapGhost = nil end
+        end
+    end
     for index = #self.ripples, 1, -1 do
         local ripple = self.ripples[index]
         ripple.age = ripple.age + 1
@@ -1566,6 +1578,10 @@ function DuckGameScene:drawGameState(state)
     end
 
     for _, player in ipairs(state.players or {}) do
+        if player.wrapGhost then
+            local ghost = { x = player.wrapGhost.x, y = player.wrapGhost.y, facingX = player.wrapGhost.facingX, facingY = player.wrapGhost.facingY, slot = player.slot, chicks = {} }
+            self:drawDuck(ghost)
+        end
         self:drawDuck(player)
     end
 

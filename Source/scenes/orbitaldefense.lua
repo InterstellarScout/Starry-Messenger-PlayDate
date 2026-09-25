@@ -1,6 +1,7 @@
 import "gameconfig"
 import "systems/multiplayer"
 import "systems/tutorials"
+import "systems/pixelplanets"
 
 --[[
 Orbital Defense scene.
@@ -929,6 +930,11 @@ end
 function OrbitalDefenseScene:drawBackground(frame)
     gfx.clear(gfx.kColorBlack)
     drawOrbitalBackgroundStars(self.backgroundStars)
+    local blackHole = PixelPlanetsAssets.blackHoleFrame(math.floor((frame or 0) / 3))
+    if blackHole ~= nil then
+        -- Cached PixelPlanets frames keep this animated background element cheap.
+        blackHole:drawCentered(330, 64)
+    end
 end
 
 function OrbitalDefenseScene:drawLobby()
@@ -1156,7 +1162,7 @@ function OrbitalDefenseScene:drawUpgradeMenu(state)
     local panelX = 48
     local panelY = 32
     local panelW = 304
-    local panelH = 184
+    local panelH = 196
     gfx.setColor(gfx.kColorBlack)
     gfx.fillRoundRect(panelX, panelY, panelW, panelH, 8)
     gfx.setColor(gfx.kColorWhite)

@@ -5,6 +5,7 @@ import "data/spaceminerwaves_oreminer"
 import "CoreLibs/graphics"
 import "CoreLibs/keyboard"
 import "audio/spaceminer_sfx"
+import "systems/pixelplanets"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -85,7 +86,7 @@ local MENU_AUTO_NAVIGATE_ENABLED <const> = SPACE_MINER_CONFIG.menuAutoNavigateEn
 local MENU_AUTO_NAVIGATE_RADIUS <const> = SPACE_MINER_CONFIG.menuAutoNavigateRadius or 180
 local MENU_AUTO_NAVIGATE_ACCELERATION <const> = SPACE_MINER_CONFIG.menuAutoNavigateAcceleration or 0.026
 local MENU_AUTO_NAVIGATE_MAX_SPEED <const> = SPACE_MINER_CONFIG.menuAutoNavigateMaxSpeed or 1.1
-local MENU_CRANK_STEP <const> = SPACE_MINER_CONFIG.menuCrankStep or 45
+local MENU_CRANK_STEP <const> = SPACE_MINER_CONFIG.menuCrankStep or 90
 local MENU_DPAD_HOLD_SPIN_FRAMES <const> = SPACE_MINER_CONFIG.menuDpadHoldSpinFrames or 14
 local MENU_DPAD_STEP_VELOCITY <const> = SPACE_MINER_CONFIG.menuDpadStepVelocity or 0.72
 local MENU_DPAD_STEP_IMPULSE <const> = SPACE_MINER_CONFIG.menuDpadStepImpulse or 0.4
@@ -1184,6 +1185,7 @@ function SpaceMiner.new(width, height, options)
     self.cargoCapacityTarget = CARGO_INITIAL_CAPACITY
     self.destroyedEnemies = 0
     self.testModeEnabled = false
+    self.pixelAsteroidsEnabled = true
     self.shieldLevel = 1
     self.playerShieldMax = SHIELD_MAX
     self.frame = 0
@@ -1508,6 +1510,7 @@ function SpaceMiner:getStorySaveData()
         cargoCapacityTarget = self.cargoCapacityTarget,
         destroyedEnemies = self.destroyedEnemies,
         testModeEnabled = self.testModeEnabled,
+        pixelAsteroidsEnabled = self.pixelAsteroidsEnabled == true,
         ownedLaserUpgrades = self.ownedLaserUpgrades,
         ownedMissileUpgrades = self.ownedMissileUpgrades,
         ownedShieldUpgrades = self.ownedShieldUpgrades,
@@ -1638,6 +1641,9 @@ function SpaceMiner:loadModeSave()
         end
     end
     self.testModeEnabled = data.testModeEnabled == true
+    if data.pixelAsteroidsEnabled ~= nil then
+        self.pixelAsteroidsEnabled = data.pixelAsteroidsEnabled == true
+    end
     self:loadOwnedUpgradeState("laser", data.ownedLaserUpgrades, data.activeLaserUpgrade)
     self:loadOwnedUpgradeState("missile", data.ownedMissileUpgrades, data.activeMissileUpgrade)
     self:loadOwnedUpgradeState("shield", data.ownedShieldUpgrades, data.activeShieldUpgrade)
@@ -3475,6 +3481,13 @@ function SpaceMiner:getShipSettingsMenuItems()
             kind = "toggle"
         },
         {
+            id = "pixel-asteroids",
+            label = "PixelPlanets Asteroids",
+            value = self.pixelAsteroidsEnabled == true,
+            action = "toggle-pixel-asteroids",
+            kind = "toggle"
+        },
+        {
             id = "communication-history",
             label = "Communication History",
             kind = "button",
@@ -3588,6 +3601,9 @@ function SpaceMiner:toggleMenuSelection()
         return
     elseif item.action == "toggle-sound" then
         self:setSoundEnabled(not self:isSoundEnabled())
+        shouldPersist = true
+    elseif item.action == "toggle-pixel-asteroids" then
+        self.pixelAsteroidsEnabled = not (self.pixelAsteroidsEnabled == true)
         shouldPersist = true
     elseif item.action == "set-right-button-mode" then
         self.rightButtonMode = item.mode or "missile"
@@ -8666,47 +8682,59 @@ end
 function SpaceMiner:drawAsteroids()
     gfx.setColor(gfx.kColorWhite)
     local lateStageGhostMediumAsteroids = not self.preview and self.stageIndex >= 6
+    local pixelFrame = math.floor((self.frame or 0) / 3)
     for _, asteroid in ipairs(self.asteroids) do
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, asteroid.x, asteroid.y)
         if drawX >= -30 and drawX <= (SCREEN_WIDTH + 30) and drawY >= -30 and drawY <= (SCREEN_HEIGHT + 30) then
-            if asteroid.stage >= 2 then
-                gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
-                gfx.setColor(gfx.kColorBlack)
-                if asteroid.radius >= 5 then
-                    gfx.fillCircleAtPoint(drawX + 1, drawY - 1, math.max(1, asteroid.radius - 4))
+            if self.pixelAsteroidsEnabled == true then
+                local size = asteroid.stage == 0 and "large" or (asteroid.stage == 1 and "medium" or "small")
+                -- Each size advances at a distinct cadence, while the object's serial
+                -- gives siblings a different starting orientation.
+                local cadence = size == "large" and 6 or (size == "medium" and 4 or 2)
+                local frameOffset = math.floor((tonumber(asteroid.id) or 0) % 8)
+                local image = PixelPlanetsAssets.asteroidFrame(size, math.floor(pixelFrame / cadence) + frameOffset)
+                if image ~= nil then
+                    image:drawCentered(drawX, drawY)
                 end
-                gfx.setColor(gfx.kColorWhite)
-            elseif asteroid.stage == 1 then
-                local dither = lateStageGhostMediumAsteroids and math.max(0.35, MEDIUM_ASTEROID_GRAY_DITHER - 0.12) or MEDIUM_ASTEROID_GRAY_DITHER
-                gfx.setDitherPattern(clamp(dither, 0.1, 0.9), gfx.image.kDitherTypeBayer8x8)
-                gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
-                gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
-                if MEDIUM_ASTEROID_TEXTURE_ENABLED and asteroid.blotches ~= nil then
-                    gfx.setColor(gfx.kColorWhite)
-                    for _, blotch in ipairs(asteroid.blotches) do
-                        gfx.fillCircleAtPoint(drawX + blotch.x, drawY + blotch.y, blotch.radius)
+            else
+                if asteroid.stage >= 2 then
+                    gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+                    gfx.setColor(gfx.kColorBlack)
+                    if asteroid.radius >= 5 then
+                        gfx.fillCircleAtPoint(drawX + 1, drawY - 1, math.max(1, asteroid.radius - 4))
                     end
+                    gfx.setColor(gfx.kColorWhite)
+                elseif asteroid.stage == 1 then
+                    local dither = lateStageGhostMediumAsteroids and math.max(0.35, MEDIUM_ASTEROID_GRAY_DITHER - 0.12) or MEDIUM_ASTEROID_GRAY_DITHER
+                    gfx.setDitherPattern(clamp(dither, 0.1, 0.9), gfx.image.kDitherTypeBayer8x8)
+                    gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+                    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+                    if MEDIUM_ASTEROID_TEXTURE_ENABLED and asteroid.blotches ~= nil then
+                        gfx.setColor(gfx.kColorWhite)
+                        for _, blotch in ipairs(asteroid.blotches) do
+                            gfx.fillCircleAtPoint(drawX + blotch.x, drawY + blotch.y, blotch.radius)
+                        end
+                    end
+                else
+                    gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
+                    gfx.setColor(gfx.kColorBlack)
+                    gfx.fillCircleAtPoint(drawX + 1, drawY - 1, math.max(1, asteroid.radius - 8))
+                    gfx.drawLine(drawX - asteroid.radius * 0.35, drawY + asteroid.radius * 0.2, drawX + asteroid.radius * 0.5, drawY - asteroid.radius * 0.18)
+                    gfx.setColor(gfx.kColorWhite)
                 end
-            else
-                gfx.fillCircleAtPoint(drawX, drawY, asteroid.radius)
-                gfx.setColor(gfx.kColorBlack)
-                gfx.fillCircleAtPoint(drawX + 1, drawY - 1, math.max(1, asteroid.radius - 8))
-                gfx.drawLine(drawX - asteroid.radius * 0.35, drawY + asteroid.radius * 0.2, drawX + asteroid.radius * 0.5, drawY - asteroid.radius * 0.18)
-                gfx.setColor(gfx.kColorWhite)
-            end
-            gfx.drawCircleAtPoint(drawX, drawY, asteroid.radius)
-            if asteroid.stage <= 1 then
-                gfx.drawLine(drawX - asteroid.radius * 0.6, drawY, drawX + asteroid.radius * 0.6, drawY - asteroid.radius * 0.2)
-            else
-                gfx.drawLine(drawX - asteroid.radius * 0.4, drawY, drawX + asteroid.radius * 0.4, drawY)
-                gfx.drawLine(drawX, drawY - asteroid.radius * 0.4, drawX, drawY + asteroid.radius * 0.4)
+                gfx.drawCircleAtPoint(drawX, drawY, asteroid.radius)
+                if asteroid.stage <= 1 then
+                    gfx.drawLine(drawX - asteroid.radius * 0.6, drawY, drawX + asteroid.radius * 0.6, drawY - asteroid.radius * 0.2)
+                else
+                    gfx.drawLine(drawX - asteroid.radius * 0.4, drawY, drawX + asteroid.radius * 0.4, drawY)
+                    gfx.drawLine(drawX, drawY - asteroid.radius * 0.4, drawX, drawY + asteroid.radius * 0.4)
+                end
             end
         end
     end
     gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     gfx.setColor(gfx.kColorWhite)
 end
-
 function SpaceMiner:drawEnemies()
     gfx.setColor(gfx.kColorWhite)
     local autoTarget = self:getAutoMissileEnemyTarget()

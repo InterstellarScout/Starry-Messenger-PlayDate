@@ -58,7 +58,7 @@ function ViewScene.new(config)
     self.tutorialOpen = Tutorials.shouldShow(self.viewId, self.modeId)
     self.tutorialScroll = 0
 
-    if config.effect then
+    if config.effect and self.viewId ~= "snake" then
         self.effect = config.effect
     elseif self.viewId == "fall" then
         self.effect = Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.liveStarCount or 420, {
@@ -688,7 +688,7 @@ function ViewScene:update()
             return
         end
         if self.viewId == "spaceminer" and self.effect and self.effect.isMenuOpen and self.effect:isMenuOpen() then
-            self.effect:closeMenu()
+            if not (self.effect.handleBack and self.effect:handleBack()) then self.effect:closeMenu() end
             return
         end
         if self:isLifeReviewMode() and self.effect:handleReviewBack() then

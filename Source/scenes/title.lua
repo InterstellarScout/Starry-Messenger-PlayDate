@@ -212,8 +212,11 @@ function TitleScene:usesDarkText()
             or selectedView.modeId == "loopfall"
             or selectedView.id == "lava"
             or selectedView.id == "starrytop"
+            or selectedView.modeId == "starrytop"
             or selectedView.id == "fractaltree"
+            or selectedView.modeId == "fractaltree"
             or selectedView.id == "bubblepop"
+            or selectedView.modeId == "bubblepop"
         return not whiteTitle
     end
 

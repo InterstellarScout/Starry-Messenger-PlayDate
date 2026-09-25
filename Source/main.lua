@@ -13,6 +13,7 @@ import "systems/log"
 import "systems/starfield"
 import "systems/starrytop"
 import "systems/uistate"
+import "systems/favorites"
 import "systems/gameoflife"
 import "systems/lavalamp"
 import "systems/fireworks"
@@ -54,7 +55,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.45"
+local APP_VERSION <const> = "0.2.46"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -278,6 +279,7 @@ local SINGLE_VIEW_ITEMS <const> = {
 }
 
 local ROOT_VIEW_ITEMS <const> = {
+    { id = "favorites", label = "Favorites" },
     { id = "lowkey", label = "Low-Key Games" },
     { id = "vibes", label = "Vibes" },
     {
@@ -320,6 +322,20 @@ local MULTIPLAYER_VIEW_ITEMS <const> = {
 }
 
 local VIBES_VIEW_ITEMS <const> = buildVibesViewItems()
+
+local function getFavoriteViewItems()
+    local all = { ROOT_VIEW_ITEMS, SINGLE_VIEW_ITEMS, UTILITIES_VIEW_ITEMS, VIBES_VIEW_ITEMS, MULTIPLAYER_VIEW_ITEMS }
+    local items = {}
+    for _, id in ipairs(Favorites.ids or {}) do
+        for _, catalog in ipairs(all) do
+            for _, item in ipairs(catalog) do
+                if item.id == id and item.id ~= "favorites" then items[#items + 1] = item end
+            end
+        end
+    end
+    if #items == 0 then items[1] = { id = "favorites_empty", label = "Add Favorites in Home" } end
+    return items
+end
 
 local function getCatalogViewItems(catalog)
     if catalog == "multi" then
@@ -461,6 +477,22 @@ local function startVibesFolderExitTransition(onComplete)
     }))
 end
 
+local function startCatalogFolderTransition(catalog, rootId, entering)
+    local direction = entering and 1 or -1
+    setScene(FolderTransitionScene.new({
+        startSpeed = direction * (TITLE_CONFIG and TITLE_CONFIG.warpPreviewSpeed or 1),
+        targetSpeed = direction * 100,
+        accelerationFrames = 8,
+        flashFrames = 7,
+        flashColor = entering and gfx.kColorWhite or gfx.kColorBlack,
+        onFlashBuildScene = function()
+            if entering then return buildGameTitleScene(catalog) end
+            app.session:setCatalog("root")
+            return buildGameTitleScene("root", { selectedIndex = getViewIndex(ROOT_VIEW_ITEMS, rootId) })
+        end,
+        onComplete = function(nextScene) setScene(nextScene) end
+    }))
+end
 local function showView(viewId, options)
     options = options or {}
     local returnViewId = options.returnViewId or viewId
@@ -600,7 +632,7 @@ buildGameTitleScene = function(catalog, options)
     ViewAudio.stop()
     local viewItems = getCatalogViewItems(catalog)
     local folderName = catalog == "multi" and "Multiplayer"
-        or (catalog == "single" and "Low-Key Games" or (catalog == "utilities" and "Utilities" or ""))
+        or (catalog == "single" and "Low-Key Games" or (catalog == "utilities" and "Utilities" or (catalog == "favorites" and "Favorites" or "")))
     safeCall("buildSystemMenu", function()
         buildSystemMenu(viewItems, nil, nil)
     end)
@@ -623,11 +655,9 @@ buildGameTitleScene = function(catalog, options)
                 }))
                 return
             end
-            if catalog == "single" or catalog == "utilities" then
-                app.session:setCatalog("root")
-                setScene(buildGameTitleScene("root", {
-                    selectedIndex = getViewIndex(ROOT_VIEW_ITEMS, catalog == "utilities" and "utilities" or "lowkey")
-                }))
+            if catalog == "single" or catalog == "utilities" or catalog == "favorites" then
+                startCatalogFolderTransition(catalog, catalog == "utilities" and "utilities" or (catalog == "favorites" and "favorites" or "lowkey"), false)
+
             else
                 setScene(buildSplashScene())
             end
@@ -636,6 +666,12 @@ buildGameTitleScene = function(catalog, options)
             return false
         end,
         onSelectView = function(viewId, effect, modeId, selectedItemId)
+            if viewId == "favorites_empty" then return end
+            if viewId == "favorites" then
+                app.session:setCatalog("favorites")
+                setScene(buildGameTitleScene("favorites"))
+                return
+            end
             if viewId == "vibes" then
                 app.session:setCatalog("vibes")
                 startVibesFolderEnterTransition(function(nextScene)
@@ -647,12 +683,12 @@ buildGameTitleScene = function(catalog, options)
             end
             if viewId == "lowkey" then
                 app.session:setCatalog("single")
-                setScene(buildGameTitleScene("single"))
+                startCatalogFolderTransition("single", "lowkey", true)
                 return
             end
             if viewId == "utilities" then
                 app.session:setCatalog("utilities")
-                setScene(buildGameTitleScene("utilities"))
+                startCatalogFolderTransition("utilities", "utilities", true)
                 return
             end
             logModeSelection("title", viewId)
@@ -744,6 +780,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
     end)
 
     if activeViewId ~= nil then
+        menu:addMenuItem((Favorites.has(activeViewId) and "Remove " or "Add ") .. tostring(activeViewId) .. " Favorite", function() Favorites.toggle(activeViewId) end)
         menu:addCheckmarkMenuItem("Show UI", UIState.isShown(), function(value)
             UIState.setShown(value)
         end)

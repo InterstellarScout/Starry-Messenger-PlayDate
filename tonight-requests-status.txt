@@ -268,6 +268,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| Generate Deep-Fold PixelPlanets asteroid rotations for Space Miner and an animated black hole for Orbital Defense. | Done — pre-rendered 8-frame small/medium/large asteroid sets now advance at distinct speeds; Orbital Defense uses the 12-frame black-hole background. Space Miner Settings retains a PixelPlanets Asteroids toggle for the original lightweight vector asteroids. |
 | Make Bubble Pop title text white and make every title label strictly the inverse of the selected title's main background color. | Done — title contrast now shares the Vibes live-background rule, so Bubble Pop and every black-base Vibe use white menu text while white-base Vibes use black. |
 | In Puck Ring, add a rectangular score board to each top corner showing pucks scored. | Done — Left and Right score boards now track each net's puck total. |
 | Fix the Duck Game crash when starting play. | Done — restored the distance result used by nest-push calculations, eliminating the nil comparison at `duckgame.lua:899`. |
