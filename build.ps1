@@ -11,8 +11,8 @@ $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sdkRoot = if ($env:PLAYDATE_SDK_PATH) {
     $env:PLAYDATE_SDK_PATH
 } else {
-    # The project sits beside the SDK under Programming Projects.
-    (Resolve-Path (Join-Path $projectRoot "..\\Playdate SDK")).Path
+    # The project lives under Playdate SDK\Development.
+    (Resolve-Path (Join-Path $projectRoot "..\\..")).Path
 }
 $pdc = Join-Path $sdkRoot "bin\\pdc.exe"
 $pdutil = Join-Path $sdkRoot "bin\\pdutil.exe"
