@@ -878,6 +878,17 @@ function SpaceMiner.getStorySlotKey(slot)
     return STORY_SAVE_SLOT_PREFIX .. tostring(clamp(math.floor(tonumber(slot) or 1), 1, STORY_SAVE_SLOT_COUNT))
 end
 
+function SpaceMiner.getSaveMode(modeId)
+    return modeId == SpaceMiner.MODE_OREMINER and SpaceMiner.MODE_OREMINER or SpaceMiner.MODE_STORY
+end
+
+function SpaceMiner.getSaveTypeLabel(modeId)
+    if SpaceMiner.getSaveMode(modeId) == SpaceMiner.MODE_OREMINER then
+        return "Endless Save"
+    end
+    return "Campaign Save"
+end
+
 function SpaceMiner.readStorySaveIndex()
     local ok, index = pcall(function()
         return pd.datastore.read(STORY_SAVE_INDEX_KEY)
@@ -885,9 +896,52 @@ function SpaceMiner.readStorySaveIndex()
     if ok and type(index) == "table" then
         index.slots = type(index.slots) == "table" and index.slots or {}
         index.sequence = tonumber(index.sequence) or 0
-        return index
+    else
+        index = { slots = {}, sequence = 0, latestSlot = nil }
     end
-    return { slots = {}, sequence = 0, latestSlot = nil }
+    -- Earlier builds stored Endless Ore Mining in its own key. Move that
+    -- payload into the first free shared slot once, without touching it when
+    -- all three shared slots are already occupied.
+    if index.legacyOreMinerMigrated ~= true then
+        local okLegacy, legacy = pcall(function()
+            return pd.datastore.read(OREMINER_SAVE_KEY)
+        end)
+        if okLegacy and type(legacy) == "table" and legacy.cleared ~= true and type(legacy.player) == "table" then
+            local freeSlot = nil
+            for slot = 1, STORY_SAVE_SLOT_COUNT do
+                if type(index.slots[slot] or index.slots[tostring(slot)]) ~= "table" then
+                    freeSlot = slot
+                    break
+                end
+            end
+            if freeSlot ~= nil then
+                legacy.saveSlot = freeSlot
+                legacy.saveName = SpaceMiner.getSaveTypeLabel(SpaceMiner.MODE_OREMINER)
+                legacy.modeId = SpaceMiner.MODE_OREMINER
+                index.sequence = (tonumber(index.sequence) or 0) + 1
+                legacy.saveSequence = index.sequence
+                index.latestSlot = freeSlot
+                index.slots[freeSlot] = {
+                    name = legacy.saveName,
+                    modeId = legacy.modeId,
+                    sequence = index.sequence
+                }
+                index.legacyOreMinerMigrated = true
+                pcall(function()
+                    pd.datastore.write(legacy, SpaceMiner.getStorySlotKey(freeSlot))
+                    pd.datastore.write(index, STORY_SAVE_INDEX_KEY)
+                    if pd.datastore.delete then
+                        pd.datastore.delete(OREMINER_SAVE_KEY)
+                    else
+                        pd.datastore.write({ cleared = true }, OREMINER_SAVE_KEY)
+                    end
+                end)
+            end
+        else
+            index.legacyOreMinerMigrated = true
+        end
+    end
+    return index
 end
 
 function SpaceMiner.writeStorySaveIndex(index)
@@ -915,6 +969,7 @@ function SpaceMiner.getStorySlots()
             slots[#slots + 1] = {
                 slot = slot,
                 name = meta.name or STORY_SAVE_EMPTY_SLOT_NAME,
+                modeId = SpaceMiner.getSaveMode(meta.modeId),
                 sequence = tonumber(meta.sequence) or 0
             }
         end
@@ -965,12 +1020,13 @@ function SpaceMiner.chooseNewStorySlot()
     return oldestSlot
 end
 
-function SpaceMiner.markStorySlotSaved(slot, name)
+function SpaceMiner.markStorySlotSaved(slot, name, modeId)
     local index = SpaceMiner.readStorySaveIndex()
     index.sequence = (tonumber(index.sequence) or 0) + 1
     index.latestSlot = slot
     index.slots[slot] = {
         name = name or STORY_SAVE_EMPTY_SLOT_NAME,
+        modeId = SpaceMiner.getSaveMode(modeId),
         sequence = index.sequence
     }
     SpaceMiner.writeStorySaveIndex(index)
@@ -1015,12 +1071,14 @@ function SpaceMiner.clearStorySave()
         if pd.datastore.delete then
             pd.datastore.delete(STORY_SAVE_KEY)
             pd.datastore.delete(STORY_SAVE_INDEX_KEY)
+            pd.datastore.delete(OREMINER_SAVE_KEY)
             for slot = 1, STORY_SAVE_SLOT_COUNT do
                 pd.datastore.delete(SpaceMiner.getStorySlotKey(slot))
             end
         else
             pd.datastore.write({ cleared = true }, STORY_SAVE_KEY)
             pd.datastore.write({ cleared = true }, STORY_SAVE_INDEX_KEY)
+            pd.datastore.write({ cleared = true }, OREMINER_SAVE_KEY)
             for slot = 1, STORY_SAVE_SLOT_COUNT do
                 pd.datastore.write({ cleared = true }, SpaceMiner.getStorySlotKey(slot))
             end
@@ -1037,9 +1095,6 @@ function SpaceMiner:hasStorySave()
 end
 
 function SpaceMiner:getSaveKey()
-    if self:isOreMinerMode() then
-        return OREMINER_SAVE_KEY
-    end
     return SpaceMiner.getStorySlotKey(self.storySaveSlot or SpaceMiner.getLatestStorySlot() or 1)
 end
 
@@ -1129,8 +1184,8 @@ function SpaceMiner.new(width, height, options)
     self.storyNameEntryCrankAccumulator = 0
     self.deferredStoryLoadMode = nil
     self.deferredStoryLoadFrames = 0
-    if requestedMode == SpaceMiner.MODE_STORY and not self.preview then
-        self.deferredStoryLoadMode = SpaceMiner.MODE_STORY
+    if (requestedMode == SpaceMiner.MODE_STORY or requestedMode == SpaceMiner.MODE_OREMINER) and not self.preview then
+        self.deferredStoryLoadMode = requestedMode
     elseif requestedMode == SpaceMiner.MODE_CONTINUE_STORY and not self.preview then
         self.deferredStoryLoadMode = SpaceMiner.MODE_CONTINUE_STORY
         self.playMode = SpaceMiner.MODE_STORY
@@ -1332,50 +1387,13 @@ function SpaceMiner:resolveDeferredStoryLoad()
 
     local requestedMode = self.deferredStoryLoadMode
     self.deferredStoryLoadMode = nil
-    self.storySlotSelectorMode = requestedMode
+    self.storySlotSelectorMode = SpaceMiner.getSaveMode(requestedMode)
     self.storySlotSelectorDeleteMode = false
-    if requestedMode == SpaceMiner.MODE_STORY then
-        local hasExistingSaves = SpaceMiner.hasAnyStorySave()
-        local latestSlot = SpaceMiner.getLatestStorySlot()
-        if latestSlot ~= nil then
-            self.storySaveSlot = latestSlot
-            local latestSave = SpaceMiner.readStorySlot(latestSlot)
-            self.storySaveName = latestSave and latestSave.saveName or STORY_SAVE_EMPTY_SLOT_NAME
-            local loaded = self:loadModeSave()
-            if not loaded then
-                self.storySlotSelectorMode = SpaceMiner.MODE_NEW_SAVE
-                self.storySlotSelectorOpen = true
-                self.storySlotSelectorIndex = 1
-                self.storySlotSelectorCrankAccumulator = 0
-                self.storySlotSelectorDeleteMode = false
-            end
-        elseif hasExistingSaves then
-            self.storySlotSelectorMode = SpaceMiner.MODE_STORY
-            self.storySlotSelectorOpen = true
-            self.storySlotSelectorIndex = 1
-            self.storySlotSelectorCrankAccumulator = 0
-            self.storySlotSelectorDeleteMode = false
-        else
-            self:openNewStorySlot(SpaceMiner.chooseNewStorySlot())
-        end
-    elseif requestedMode == SpaceMiner.MODE_CONTINUE_STORY then
-        local hasExistingSaves = SpaceMiner.hasAnyStorySave()
-        if hasExistingSaves then
-            self.storySlotSelectorMode = SpaceMiner.MODE_CONTINUE_STORY
-            self.storySlotSelectorOpen = true
-            self.storySlotSelectorIndex = 1
-            self.storySlotSelectorCrankAccumulator = 0
-            self.storySlotSelectorDeleteMode = false
-        else
-            self:openNewStorySlot(SpaceMiner.chooseNewStorySlot())
-        end
-    elseif requestedMode == SpaceMiner.MODE_NEW_SAVE then
-        self.storySlotSelectorMode = SpaceMiner.MODE_NEW_SAVE
-        self.storySlotSelectorOpen = true
-        self.storySlotSelectorIndex = 1
-        self.storySlotSelectorCrankAccumulator = 0
-        self.storySlotSelectorDeleteMode = false
-    end
+    -- Both title modes use the same three slots. An occupied slot determines
+    -- its own game type; an empty slot starts the mode selected at the title.
+    self.storySlotSelectorOpen = true
+    self.storySlotSelectorIndex = 1
+    self.storySlotSelectorCrankAccumulator = 0
 end
 function SpaceMiner:setPreview(isPreview)
     self.preview = isPreview == true
@@ -1485,6 +1503,7 @@ function SpaceMiner:getStorySaveData()
     return {
         saveSlot = self.storySaveSlot,
         saveName = self.storySaveName,
+        modeId = SpaceMiner.getSaveMode(self.playMode),
         playerName = self.playerName,
         saveSequence = self.storySaveSequence or 0,
         frame = self.frame,
@@ -1556,17 +1575,14 @@ function SpaceMiner:saveModeState()
     if self.preview or not (self:isStoryMode() or self:isOreMinerMode()) then
         return
     end
-    if self:isStoryMode() then
-        self.storySaveSlot = self.storySaveSlot or SpaceMiner.chooseNewStorySlot()
-        self.storySaveName = self.storySaveName or STORY_SAVE_EMPTY_SLOT_NAME
-    end
+    self.storySaveSlot = self.storySaveSlot or SpaceMiner.chooseNewStorySlot()
+    self.storySaveName = self.storySaveName or SpaceMiner.getSaveTypeLabel(self.playMode)
     local ok, errorMessage = pcall(function()
         pd.datastore.write(self:getStorySaveData(), self:getSaveKey())
     end)
-    if ok and self:isStoryMode() then
-        -- Only advertise a slot after its payload has been written.  This
-        -- keeps Continue Story from offering a save that cannot be loaded.
-        self.storySaveSequence = SpaceMiner.markStorySlotSaved(self.storySaveSlot, self.storySaveName)
+    if ok then
+        -- Only advertise a slot after its payload has been written.
+        self.storySaveSequence = SpaceMiner.markStorySlotSaved(self.storySaveSlot, self.storySaveName, self.playMode)
     elseif not ok then
         StarryLog.error("space miner save failed: %s", tostring(errorMessage))
     end
@@ -1583,12 +1599,19 @@ function SpaceMiner:loadModeSave()
         return false
     end
 
-    if self:isStoryMode() then
-        self.storySaveSlot = tonumber(data.saveSlot) or self.storySaveSlot
-        self.storySaveName = data.saveName or self.storySaveName or STORY_SAVE_EMPTY_SLOT_NAME
-        self.playerName = data.playerName or self.playerName or self.storySaveName
-        self.storySaveSequence = tonumber(data.saveSequence) or self.storySaveSequence or 0
+    self.playMode = SpaceMiner.getSaveMode(data.modeId)
+    self.modeId = self.playMode
+    if self:isOreMinerMode() then
+        self.stageSchedule = OREMINER_STAGE_SCHEDULE
+        self.communicationSchedule = OREMINER_COMMUNICATION_SCHEDULE
+    else
+        self.stageSchedule = STORY_STAGE_SCHEDULE
+        self.communicationSchedule = nil
     end
+    self.storySaveSlot = tonumber(data.saveSlot) or self.storySaveSlot
+    self.storySaveName = data.saveName or self.storySaveName or SpaceMiner.getSaveTypeLabel(self.playMode)
+    self.playerName = data.playerName or self.playerName or self.storySaveName
+    self.storySaveSequence = tonumber(data.saveSequence) or self.storySaveSequence or 0
     self.frame = tonumber(data.frame) or self.frame
     local modeStageCount = self:getModeStageCount()
     self.stageIndex = clamp(tonumber(data.stageIndex) or self.stageIndex, 1, math.max(1, modeStageCount))
@@ -1706,34 +1729,24 @@ function SpaceMiner:getStorySlotSelectorItems()
         local slot = clamp(math.floor(tonumber(slotInfo.slot) or 1), 1, STORY_SAVE_SLOT_COUNT)
         slots[slot] = slotInfo
     end
-    local selectorMode = self.storySlotSelectorMode or SpaceMiner.MODE_STORY
     items[#items + 1] = {
         action = "delete-toggle",
         label = "Delete Save: " .. (self.storySlotSelectorDeleteMode and "ON" or "OFF")
     }
     for slot = 1, STORY_SAVE_SLOT_COUNT do
         local slotInfo = slots[slot]
-        local slotName = STORY_SAVE_EMPTY_SLOT_NAME
         if slotInfo ~= nil then
-            local action = selectorMode == SpaceMiner.MODE_NEW_SAVE and "new" or "load"
-            local actionLabel = action == "new" and "Overwrite" or "Load"
-            slotName = slotInfo.name or STORY_SAVE_EMPTY_SLOT_NAME
             items[#items + 1] = {
-                action = action,
+                action = "load",
                 slot = slot,
-                label = string.format("%s Save %d: %s", actionLabel, slot, slotName)
-            }
-            items[#items + 1] = {
-                action = "delete-slot",
-                slot = slot,
-                label = string.format("Delete Save %d", slot)
+                label = string.format("Save %d: %s", slot, SpaceMiner.getSaveTypeLabel(slotInfo.modeId)),
+                value = slotInfo.name or ""
             }
         else
-            local actionLabel = selectorMode == SpaceMiner.MODE_CONTINUE_STORY and "Start New Story" or "Create"
             items[#items + 1] = {
                 action = "new",
                 slot = slot,
-                label = string.format("%s Save %d: %s", actionLabel, slot, slotName)
+                label = string.format("Save %d: New %s", slot, SpaceMiner.getSaveTypeLabel(self.storySlotSelectorMode))
             }
         end
     end
@@ -2093,8 +2106,17 @@ function SpaceMiner:openNewStorySlot(slotOverride)
     else
         slotChoice = clamp(math.floor(slotChoice), 1, STORY_SAVE_SLOT_COUNT)
     end
+    self.playMode = SpaceMiner.getSaveMode(self.storySlotSelectorMode or self.playMode)
+    self.modeId = self.playMode
+    if self:isOreMinerMode() then
+        self.stageSchedule = OREMINER_STAGE_SCHEDULE
+        self.communicationSchedule = OREMINER_COMMUNICATION_SCHEDULE
+    else
+        self.stageSchedule = STORY_STAGE_SCHEDULE
+        self.communicationSchedule = nil
+    end
     self.storySaveSlot = slotChoice
-    self.storySaveName = STORY_SAVE_EMPTY_SLOT_NAME
+    self.storySaveName = SpaceMiner.getSaveTypeLabel(self.playMode)
     self.playerName = self.storySaveName
     self.storySaveSequence = 0
     self:prepareNewStorySaveState()
@@ -2118,7 +2140,7 @@ function SpaceMiner:openNewStorySlot(slotOverride)
     self.storyNameAccepted = false
     self.storySlotSelectorMode = nil
     self:saveModeState()
-    self.nameEntryOpen = true
+    self.nameEntryOpen = self:isStoryMode()
 end
 
 function SpaceMiner:normalizeSavedStageRuntime(rawRuntime)
@@ -2360,12 +2382,7 @@ function SpaceMiner:drawStorySlotSelector()
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 6)
     gfx.setColor(gfx.kColorBlack)
-    local title = "Story Mode"
-    if self.storySlotSelectorMode == SpaceMiner.MODE_NEW_SAVE then
-        title = "New Story Mode"
-    elseif self.storySlotSelectorMode == SpaceMiner.MODE_CONTINUE_STORY then
-        title = "Continue Story Mode"
-    end
+    local title = "Space Miner Saves"
     gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
     gfx.drawTextAligned(title, SCREEN_WIDTH * 0.5, boxY + 10, kTextAlignment.center)
     gfx.drawLine(boxX + 12, boxY + 34, boxX + boxWidth - 12, boxY + 34)
@@ -2373,6 +2390,10 @@ function SpaceMiner:drawStorySlotSelector()
         local rowY = boxY + 38 + ((index - 1) * (rowHeight + rowGap))
         local selected = index == self.storySlotSelectorIndex
         self:drawModernMenuButton({ label = tostring(item.label or "") }, boxX + 10, rowY, boxWidth - 20, rowHeight, selected)
+        if item.value ~= nil and item.value ~= "" then
+            gfx.setImageDrawMode(selected and gfx.kDrawModeFillBlack or gfx.kDrawModeFillWhite)
+            gfx.drawTextAligned(tostring(item.value), boxX + boxWidth - 18, rowY + 8, kTextAlignment.right)
+        end
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
     end
 end
