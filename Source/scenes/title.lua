@@ -42,6 +42,8 @@ local TITLE_FIDGET_FALL_SPEED_MODIFIER <const> = TITLE_CONFIG.fidgetFallSpeedMod
 local TITLE_FIDGET_WARP_SPEED_MODIFIER <const> = TITLE_CONFIG.fidgetWarpSpeedModifier or -0.5
 local TITLE_CRANK_BUMP_THRESHOLD <const> = TITLE_CONFIG.crankBumpThreshold or 8
 local TITLE_SLOW_CRANK_SCALE <const> = TITLE_CONFIG.slowCrankScale or 1.5
+local TITLE_HOME_CRANK_DETENT_DEGREES <const> = TITLE_CONFIG.homeCrankDetentDegrees or 20
+local TITLE_HOME_CRANK_REARM_FRAMES <const> = TITLE_CONFIG.homeCrankRearmFrames or 3
 local WARP_CONFIG <const> = GameConfig and GameConfig.warp or {}
 local STAR_FALL_CONFIG <const> = GameConfig and GameConfig.starFall or {}
 local LIFE_CONFIG <const> = GameConfig and GameConfig.life or {}
@@ -127,6 +129,7 @@ function TitleScene.new(config)
     self.selected = config.selectedIndex or getDefaultSelectedIndex(config.viewItems)
     self.displayPosition = self.selected
     self.crankAccumulator = 0
+    self.homeCrankRearmFrames = 0
     self.headerTitle = config.headerTitle or "STARRY MESSENGER"
     self.headerSubtitle = config.headerSubtitle or "Choose a view"
     self.largeFont = gfx.font.new("/System/Fonts/Roobert-20-Medium")
@@ -1135,8 +1138,9 @@ function TitleScene:updateFreeSpin(acceleratedChange)
 end
 
 function TitleScene:updateCrank(change, acceleratedChange)
-    local effectiveChange = acceleratedChange
-    if math.abs(change or 0) > math.abs(effectiveChange or 0) then
+    local isHomeBase = self.catalog == "root"
+    local effectiveChange = isHomeBase and (change or 0) or acceleratedChange
+    if not isHomeBase and math.abs(change or 0) > math.abs(effectiveChange or 0) then
         effectiveChange = (change or 0) * TITLE_SLOW_CRANK_SCALE
     end
 
@@ -1160,6 +1164,25 @@ function TitleScene:updateCrank(change, acceleratedChange)
     end
 
     self.crankAccumulator = self.crankAccumulator + effectiveChange
+
+    if isHomeBase then
+        if self.homeCrankRearmFrames > 0 then
+            self.homeCrankRearmFrames = self.homeCrankRearmFrames - 1
+            return
+        end
+        if self.crankAccumulator >= TITLE_HOME_CRANK_DETENT_DEGREES then
+            self:updateSelection(1)
+            self.crankAccumulator = 0
+            self.homeCrankRearmFrames = TITLE_HOME_CRANK_REARM_FRAMES
+            self:pulseFreeSpinStars(-90)
+        elseif self.crankAccumulator <= -TITLE_HOME_CRANK_DETENT_DEGREES then
+            self:updateSelection(-1)
+            self.crankAccumulator = 0
+            self.homeCrankRearmFrames = TITLE_HOME_CRANK_REARM_FRAMES
+            self:pulseFreeSpinStars(90)
+        end
+        return
+    end
 
     while self.crankAccumulator >= TITLE_CRANK_BUMP_THRESHOLD do
         self:updateSelection(1)

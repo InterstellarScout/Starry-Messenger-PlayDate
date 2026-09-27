@@ -14,7 +14,9 @@ GameConfig = GameConfig or {
         freeSpinStopVelocity = 0.018,
         freeSpinStarVisualSpeedScale = 0.9,
         crankBumpThreshold = 12,
-        slowCrankScale = 1.2
+        slowCrankScale = 1.2,
+        homeCrankDetentDegrees = 20,
+        homeCrankRearmFrames = 3
     },
     splash = {
         overlayDither = 0.5,
