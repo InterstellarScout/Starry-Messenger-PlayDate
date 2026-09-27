@@ -19,12 +19,12 @@ function assets.load()
         return
     end
     assets.asteroids = {
-        small = loadFrames("asteroid_small", 50),
-        medium = loadFrames("asteroid_medium", 50),
-        large = loadFrames("asteroid_large", 50)
+        small = loadFrames("asteroid_small", 160),
+        medium = loadFrames("asteroid_medium", 160),
+        large = loadFrames("asteroid_large", 160)
     }
     assets.blackHole = loadFrames("black_hole", 12)
-    assets.earth = loadFrames("earth", 50)
+    assets.earth = loadFrames("earth", 160)
     assets.loaded = true
 end
 

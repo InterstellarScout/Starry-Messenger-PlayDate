@@ -966,6 +966,8 @@ function OrbitalDefenseScene:drawLobby()
 end
 
 function OrbitalDefenseScene:drawWorld(state)
+    -- Keep the prior two-update frame cadence.  With 160 source frames this
+    -- gives Earth a noticeably calmer, smoother 3.2x-longer rotation.
     local earth = PixelPlanetsAssets.earthFrame(math.floor((self.frame or 0) / 2))
     if earth ~= nil then
         local scale = (PLANET_RADIUS * 2) / 100

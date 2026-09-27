@@ -8691,8 +8691,12 @@ function SpaceMiner:drawAsteroids()
                 -- Each size advances at a distinct cadence, while the object's serial
                 -- gives siblings a different starting orientation.
                 local cadence = size == "large" and 6 or (size == "medium" and 4 or 2)
-                local frameOffset = math.floor((tonumber(asteroid.id) or 0) % 8)
-                local image = PixelPlanetsAssets.asteroidFrame(size, math.floor(pixelFrame / cadence) + frameOffset)
+                local frameOffset = math.floor((tonumber(asteroid.id) or 0) % 160)
+                -- 160 Deep-Fold frames replace the prior 50-frame set. Scale
+                -- the source-frame advance so real-time rotation stays the
+                -- same while the visible motion becomes much smoother.
+                local animationFrame = math.floor((pixelFrame * 160) / (cadence * 50))
+                local image = PixelPlanetsAssets.asteroidFrame(size, animationFrame + frameOffset)
                 if image ~= nil then
                     image:drawCentered(drawX, drawY)
                 end
