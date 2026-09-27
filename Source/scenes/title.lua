@@ -1233,9 +1233,14 @@ function TitleScene:drawModeCarousel(selectedView, centerY)
     local visibilityRange = 1.1
     local entries = {}
 
+    local visiblePosition = self.modeDisplayPosition or self:getModeIndexForView(selectedView)
+    local wrapCenter = math.floor((visiblePosition - 1) / modeCount)
     for index, modeId in ipairs(selectedView.modes) do
-        for wrap = -1, 1 do
-            local offset = (index + (wrap * modeCount)) - (self.modeDisplayPosition or index)
+        -- Center the repeated mode copies on the continuously advancing
+        -- carousel position.  This keeps 1 -> 2 -> 3 -> 1 moving right (and
+        -- its reverse moving left) even after many complete rotations.
+        for wrap = wrapCenter - 1, wrapCenter + 1 do
+            local offset = (index + (wrap * modeCount)) - visiblePosition
             if math.abs(offset) <= visibilityRange then
                 local label = selectedView.getModeLabel and selectedView.getModeLabel(modeId) or tostring(modeId)
                 -- Alternate choices fan around the selected title without crossing it.
