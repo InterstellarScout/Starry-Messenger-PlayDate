@@ -21,7 +21,7 @@ local STEAL_RADIUS <const> = DUCK_CONFIG.stealRadius or 11
 local NEST_RADIUS <const> = DUCK_CONFIG.nestRadius or 16
 local TRAIL_HISTORY_STEP <const> = DUCK_CONFIG.trailHistoryStep or 5
 local TRAIL_HISTORY_GAP <const> = DUCK_CONFIG.trailHistoryGap or 3
-local WRAP_MARGIN <const> = DUCK_CONFIG.wrapMargin or 8
+local EDGE_TRANSITION_DISTANCE <const> = DUCK_CONFIG.edgeTransitionDistance or 18
 local DELIVERY_CHICK_SPEED <const> = DUCK_CONFIG.deliveryChickSpeed or 92
 local PENDING_CHICK_SWIM_EASE <const> = DUCK_CONFIG.pendingChickSwimEase or 0.08
 local PENDING_CHICK_JOIN_DISTANCE_SQUARED <const> = DUCK_CONFIG.pendingChickJoinDistanceSquared or 36
@@ -32,19 +32,14 @@ local WIN_SCORE <const> = DUCK_CONFIG.winScore or 50
 local TURN_MODE_CRANK_DEGREES <const> = DUCK_CONFIG.turnModeCrankDegrees or 0.04
 local AUTO_DUCKY_IDLE_FRAMES <const> = DUCK_CONFIG.autoDuckyIdleFrames or 150
 local DUCK_LIFETIME_TOTAL_SAVE_KEY <const> = "duck-game-lifetime-total"
+local ENTRY_OVERLAY_TEXT <const> = "Turn the play date upside down\nand watch the ball fall to your feet!"
 
-local PLAYFIELD_LEFT <const> = 16
-local PLAYFIELD_TOP <const> = 18
-local PLAYFIELD_RIGHT <const> = 384
-local PLAYFIELD_BOTTOM <const> = 222
-local POND_LEFT <const> = 10
-local POND_TOP <const> = 10
-local POND_RIGHT <const> = 390
-local POND_BOTTOM <const> = 230
-local POND_CORNER_RADIUS <const> = 12
-local SHORE_GRASS_REPEL_RADIUS <const> = 36
-local LOG_HALF_LENGTH <const> = 18
-local LOG_PUSH_RADIUS <const> = 19
+-- The pond is the complete Playdate display.  Artwork may decorate the edge,
+-- but it must not create an invisible movement boundary inside the screen.
+local PLAYFIELD_LEFT <const> = 0
+local PLAYFIELD_TOP <const> = 0
+local PLAYFIELD_RIGHT <const> = 400
+local PLAYFIELD_BOTTOM <const> = 240
 local POND_CENTER_X <const> = 200
 local POND_CENTER_Y <const> = 120
 local CENTER_NEST_X <const> = 200
@@ -87,9 +82,9 @@ end
 local function normalize(x, y)
     local magnitude = length(x, y)
     if magnitude <= 0.0001 then
-        return 0, 0, 0
+        return 0, 0
     end
-    return x / magnitude, y / magnitude, magnitude
+    return x / magnitude, y / magnitude
 end
 
 local function wrapAxis(value, minValue, maxValue, margin)
@@ -226,8 +221,6 @@ function DuckGameScene.new(config)
     self.preview = config.preview == true
     self.multiplayer = config.multiplayer == true
     self.modeId = config.modeId or DuckGameScene.MODE_SOLO_4
-    self.tutorialOpen = not self.preview and Tutorials.shouldShow("duck", self.modeId)
-    self.tutorialScroll = 0
     self.portalService = config.portalService
     self.networked = self.multiplayer and self.portalService ~= nil
     self.playerCount = self.multiplayer
@@ -242,9 +235,6 @@ function DuckGameScene.new(config)
     self.players = {}
     self.freeChicks = {}
     self.reeds = {}
-    self.log = nil
-    self.pondGrass = self:buildPondGrass()
-    self.pondGrassChunkPhase = 0
     self.ripples = {}
     self.nestPixels = {}
     self.frame = 0
@@ -258,10 +248,8 @@ function DuckGameScene.new(config)
     self.winBackground = Starfield.newWarpSpeed(400, 240, 180)
     self.winBackground.speed = 9
     self.totalCollectedEver = loadLifetimeCollectedTotal()
-    -- Duck Game begins immediately; its old orientation tip described an
-    -- unrelated prototype and blocked play for several seconds.
-    self.entryOverlayFrames = 0
-    self.entryOverlayVisible = false
+    self.entryOverlayFrames = math.floor((pd.display.getRefreshRate() or 30) * 5)
+    self.entryOverlayVisible = not self.preview
 
     if self.preview then
         self:resetMatch(self.multiplayer and "networked" or "single", 1)
@@ -287,10 +275,6 @@ function DuckGameScene:getTargetGoal()
 end
 
 function DuckGameScene:getNestPosition(slot)
-    local nest = self.nests and self.nests[slot]
-    if nest ~= nil then
-        return nest.x, nest.y
-    end
     if self:isCenterNestMode() then
         return CENTER_NEST_X, CENTER_NEST_Y
     end
@@ -432,24 +416,12 @@ function DuckGameScene:seedPondDecor()
     end
 end
 
-function DuckGameScene:resetLog()
-    self.log = {
-        x = POND_CENTER_X,
-        y = POND_CENTER_Y + 42,
-        vx = 0,
-        vy = 0,
-        angle = math.random() * math.pi
-    }
-end
-
 function DuckGameScene:resetMatch(modeId, localSlot)
     self.activeSlots = {}
     self.players = {}
     self.freeChicks = {}
     self.ripples = {}
     self.nestPixels = {}
-    self.nests = {}
-    self:resetLog()
     self.frame = 0
     self.state = "playing"
     self.winnerSlot = nil
@@ -467,10 +439,6 @@ function DuckGameScene:resetMatch(modeId, localSlot)
     for slot = 1, activeCount do
         self.activeSlots[#self.activeSlots + 1] = slot
         self.nestPixels[slot] = {}
-        local layout = SLOT_LAYOUT[slot]
-        self.nests[slot] = self:isCenterNestMode() and slot == 1
-            and { x = CENTER_NEST_X, y = CENTER_NEST_Y, vx = 0, vy = 0 }
-            or { x = layout.nestX, y = layout.nestY, vx = 0, vy = 0 }
         local controlKind = "remote"
         if modeId == "single" then
             controlKind = slot == self.localSlot and "local" or "bot"
@@ -509,22 +477,42 @@ function DuckGameScene:pushTrailPoint(player, wrapped)
     end
 end
 
-function DuckGameScene:wrapPlayerPosition(player)
-    local wrappedX
-    local wrappedY
-    local xWrapped
-    local yWrapped
+function DuckGameScene:wrapPlayerPosition(player, directionX, directionY)
+    local exitX = clamp(player.x, PLAYFIELD_LEFT, PLAYFIELD_RIGHT)
+    local exitY = clamp(player.y, PLAYFIELD_TOP, PLAYFIELD_BOTTOM)
+    local wrappedX, xWrapped = wrapAxis(player.x, PLAYFIELD_LEFT, PLAYFIELD_RIGHT, 0)
+    local wrappedY, yWrapped = wrapAxis(player.y, PLAYFIELD_TOP, PLAYFIELD_BOTTOM, 0)
+    player.x = wrappedX
+    player.y = wrappedY
 
-    wrappedX, xWrapped = wrapAxis(player.x, PLAYFIELD_LEFT + WRAP_MARGIN, PLAYFIELD_RIGHT - WRAP_MARGIN, WRAP_MARGIN)
-    wrappedY, yWrapped = wrapAxis(player.y, PLAYFIELD_TOP + WRAP_MARGIN, PLAYFIELD_BOTTOM - WRAP_MARGIN, WRAP_MARGIN)
     if xWrapped or yWrapped then
-        player.wrapGhost = { x = player.x, y = player.y, facingX = player.facingX, facingY = player.facingY, frames = 10 }
-        player.x = wrappedX
-        player.y = wrappedY
+        -- Both screen-edge ducks use the same travelled distance.  Advancing
+        -- that distance only while the player is moving makes a paused duck
+        -- transition pause too, rather than completing on a fixed timer.
+        player.edgeTransition = {
+            outgoingX = exitX,
+            outgoingY = exitY,
+            incomingX = wrappedX,
+            incomingY = wrappedY,
+            directionX = directionX,
+            directionY = directionY,
+            distance = 0
+        }
         self:pushTrailPoint(player, true)
-    else
-        player.x = wrappedX
-        player.y = wrappedY
+    end
+end
+
+function DuckGameScene:updateEdgeTransition(player, speed, dt)
+    local transition = player.edgeTransition
+    if transition == nil then
+        return
+    end
+
+    if player.moving then
+        transition.distance = transition.distance + (speed * dt)
+    end
+    if transition.distance >= EDGE_TRANSITION_DISTANCE then
+        player.edgeTransition = nil
     end
 end
 
@@ -545,7 +533,9 @@ function DuckGameScene:updateBotInput(player)
     local targetY = nil
 
     if #player.chicks > 0 then
-        targetX, targetY = self:getNestPosition(player.slot)
+        local nest = SLOT_LAYOUT[player.slot]
+        targetX = nest.nestX
+        targetY = nest.nestY
     else
         local nearestTrail = nil
         local nearestTrailDistanceSquared = math.huge
@@ -765,11 +755,9 @@ function DuckGameScene:updatePlayerMovement(player, dt)
         player.headingAngle = math.atan2(inputY, inputX)
     end
 
-    self:wrapPlayerPosition(player)
+    self:wrapPlayerPosition(player, inputX, inputY)
+    self:updateEdgeTransition(player, speed, dt)
     self:pushTrailPoint(player, false)
-    if player.moving and (self.frame % 5 == 0) then
-        self:addRipple(player.x - ((player.facingX or 0) * 4), player.y - ((player.facingY or 0) * 4), 2)
-    end
 end
 
 function DuckGameScene:updateFreeChicks(dt)
@@ -785,47 +773,45 @@ function DuckGameScene:updateFreeChicks(dt)
     end
 end
 
-function DuckGameScene:getTrailTarget(player, trailOrder)
-    local history = player.trailHistory or {}
-    local historyIndex = math.min(#history, 1 + (trailOrder * TRAIL_HISTORY_GAP))
-    return history[historyIndex] or history[#history] or {
-        x = player.x,
-        y = player.y,
-        wrapped = false
-    }
-end
-
-function DuckGameScene:joinPlayerTrail(player, chick)
-    -- A collected chick always takes the next available tail position.  We do
-    -- not search/reorder the existing flock, so the line remains stable even
-    -- after a large collection or a stolen segment changes ownership.
-    chick.state = "trail"
-    local trailOrder = 0
-    for _, existingChick in ipairs(player.chicks) do
-        if existingChick.state ~= "delivering" then
-            trailOrder = trailOrder + 1
-        end
-    end
-    local target = self:getTrailTarget(player, trailOrder)
-    chick.x = chick.x + ((target.x - chick.x) * 0.35)
-    chick.y = chick.y + ((target.y - chick.y) * 0.35)
-end
-
 function DuckGameScene:updateTrails()
     for _, slot in ipairs(self.activeSlots) do
         local player = self.players[slot]
         if player ~= nil then
+            local history = player.trailHistory or {}
             local trailOrder = 0
             for chickIndex, chick in ipairs(player.chicks) do
                 if chick.state ~= "delivering" then
-                    trailOrder = trailOrder + 1
-                    local targetPoint = self:getTrailTarget(player, trailOrder)
-                    if targetPoint.wrapped == true then
-                        chick.x = targetPoint.x
-                        chick.y = targetPoint.y
+                    if chick.state == "pending" then
+                        local targetX = player.x
+                        local targetY = player.y
+                        for previousIndex = chickIndex - 1, 1, -1 do
+                            local previousChick = player.chicks[previousIndex]
+                            if previousChick ~= nil and previousChick.state ~= "delivering" then
+                                targetX = previousChick.x
+                                targetY = previousChick.y
+                                break
+                            end
+                        end
+
+                        chick.x = chick.x + ((targetX - chick.x) * PENDING_CHICK_SWIM_EASE)
+                        chick.y = chick.y + ((targetY - chick.y) * PENDING_CHICK_SWIM_EASE)
+
+                        if squaredDistance(chick.x, chick.y, targetX, targetY) <= PENDING_CHICK_JOIN_DISTANCE_SQUARED then
+                            chick.state = "trail"
+                        end
                     else
-                        chick.x = chick.x + ((targetPoint.x - chick.x) * 0.24)
-                        chick.y = chick.y + ((targetPoint.y - chick.y) * 0.24)
+                        trailOrder = trailOrder + 1
+                        local historyIndex = math.min(#history, 1 + (trailOrder * TRAIL_HISTORY_GAP))
+                        local targetPoint = history[historyIndex] or history[#history]
+                        if targetPoint ~= nil then
+                            if targetPoint.wrapped == true then
+                                chick.x = targetPoint.x
+                                chick.y = targetPoint.y
+                            else
+                                chick.x = chick.x + ((targetPoint.x - chick.x) * 0.24)
+                                chick.y = chick.y + ((targetPoint.y - chick.y) * 0.24)
+                            end
+                        end
                     end
                 end
             end
@@ -877,9 +863,8 @@ function DuckGameScene:collectFreeChicks()
                     x = chick.x,
                     y = chick.y,
                     seed = chick.seed,
-                    state = "trail"
+                    state = "pending"
                 }
-                self:joinPlayerTrail(player, player.chicks[#player.chicks])
                 self:addRipple(chick.x, chick.y, 3)
                 table.remove(self.freeChicks, chickIndex)
                 break
@@ -901,8 +886,8 @@ function DuckGameScene:stealTrailSegments()
                             if chick.state ~= "delivering" and squaredDistance(attacker.x, attacker.y, chick.x, chick.y) <= (STEAL_RADIUS * STEAL_RADIUS) then
                                 while #defender.chicks >= chickIndex do
                                     local stolenChick = table.remove(defender.chicks, chickIndex)
+                                    stolenChick.state = "pending"
                                     attacker.chicks[#attacker.chicks + 1] = stolenChick
-                                    self:joinPlayerTrail(attacker, stolenChick)
                                     self:addRipple(stolenChick.x, stolenChick.y, 4)
                                 end
                                 break
@@ -915,57 +900,11 @@ function DuckGameScene:stealTrailSegments()
     end
 end
 
-function DuckGameScene:updateNestPushes()
-    for slot, nest in pairs(self.nests or {}) do
-        local player = self.players[slot]
-        if player ~= nil then
-            local dx = nest.x - player.x
-            local dy = nest.y - player.y
-            local directionX, directionY, distance = normalize(dx, dy)
-            local pushRadius = NEST_RADIUS + 10
-            if distance < pushRadius then
-                if distance <= 0.01 then
-                    directionX = player.facingX or 1
-                    directionY = player.facingY or 0
-                end
-                local push = math.max(0.45, (pushRadius - distance) * 0.22)
-                nest.vx = (nest.vx or 0) + (directionX * push)
-                nest.vy = (nest.vy or 0) + (directionY * push)
-            end
-        end
-        nest.x = select(1, wrapAxis(nest.x + ((nest.vx or 0) * 0.35), POND_LEFT + NEST_RADIUS, POND_RIGHT - NEST_RADIUS, 2))
-        nest.y = select(1, wrapAxis(nest.y + ((nest.vy or 0) * 0.35), POND_TOP + NEST_RADIUS, POND_BOTTOM - NEST_RADIUS, 2))
-        nest.vx, nest.vy = (nest.vx or 0) * 0.86, (nest.vy or 0) * 0.86
-    end
-end
-
-function DuckGameScene:updateLog(dt)
-    local log = self.log
-    if log == nil then return end
-    for _, player in ipairs(self.players or {}) do
-        local dx, dy = log.x - player.x, log.y - player.y
-        local directionX, directionY, distance = normalize(dx, dy)
-        if distance < LOG_PUSH_RADIUS then
-            if distance <= 0.01 then directionX, directionY = player.facingX or 1, player.facingY or 0 end
-            local push = (LOG_PUSH_RADIUS - distance + 1) * 7
-            log.vx = (log.vx or 0) + (directionX * push)
-            log.vy = (log.vy or 0) + (directionY * push)
-            local targetAngle = math.atan(directionY, directionX)
-            local currentAngle = log.angle or targetAngle
-            local angleDelta = math.atan(math.sin(targetAngle - currentAngle), math.cos(targetAngle - currentAngle))
-            log.angle = currentAngle + (angleDelta * 0.12)
-        end
-    end
-    log.x = select(1, wrapAxis(log.x + ((log.vx or 0) * dt), POND_LEFT + LOG_HALF_LENGTH, POND_RIGHT - LOG_HALF_LENGTH, 2))
-    log.y = select(1, wrapAxis(log.y + ((log.vy or 0) * dt), POND_TOP + 8, POND_BOTTOM - 8, 2))
-    log.vx, log.vy = (log.vx or 0) * 0.86, (log.vy or 0) * 0.86
-end
-
 function DuckGameScene:deliverChicks()
     for _, slot in ipairs(self.activeSlots) do
         local player = self.players[slot]
         local nestX, nestY = self:getNestPosition(slot)
-        if player ~= nil and squaredDistance(player.x, player.y, nestX, nestY) <= ((NEST_RADIUS + 4) * (NEST_RADIUS + 4)) then
+        if player ~= nil and squaredDistance(player.x, player.y, nestX, nestY) <= (NEST_RADIUS * NEST_RADIUS) then
             local startedDelivery = false
             for _, chick in ipairs(player.chicks) do
                 if chick.state ~= "delivering" then
@@ -981,12 +920,6 @@ function DuckGameScene:deliverChicks()
 end
 
 function DuckGameScene:updateRipples()
-    for _, player in ipairs(self.players or {}) do
-        if player.wrapGhost then
-            player.wrapGhost.frames = player.wrapGhost.frames - 1
-            if player.wrapGhost.frames <= 0 then player.wrapGhost = nil end
-        end
-    end
     for index = #self.ripples, 1, -1 do
         local ripple = self.ripples[index]
         ripple.age = ripple.age + 1
@@ -1018,7 +951,16 @@ function DuckGameScene:serializeState()
                 facingX = player.facingX,
                 facingY = player.facingY,
                 score = player.score,
-                chicks = chicks
+                chicks = chicks,
+                edgeTransition = player.edgeTransition and {
+                    outgoingX = player.edgeTransition.outgoingX,
+                    outgoingY = player.edgeTransition.outgoingY,
+                    incomingX = player.edgeTransition.incomingX,
+                    incomingY = player.edgeTransition.incomingY,
+                    directionX = player.edgeTransition.directionX,
+                    directionY = player.edgeTransition.directionY,
+                    distance = player.edgeTransition.distance
+                } or nil
             }
         end
     end
@@ -1063,11 +1005,6 @@ function DuckGameScene:serializeState()
         end
     end
 
-    local nests = {}
-    for slot, nest in pairs(self.nests or {}) do
-        nests[slot] = { x = nest.x, y = nest.y }
-    end
-
     return {
         state = self.state,
         frame = self.frame,
@@ -1078,8 +1015,6 @@ function DuckGameScene:serializeState()
         freeChicks = freeChicks,
         ripples = ripples,
         reeds = reeds,
-        log = self.log and { x = self.log.x, y = self.log.y, angle = self.log.angle } or nil,
-        nests = nests,
         nestPixels = nestPixels,
         targetScore = self:getTargetGoal()
     }
@@ -1089,24 +1024,7 @@ function DuckGameScene:getRenderState()
     if self.networked and self.portalService:isClient() then
         return self.remoteState
     end
-    -- Rendering the local/host match can use live data directly.  Deep-copying
-    -- every chick and nest pixel each frame caused visible pauses once a duck
-    -- was leading a substantial flock.  Only network snapshots need copies.
-    return {
-        state = self.state,
-        frame = self.frame,
-        winnerSlot = self.winnerSlot,
-        winMessage = self.winMessage,
-        centerNestMode = self:isCenterNestMode(),
-        players = self.players,
-        freeChicks = self.freeChicks,
-        ripples = self.ripples,
-        reeds = self.reeds,
-        log = self.log,
-        nests = self.nests,
-        nestPixels = self.nestPixels,
-        targetScore = self:getTargetGoal()
-    }
+    return self:serializeState()
 end
 
 function DuckGameScene:updateLocalGame()
@@ -1128,9 +1046,6 @@ function DuckGameScene:updateLocalGame()
             self:updatePlayerMovement(player, dt)
         end
     end
-
-    self:updateNestPushes()
-    self:updateLog(dt)
 
     self:updateFreeChicks(dt)
     self:updateTrails()
@@ -1179,139 +1094,10 @@ function DuckGameScene:getDuckScale(player)
     return 1.5
 end
 
-function DuckGameScene:buildPondGrass()
-    local blades = {}
-    local seed = 1
-    local function addBlade(x, y, normalX, normalY, seed)
-        blades[#blades + 1] = {
-            x = x,
-            y = y,
-            normalX = normalX,
-            normalY = normalY,
-            length = 7 + ((seed * 7) % 7),
-            lean = 0,
-            velocity = 0,
-            seed = seed
-        }
-    end
-    local function addPatch(centerX, centerY, radius)
-        -- One hundred blades per clump give the shore a soft, circular bank
-        -- instead of another evenly spaced border.
-        for _ = 1, 25 do
-            local angle = math.random() * math.pi * 2
-            local distance = math.sqrt(math.random()) * radius
-            addBlade(centerX + (math.cos(angle) * distance), centerY + (math.sin(angle) * distance), 0, -1, seed)
-            seed = seed + 1
-        end
-    end
-
-    -- Every blade grows upright relative to the console, including the grass
-    -- beside the pond.  Duck contact only bends it sideways.
-    -- Double the top and bottom shore density so the long pond edges feel
-    -- planted rather than like a thin, repeated border.
-    for x = POND_LEFT + 14, POND_RIGHT - 14, 12 do
-        addBlade(x, POND_TOP - 2, 0, -1, seed)
-        seed = seed + 1
-        addBlade(x, POND_BOTTOM + 2, 0, -1, seed)
-        seed = seed + 1
-    end
-    -- Alternate the side blades as the shoreline rises, then lightly fill the
-    -- perimeter with irregular extras so neither bank reads as a rigid fence.
-    local leftTurn = true
-    for y = POND_TOP + 12, POND_BOTTOM - 12, 8 do
-        if leftTurn then
-            addBlade(POND_LEFT - 2, y, 0, -1, seed)
-        else
-            addBlade(POND_RIGHT + 2, y, 0, -1, seed)
-        end
-        seed = seed + 1
-        leftTurn = not leftTurn
-    end
-    for index = 1, 48 do
-        local edge = ((index - 1) % 4) + 1
-        if edge == 1 then
-            addBlade(math.random(POND_LEFT + 12, POND_RIGHT - 12), POND_TOP - math.random(0, 5), 0, -1, seed)
-        elseif edge == 2 then
-            addBlade(math.random(POND_LEFT + 12, POND_RIGHT - 12), POND_BOTTOM + math.random(0, 5), 0, -1, seed)
-        elseif edge == 3 then
-            addBlade(POND_LEFT - math.random(0, 5), math.random(POND_TOP + 12, POND_BOTTOM - 12), 0, -1, seed)
-        else
-            addBlade(POND_RIGHT + math.random(0, 5), math.random(POND_TOP + 12, POND_BOTTOM - 12), 0, -1, seed)
-        end
-        seed = seed + 1
-    end
-    addPatch(POND_LEFT + 18, POND_TOP + 18, 18)
-    addPatch(POND_RIGHT - 18, POND_TOP + 18, 18)
-    addPatch(POND_LEFT + 18, POND_BOTTOM - 18, 18)
-    addPatch(POND_RIGHT - 18, POND_BOTTOM - 18, 18)
-    -- Tall cattails share the same bend physics as the grass, but are drawn
-    -- as a stem with a dark pinecone-shaped seed head.
-    for index = 1, 9 do
-        local side = index % 2 == 0 and POND_LEFT + math.random(2, 18) or POND_RIGHT - math.random(2, 18)
-        local y = POND_TOP + 12 + ((index * 19) % (POND_BOTTOM - POND_TOP - 24))
-        addBlade(side, y, 0, -1, seed)
-        blades[#blades].cattail = true
-        blades[#blades].length = 20 + (index % 3) * 3
-        seed = seed + 1
-    end
-    return blades
-end
-
-function DuckGameScene:updatePondGrass(players)
-    local radiusSquared = SHORE_GRASS_REPEL_RADIUS * SHORE_GRASS_REPEL_RADIUS
-    -- Alternate spatial checkerboard chunks each frame.  The visual spring
-    -- smooths the one-frame gap, while halving proximity work in a busy flock.
-    self.pondGrassChunkPhase = 1 - (self.pondGrassChunkPhase or 0)
-    for _, blade in ipairs(self.pondGrass or {}) do
-        local chunk = (math.floor(blade.x / 40) + math.floor(blade.y / 40)) % 2
-        if chunk == self.pondGrassChunkPhase then
-        local tangentX = -blade.normalY
-        local tangentY = blade.normalX
-        local targetLean = 0
-        for _, player in ipairs(players or {}) do
-            local dx = player.x - blade.x
-            local dy = player.y - blade.y
-            local distanceSquared = (dx * dx) + (dy * dy)
-            if distanceSquared < radiusSquared then
-                local tangentDistance = (dx * tangentX) + (dy * tangentY)
-                local strength = 1 - (math.sqrt(distanceSquared) / SHORE_GRASS_REPEL_RADIUS)
-                local direction = tangentDistance >= 0 and -1 or 1
-                targetLean = targetLean + (direction * strength * 0.9)
-            end
-        end
-        targetLean = clamp(targetLean, -1, 1)
-        blade.velocity = ((blade.velocity or 0) + ((targetLean - (blade.lean or 0)) * 0.11)) * 0.78
-        blade.lean = clamp((blade.lean or 0) + blade.velocity, -1.1, 1.1)
-        end
-    end
-end
-
-function DuckGameScene:drawPondGrass()
-    gfx.setColor(gfx.kColorBlack)
-    for _, blade in ipairs(self.pondGrass or {}) do
-        local tangentX = -blade.normalY
-        local tangentY = blade.normalX
-        local tipX = blade.x + (blade.normalX * blade.length) + (tangentX * blade.length * (blade.lean or 0))
-        local tipY = blade.y + (blade.normalY * blade.length) + (tangentY * blade.length * (blade.lean or 0))
-        gfx.drawLine(math.floor(blade.x + 0.5), math.floor(blade.y + 0.5), math.floor(tipX + 0.5), math.floor(tipY + 0.5))
-        if blade.cattail then
-            gfx.fillEllipseInRect(math.floor(tipX - 2), math.floor(tipY - 5), 4, 7)
-        end
-    end
-end
-
 function DuckGameScene:drawPondBackdrop()
     gfx.clear(gfx.kColorWhite)
-    -- The pond no longer has a rigid rectangular frame; grass and reeds form
-    -- its soft shoreline instead.
-    self:drawPondGrass()
     gfx.setColor(gfx.kColorBlack)
-    for row = PLAYFIELD_TOP + 16, PLAYFIELD_BOTTOM - 12, 22 do
-        local offset = ((row / 22) % 2) * 17
-        for column = PLAYFIELD_LEFT + 18 + offset, PLAYFIELD_RIGHT - 18, 48 do
-            gfx.drawLine(column - 7, row, column + 7, row)
-        end
-    end
+    gfx.drawRect(PLAYFIELD_LEFT, PLAYFIELD_TOP, PLAYFIELD_RIGHT - 1, PLAYFIELD_BOTTOM - 1)
 end
 
 function DuckGameScene:drawReeds(reeds, time)
@@ -1393,6 +1179,34 @@ function DuckGameScene:drawDuck(player)
     gfx.fillRect(duckX + tailOffsetX - math.floor(tailSize * 0.5), duckY + tailOffsetY - math.floor(tailSize * 0.5), tailSize, tailSize)
 end
 
+function DuckGameScene:drawEdgeTransition(player)
+    local transition = player.edgeTransition
+    if transition == nil then
+        return false
+    end
+
+    local distance = transition.distance or 0
+    local directionX = transition.directionX or player.facingX
+    local directionY = transition.directionY or player.facingY
+    local outgoingDuck = {
+        slot = player.slot,
+        x = transition.outgoingX + (directionX * distance),
+        y = transition.outgoingY + (directionY * distance),
+        facingX = player.facingX,
+        facingY = player.facingY
+    }
+    local incomingDuck = {
+        slot = player.slot,
+        x = transition.incomingX + (directionX * distance),
+        y = transition.incomingY + (directionY * distance),
+        facingX = player.facingX,
+        facingY = player.facingY
+    }
+    self:drawDuck(outgoingDuck)
+    self:drawDuck(incomingDuck)
+    return true
+end
+
 function DuckGameScene:drawTrail(chicks, slot, time)
     local tone = slot == self.localSlot and 0.2 or self:getDuckTone(slot)
     for index, chick in ipairs(chicks or {}) do
@@ -1401,13 +1215,8 @@ function DuckGameScene:drawTrail(chicks, slot, time)
     end
 end
 
-function DuckGameScene:drawNest(slot, score, pixels, nest)
-    local x, y
-    if nest ~= nil then
-        x, y = nest.x, nest.y
-    else
-        x, y = self:getNestPosition(slot)
-    end
+function DuckGameScene:drawNest(slot, score, pixels)
+    local x, y = self:getNestPosition(slot)
     gfx.setColor(gfx.kColorBlack)
     for index = 0, 5 do
         local offset = -10 + (index * 4)
@@ -1422,23 +1231,7 @@ function DuckGameScene:drawNest(slot, score, pixels, nest)
     gfx.setImageDrawMode(gfx.kDrawModeNXOR)
     gfx.drawTextAligned(tostring(score or 0), x, y - 6, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    -- The center-nest label is useful before the first delivery, then it only
-    -- clutters the nest once the player has learned what it is.
-    if not self:isCenterNestMode() or (score or 0) <= 0 then
-        gfx.drawTextAligned(self:isCenterNestMode() and "Nest" or tostring(slot), x, y + 12, kTextAlignment.center)
-    end
-end
-
-function DuckGameScene:drawLog(log)
-    if log == nil then return end
-    local angle = log.angle or 0
-    local dx, dy = math.cos(angle) * LOG_HALF_LENGTH, math.sin(angle) * LOG_HALF_LENGTH
-    gfx.setColor(gfx.kColorBlack)
-    gfx.setLineWidth(5)
-    gfx.drawLine(log.x - dx, log.y - dy, log.x + dx, log.y + dy)
-    gfx.setLineWidth(1)
-    gfx.drawCircleAtPoint(log.x - dx, log.y - dy, 3)
-    gfx.drawCircleAtPoint(log.x + dx, log.y + dy, 3)
+    gfx.drawTextAligned(self:isCenterNestMode() and "Nest" or tostring(slot), x, y + 12, kTextAlignment.center)
 end
 
 function DuckGameScene:drawLobby()
@@ -1480,24 +1273,7 @@ function DuckGameScene:drawHudFromState(state)
     end
 
     gfx.setFont(self.smallFont)
-    local function outlinedText(text, x, y)
-        gfx.setColor(gfx.kColorWhite)
-        gfx.drawText(text, x - 1, y)
-        gfx.drawText(text, x + 1, y)
-        gfx.drawText(text, x, y - 1)
-        gfx.drawText(text, x, y + 1)
-        gfx.setColor(gfx.kColorBlack)
-        gfx.drawText(text, x, y)
-    end
-    local function outlinedTextAligned(text, x, y, alignment)
-        gfx.setColor(gfx.kColorWhite)
-        gfx.drawTextAligned(text, x - 1, y, alignment)
-        gfx.drawTextAligned(text, x + 1, y, alignment)
-        gfx.drawTextAligned(text, x, y - 1, alignment)
-        gfx.drawTextAligned(text, x, y + 1, alignment)
-        gfx.setColor(gfx.kColorBlack)
-        gfx.drawTextAligned(text, x, y, alignment)
-    end
+    gfx.setColor(gfx.kColorBlack)
     local currentChickCount = 0
     for _, player in ipairs(state.players or {}) do
         if player.slot == self.localSlot then
@@ -1505,15 +1281,15 @@ function DuckGameScene:drawHudFromState(state)
         end
     end
 
-    outlinedText(string.format("Chicks %d", currentChickCount), 10, 4)
-    outlinedTextAligned(string.format("Total %d", self.totalCollectedEver or 0), 390, 4, kTextAlignment.right)
+    gfx.drawText(string.format("Chicks %d", currentChickCount), 10, 4)
+    gfx.drawTextAligned(string.format("Total %d", self.totalCollectedEver or 0), 390, 4, kTextAlignment.right)
     if state.centerNestMode then
-        outlinedTextAligned("Bring Birds Home", 200, 4, kTextAlignment.center)
+        gfx.drawTextAligned("Bring Birds Home", 200, 4, kTextAlignment.center)
     else
-        outlinedTextAligned(string.format("First to %d", state.targetScore or WIN_SCORE), 200, 4, kTextAlignment.center)
+        gfx.drawTextAligned(string.format("First to %d", state.targetScore or WIN_SCORE), 200, 4, kTextAlignment.center)
     end
     if self.networked then
-        outlinedText("pdportal live", 10, 4)
+        gfx.drawText("pdportal live", 10, 4)
     end
 end
 
@@ -1522,9 +1298,9 @@ function DuckGameScene:drawWinner(state)
     self.winBackground:draw()
 
     gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(0.55, gfx.image.kDitherTypeBayer8x8)
     gfx.fillRect(26, 82, 348, 76)
-    gfx.setColor(gfx.kColorWhite)
-    gfx.drawRect(26, 82, 348, 76)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawTextAligned(state.winMessage or string.format("Ducky %d Wins!", state.winnerSlot or 1), 200, 106, kTextAlignment.center)
     gfx.drawTextAligned("Press B to return to the title.", 200, 126, kTextAlignment.center)
@@ -1537,9 +1313,9 @@ function DuckGameScene:drawEntryOverlay()
     end
 
     gfx.setColor(gfx.kColorBlack)
+    gfx.setDitherPattern(0.55, gfx.image.kDitherTypeBayer8x8)
     gfx.fillRoundRect(36, 84, 328, 72, 10)
-    gfx.setColor(gfx.kColorWhite)
-    gfx.drawRoundRect(36, 84, 328, 72, 10)
+    gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     gfx.drawTextInRect(ENTRY_OVERLAY_TEXT, 52, 104, 296, 34, nil, nil, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
@@ -1552,10 +1328,8 @@ function DuckGameScene:drawGameState(state)
     end
 
     local time = state.frame or 0
-    self:updatePondGrass(state.players)
     self:drawPondBackdrop()
     self:drawReeds(state.reeds or {}, time)
-    self:drawLog(state.log)
 
     local nestCount = state.centerNestMode and 1 or self.playerCount
     for slot = 1, nestCount do
@@ -1566,7 +1340,7 @@ function DuckGameScene:drawGameState(state)
                 break
             end
         end
-        self:drawNest(slot, score, state.nestPixels and state.nestPixels[slot] or nil, state.nests and state.nests[slot] or nil)
+        self:drawNest(slot, score, state.nestPixels and state.nestPixels[slot] or nil)
     end
 
     for _, chick in ipairs(state.freeChicks or {}) do
@@ -1578,11 +1352,9 @@ function DuckGameScene:drawGameState(state)
     end
 
     for _, player in ipairs(state.players or {}) do
-        if player.wrapGhost then
-            local ghost = { x = player.wrapGhost.x, y = player.wrapGhost.y, facingX = player.wrapGhost.facingX, facingY = player.wrapGhost.facingY, slot = player.slot, chicks = {} }
-            self:drawDuck(ghost)
+        if not self:drawEdgeTransition(player) then
+            self:drawDuck(player)
         end
-        self:drawDuck(player)
     end
 
     for _, ripple in ipairs(state.ripples or {}) do
@@ -1599,20 +1371,6 @@ end
 
 function DuckGameScene:update()
     if self.preview then
-        return
-    end
-
-    if self.tutorialOpen then
-        local tutorialMode = self.modeId
-        self.tutorialScroll = Tutorials.updateScroll(self.tutorialScroll, "duck", tutorialMode, pd.getCrankChange(), pd.buttonJustPressed(pd.kButtonUp), pd.buttonJustPressed(pd.kButtonDown))
-        self:draw()
-        Tutorials.draw("duck", tutorialMode, self.tutorialScroll)
-        if pd.buttonJustPressed(pd.kButtonA) then
-            Tutorials.markSeen("duck", tutorialMode)
-            self.tutorialOpen = false
-        elseif pd.buttonJustPressed(pd.kButtonB) and self.onReturnToTitle then
-            self.onReturnToTitle("duck")
-        end
         return
     end
 
@@ -1676,4 +1434,3 @@ function DuckGameScene:update()
     end
     self:draw()
 end
-import "systems/tutorials"

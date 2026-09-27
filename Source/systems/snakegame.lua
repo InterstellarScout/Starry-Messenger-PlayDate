@@ -91,6 +91,7 @@ function SnakeGame.new(width, height, options)
     self.snake = {}
     self.npcSnakes = {}
     self.npcEnabled = { false, false, false, false }
+    self.npcManualOverrides = false
     self.npcScores = { 0, 0, 0, 0 }
     self.npcRespawnFrames = { 0, 0, 0, 0 }
     self.trimFat = false
@@ -173,7 +174,7 @@ function SnakeGame:tryRespawnPlayer()
 end
 
 function SnakeGame:enforceModeNpcDefaults()
-    if self:isCompetitive() then
+    if self:isCompetitive() and not self.npcManualOverrides then
         self.npcEnabled[1] = true
     end
 end
@@ -202,6 +203,8 @@ function SnakeGame:resetRound(message)
     self.bumpCooldown = 0
     self:resetSnake()
     self:resetNpcSnakes()
+    self.npcEnabled = { false, false, false, false }
+    self.npcManualOverrides = false
     self:enforceModeNpcDefaults()
     self:resetFoods()
     self.statusMessage = message
@@ -287,6 +290,7 @@ function SnakeGame:getSaveData()
         lastStepX = self.lastStepX,
         lastStepY = self.lastStepY,
         npcEnabled = self.npcEnabled,
+        npcManualOverrides = self.npcManualOverrides,
         npcScores = self.npcScores,
         trimFat = self.trimFat,
         godMode = self.godMode,
@@ -335,7 +339,10 @@ function SnakeGame:loadState()
     self.angle = tonumber(data.angle) or self.angle
     self.lastStepX = tonumber(data.lastStepX) or self.lastStepX
     self.lastStepY = tonumber(data.lastStepY) or self.lastStepY
-    if type(data.npcEnabled) == "table" then
+    local hasManualNpcSetup = data.modeId == self.modeId
+        and data.npcManualOverrides == true
+        and type(data.npcEnabled) == "table"
+    if hasManualNpcSetup then
         for index = 1, 4 do
             self.npcEnabled[index] = data.npcEnabled[index] == true
         end
@@ -345,6 +352,7 @@ function SnakeGame:loadState()
             self.npcScores[index] = tonumber(data.npcScores[index]) or 0
         end
     end
+    self.npcManualOverrides = hasManualNpcSetup
     self:enforceModeNpcDefaults()
     self.trimFat = data.trimFat == true
     self.godMode = data.godMode == true
@@ -471,9 +479,8 @@ function SnakeGame:closeMenu()
 end
 
 function SnakeGame:getMenuItems()
-    local npc1Type = self:isCompetitive() and "locked" or "toggle"
     return {
-        { id = "npc1", label = "NPC Snake 1", type = npc1Type, value = self.npcEnabled[1] },
+        { id = "npc1", label = "NPC Snake 1", type = "toggle", value = self.npcEnabled[1] },
         { id = "npc2", label = "NPC Snake 2", type = "toggle", value = self.npcEnabled[2] },
         { id = "npc3", label = "NPC Snake 3", type = "toggle", value = self.npcEnabled[3] },
         { id = "npc4", label = "NPC Snake 4", type = "toggle", value = self.npcEnabled[4] },
@@ -538,13 +545,8 @@ function SnakeGame:toggleMenuSelection()
     else
         local npcIndex = tonumber(string.sub(item.id, 4))
         if npcIndex ~= nil then
-            if self:isCompetitive() and npcIndex == 1 then
-                self.npcEnabled[1] = true
-                self.statusMessage = "NPC Snake 1 locked on"
-                self.statusFrames = 45
-                return
-            end
             self.npcEnabled[npcIndex] = not self.npcEnabled[npcIndex]
+            self.npcManualOverrides = true
             if self.npcEnabled[npcIndex] and (self.npcSnakes[npcIndex] == nil or self.npcSnakes[npcIndex][1] == nil) then
                 self:resetNpcSnake(npcIndex)
             end

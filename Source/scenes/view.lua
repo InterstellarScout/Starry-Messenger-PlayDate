@@ -121,6 +121,14 @@ function ViewScene.new(config)
         self.effect = SnakeGame.new(400, 240, {
             modeId = self.modeId
         })
+    elseif self.viewId == "babychicks" then
+        self.effect = BabyChicks.new(400, 240, {
+            preview = false
+        })
+    elseif self.viewId == "donthitme" then
+        self.effect = DontHitMe.new(400, 240, {
+            preview = false
+        })
     elseif self.viewId == "smokebloom" then
         self.effect = SmokeBloom.new(400, 240, {
             modeId = self.modeId

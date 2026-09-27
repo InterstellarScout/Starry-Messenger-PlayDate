@@ -930,11 +930,6 @@ end
 function OrbitalDefenseScene:drawBackground(frame)
     gfx.clear(gfx.kColorBlack)
     drawOrbitalBackgroundStars(self.backgroundStars)
-    local blackHole = PixelPlanetsAssets.blackHoleFrame(math.floor((frame or 0) / 3))
-    if blackHole ~= nil then
-        -- Cached PixelPlanets frames keep this animated background element cheap.
-        blackHole:drawCentered(330, 64)
-    end
 end
 
 function OrbitalDefenseScene:drawLobby()
@@ -971,18 +966,15 @@ function OrbitalDefenseScene:drawLobby()
 end
 
 function OrbitalDefenseScene:drawWorld(state)
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
-    gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
-    -- A solid Earth silhouette with a few dark surface marks reads much more
-    -- clearly than a featureless disc at game speed.
-    gfx.setColor(gfx.kColorBlack)
-    gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS - 5)
-    gfx.fillRoundRect(PLANET_X - 25, PLANET_Y - 8, 16, 8, 3)
-    gfx.fillRoundRect(PLANET_X + 8, PLANET_Y - 22, 13, 10, 3)
-    gfx.fillRoundRect(PLANET_X + 14, PLANET_Y + 12, 18, 7, 3)
-    gfx.fillRoundRect(PLANET_X - 30, PLANET_Y + 17, 14, 6, 3)
-    gfx.drawLine(PLANET_X - 30, PLANET_Y + 2, PLANET_X + 31, PLANET_Y + 2)
+    local earth = PixelPlanetsAssets.earthFrame(math.floor((self.frame or 0) / 2))
+    if earth ~= nil then
+        local scale = (PLANET_RADIUS * 2) / 100
+        earth:drawScaled(PLANET_X - 50 * scale, PLANET_Y - 50 * scale, scale)
+    else
+        gfx.setColor(gfx.kColorWhite)
+        gfx.fillCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
+        gfx.drawCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
+    end
     gfx.setColor(gfx.kColorWhite)
     -- The elevator rises out of the planet and terminates in a visible dock.
     gfx.fillRect(PLANET_X - 3, 126, 7, PLANET_Y - PLANET_RADIUS - 126)

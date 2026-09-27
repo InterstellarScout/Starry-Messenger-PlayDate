@@ -30,6 +30,8 @@ import "systems/textviewer"
 import "systems/trailblazer"
 import "systems/marblemadness"
 import "systems/snakegame"
+import "systems/babychicks"
+import "systems/donthitme"
 import "systems/smokebloom"
 import "systems/touchinggrass"
 import "systems/fractaltree"
@@ -55,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.47"
+local APP_VERSION <const> = "0.2.48"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -241,6 +243,8 @@ local SINGLE_VIEW_ITEMS <const> = {
         modeId = SnakeGame.MODE_STANDARD,
         getModeLabel = SnakeGame.getModeLabel
     },
+    { id = "babychicks", label = "Baby Chicks" },
+    { id = "donthitme", label = "Don't Hit Me" },
     {
         id = "fishpond",
         label = "Fishy Pond",

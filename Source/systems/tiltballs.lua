@@ -1,11 +1,11 @@
 import "gameconfig"
 
 --[[
-Tilt-driven bouncy ball playground.
+ Crank-oriented bouncy ball playground.
 
 Purpose:
-- rolls and bounces balls around the screen using device tilt as gravity
-- lets the player spawn more balls and tune slowdown live with the crank
+- rolls and bounces balls inside a crank-rotated world
+- turns the gravity direction with the crank-controlled world orientation
 - provides a low-cost animated preview for the title menu
 ]]
 local pd <const> = playdate
@@ -25,7 +25,8 @@ local BALL_BOUNCE <const> = TILT_BALLS_CONFIG.ballBounce or 0.92
 local WALL_ROLL_SPIN_SCALE <const> = TILT_BALLS_CONFIG.wallRollSpinScale or 6.5
 local MIN_SLOWDOWN <const> = TILT_BALLS_CONFIG.minSlowdown or 0.90
 local MAX_SLOWDOWN <const> = TILT_BALLS_CONFIG.maxSlowdown or 0.995
-local CRANK_SLOWDOWN_STEP <const> = TILT_BALLS_CONFIG.crankSlowdownStep or 0.0025
+local CRANK_WORLD_ROTATION_SCALE <const> = TILT_BALLS_CONFIG.crankWorldRotationScale or 1
+local TILT_INFLUENCE <const> = TILT_BALLS_CONFIG.tiltInfluence or 0.18
 local PREVIEW_SPAWN_COUNT <const> = TILT_BALLS_CONFIG.previewSpawnCount or 4
 
 local function clamp(value, minValue, maxValue)
@@ -65,6 +66,7 @@ function TiltBalls.new(width, height, options)
     self.slowdown = options.slowdown or TILT_BALLS_CONFIG.defaultSlowdown or 0.972
     self.previewAngle = 0
     self.previewPulse = 0
+    self.worldAngle = 0
 
     local initialCount = self.preview and PREVIEW_SPAWN_COUNT or 1
     for _ = 1, initialCount do
@@ -98,12 +100,7 @@ function TiltBalls:applyCrank(change)
     if math.abs(change) < 0.01 then
         return
     end
-
-    self.slowdown = clamp(
-        self.slowdown + ((change > 0 and 1 or -1) * CRANK_SLOWDOWN_STEP),
-        MIN_SLOWDOWN,
-        MAX_SLOWDOWN
-    )
+    self.worldAngle = (self.worldAngle + (change * CRANK_WORLD_ROTATION_SCALE)) % 360
 end
 
 function TiltBalls:spawnBall()
@@ -154,19 +151,72 @@ function TiltBalls:spawnBall()
 end
 
 function TiltBalls:getGravity()
-    if not self.preview and pd.accelerometerIsRunning() then
+    local radians = math.rad(self.worldAngle or 0)
+    local gravityX = math.sin(radians)
+    local gravityY = math.cos(radians)
+    if pd.accelerometerIsRunning() then
         local ax, ay = pd.readAccelerometer()
         if ax ~= nil and ay ~= nil then
-            local gx, gy = normalize(ax, ay)
-            return gx, gy
+            gravityX = gravityX + (ax * TILT_INFLUENCE)
+            gravityY = gravityY + (ay * TILT_INFLUENCE)
+            return normalize(gravityX, gravityY)
         end
     end
 
     self.previewAngle = self.previewAngle + 0.03
-    self.previewPulse = self.previewPulse + 0.017
-    local gx = math.cos(self.previewAngle) * 0.85
-    local gy = math.sin(self.previewPulse) * 0.6 + 0.45
-    return normalize(gx, gy)
+    if self.preview then
+        self.worldAngle = (self.worldAngle + 0.45) % 360
+    end
+    return gravityX, gravityY
+end
+
+function TiltBalls:resolveWorldBoundaries(ball)
+    local angle = math.rad(self.worldAngle or 0)
+    local cosine = math.cos(angle)
+    local sine = math.sin(angle)
+    local centerX = self.width * 0.5
+    local centerY = self.height * 0.5
+    local localX = ((ball.x - centerX) * cosine) + ((ball.y - centerY) * sine)
+    local localY = (-(ball.x - centerX) * sine) + ((ball.y - centerY) * cosine)
+    local velocityX = (ball.vx * cosine) + (ball.vy * sine)
+    local velocityY = (-ball.vx * sine) + (ball.vy * cosine)
+    local minX = -(self.width * 0.5) + ball.radius + SCREEN_PADDING
+    local maxX = (self.width * 0.5) - ball.radius - SCREEN_PADDING
+    local minY = -(self.height * 0.5) + ball.radius + SCREEN_PADDING
+    local maxY = (self.height * 0.5) - ball.radius - SCREEN_PADDING
+    local touchedSide = false
+    local touchedFloor = false
+
+    if localX < minX then
+        localX = minX
+        velocityX = math.abs(velocityX) * WALL_BOUNCE
+        touchedSide = true
+    elseif localX > maxX then
+        localX = maxX
+        velocityX = -math.abs(velocityX) * WALL_BOUNCE
+        touchedSide = true
+    end
+    if localY < minY then
+        localY = minY
+        velocityY = math.abs(velocityY) * WALL_BOUNCE
+        touchedFloor = true
+    elseif localY > maxY then
+        localY = maxY
+        velocityY = -math.abs(velocityY) * WALL_BOUNCE
+        velocityX = velocityX * 0.985
+        touchedFloor = true
+    end
+
+    ball.x = centerX + (localX * cosine) - (localY * sine)
+    ball.y = centerY + (localX * sine) + (localY * cosine)
+    ball.vx = (velocityX * cosine) - (velocityY * sine)
+    ball.vy = (velocityX * sine) + (velocityY * cosine)
+    if touchedSide then
+        ball.spin = ball.spin + (velocityY * WALL_ROLL_SPIN_SCALE)
+    end
+    if touchedFloor then
+        ball.spin = ball.spin + (velocityX * WALL_ROLL_SPIN_SCALE)
+    end
 end
 
 function TiltBalls:resolveBallCollisions()
@@ -218,40 +268,7 @@ function TiltBalls:update()
         ball.y = ball.y + ball.vy
         ball.spin = ball.spin + ((ball.vx * 0.18) + (ball.vy * 0.08))
 
-        local minX = ball.radius + SCREEN_PADDING
-        local maxX = self.width - ball.radius - SCREEN_PADDING
-        local minY = ball.radius + SCREEN_PADDING
-        local maxY = self.height - ball.radius - SCREEN_PADDING
-        local touchingVerticalWall = false
-        local touchingHorizontalWall = false
-
-        if ball.x < minX then
-            ball.x = minX
-            ball.vx = math.abs(ball.vx) * WALL_BOUNCE
-            touchingVerticalWall = true
-        elseif ball.x > maxX then
-            ball.x = maxX
-            ball.vx = -math.abs(ball.vx) * WALL_BOUNCE
-            touchingVerticalWall = true
-        end
-
-        if ball.y < minY then
-            ball.y = minY
-            ball.vy = math.abs(ball.vy) * WALL_BOUNCE
-            touchingHorizontalWall = true
-        elseif ball.y > maxY then
-            ball.y = maxY
-            ball.vy = -math.abs(ball.vy) * WALL_BOUNCE
-            ball.vx = ball.vx * 0.985
-            touchingHorizontalWall = true
-        end
-
-        if touchingVerticalWall then
-            ball.spin = ball.spin + (ball.vy * WALL_ROLL_SPIN_SCALE)
-        end
-        if touchingHorizontalWall then
-            ball.spin = ball.spin + (ball.vx * WALL_ROLL_SPIN_SCALE)
-        end
+        self:resolveWorldBoundaries(ball)
     end
 
     self:resolveBallCollisions()
@@ -274,9 +291,31 @@ function TiltBalls:drawBall(ball)
     gfx.setColor(gfx.kColorWhite)
 end
 
+function TiltBalls:drawWorldFrame()
+    local angle = math.rad(self.worldAngle or 0)
+    local cosine = math.cos(angle)
+    local sine = math.sin(angle)
+    local centerX = self.width * 0.5
+    local centerY = self.height * 0.5
+    local function point(x, y)
+        return centerX + (x * cosine) - (y * sine), centerY + (x * sine) + (y * cosine)
+    end
+    local halfWidth = (self.width * 0.5) - SCREEN_PADDING
+    local halfHeight = (self.height * 0.5) - SCREEN_PADDING
+    local x1, y1 = point(-halfWidth, -halfHeight)
+    local x2, y2 = point(halfWidth, -halfHeight)
+    local x3, y3 = point(halfWidth, halfHeight)
+    local x4, y4 = point(-halfWidth, halfHeight)
+    gfx.drawLine(x1, y1, x2, y2)
+    gfx.drawLine(x2, y2, x3, y3)
+    gfx.drawLine(x3, y3, x4, y4)
+    gfx.drawLine(x4, y4, x1, y1)
+end
+
 function TiltBalls:draw()
     gfx.clear(gfx.kColorBlack)
     gfx.setColor(gfx.kColorWhite)
+    self:drawWorldFrame()
 
     for _, ball in ipairs(self.balls) do
         self:drawBall(ball)
@@ -284,8 +323,8 @@ function TiltBalls:draw()
 
     if not self.preview and (not UIState or UIState.isShown()) then
         gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        gfx.drawText(string.format("Balls %d  Slow %.2f", #self.balls, roundToHundredths(self.slowdown)), 10, 8)
-        gfx.drawText("Tilt to roll  Crank slowdown  A add ball  B back", 10, 220)
+        gfx.drawText(string.format("Balls %d  World %03d", #self.balls, math.floor((self.worldAngle or 0) + 0.5) % 360), 10, 8)
+        gfx.drawText("Crank rotates world + gravity  A add ball  B back", 10, 220)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
     end
 end

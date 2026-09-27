@@ -19,11 +19,12 @@ function assets.load()
         return
     end
     assets.asteroids = {
-        small = loadFrames("asteroid_small", 8),
-        medium = loadFrames("asteroid_medium", 8),
-        large = loadFrames("asteroid_large", 8)
+        small = loadFrames("asteroid_small", 50),
+        medium = loadFrames("asteroid_medium", 50),
+        large = loadFrames("asteroid_large", 50)
     }
     assets.blackHole = loadFrames("black_hole", 12)
+    assets.earth = loadFrames("earth", 50)
     assets.loaded = true
 end
 
@@ -42,4 +43,12 @@ function assets.blackHoleFrame(frame)
         return nil
     end
     return assets.blackHole[(math.floor(frame or 0) % #assets.blackHole) + 1]
+end
+
+function assets.earthFrame(frame)
+    assets.load()
+    if assets.earth == nil or #assets.earth == 0 then
+        return nil
+    end
+    return assets.earth[(math.floor(frame or 0) % #assets.earth) + 1]
 end
