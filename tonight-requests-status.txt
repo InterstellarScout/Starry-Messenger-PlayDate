@@ -268,6 +268,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| Fix the Orbital Defense title-preview crash caused by PixelPlanets assets. | Done — PixelPlanets now decodes requested frames lazily with a bounded rolling cache instead of loading all 652 source frames in one draw call. |
 | Make horizontal title-folder navigation wrap continuously without reversing mid-spin. | Done — mode carousel targets now chain from the prior target, preserving 1 → 2 → 3 → 1 motion during rapid repeated Left/Right presses. |
 | Rework Space Miner saves so the same three slots can store Campaign or Endless Ore Mining progress. | Done — shared three-slot selector labels each entry as Campaign Save or Endless Save, saves resume their stored mode, legacy Campaign slots remain valid, and the former separate Endless save migrates into a free shared slot. |
 | Consolidate Space Miner modes and improve menu navigation without changing save behavior. | Done — one Space Miner entry now offers Campaign and Endless Ore Mining; crank navigation is half-speed and detented; B returns to the immediate parent menu screen. Save formats and slots remain unchanged for the follow-up save pass. |

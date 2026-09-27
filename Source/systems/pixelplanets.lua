@@ -5,50 +5,55 @@ PixelPlanetsAssets = PixelPlanetsAssets or {}
 local gfx <const> = playdate.graphics
 local assets = PixelPlanetsAssets
 
-local function loadFrames(prefix, frameCount)
-    local frames = {}
-    for frame = 0, frameCount - 1 do
-        local path = string.format("images/pixelplanets/%s_%02d", prefix, frame)
-        frames[#frames + 1] = gfx.image.new(path)
+local MAX_CACHED_FRAMES_PER_SET <const> = 12
+
+assets.frameCaches = assets.frameCaches or {}
+
+local function loadFrame(prefix, frameCount, frame)
+    local index = math.floor(frame or 0) % frameCount
+    local cache = assets.frameCaches[prefix]
+    if cache == nil then
+        cache = { frames = {}, order = {} }
+        assets.frameCaches[prefix] = cache
     end
-    return frames
+
+    local image = cache.frames[index]
+    if image ~= nil then
+        return image
+    end
+
+    -- Loading all 652 exported PNGs in a draw call stalls the hardware long
+    -- enough for the watchdog to reset. Decode only the requested frame and
+    -- retain a short rolling cache for nearby animation frames.
+    local path = string.format("images/pixelplanets/%s_%02d", prefix, index)
+    image = gfx.image.new(path)
+    if image == nil then
+        return nil
+    end
+    cache.frames[index] = image
+    cache.order[#cache.order + 1] = index
+    if #cache.order > MAX_CACHED_FRAMES_PER_SET then
+        local evictedIndex = table.remove(cache.order, 1)
+        cache.frames[evictedIndex] = nil
+    end
+    return image
 end
 
+-- Compatibility entry point retained for callers from earlier builds. Assets
+-- now load lazily, so this deliberately performs no bulk disk work.
 function assets.load()
-    if assets.loaded then
-        return
-    end
-    assets.asteroids = {
-        small = loadFrames("asteroid_small", 160),
-        medium = loadFrames("asteroid_medium", 160),
-        large = loadFrames("asteroid_large", 160)
-    }
-    assets.blackHole = loadFrames("black_hole", 12)
-    assets.earth = loadFrames("earth", 160)
     assets.loaded = true
 end
 
 function assets.asteroidFrame(size, frame)
-    assets.load()
-    local frames = assets.asteroids[size]
-    if frames == nil or #frames == 0 then
-        return nil
-    end
-    return frames[(math.floor(frame or 0) % #frames) + 1]
+    local prefix = "asteroid_" .. tostring(size or "small")
+    return loadFrame(prefix, 160, frame)
 end
 
 function assets.blackHoleFrame(frame)
-    assets.load()
-    if assets.blackHole == nil or #assets.blackHole == 0 then
-        return nil
-    end
-    return assets.blackHole[(math.floor(frame or 0) % #assets.blackHole) + 1]
+    return loadFrame("black_hole", 12, frame)
 end
 
 function assets.earthFrame(frame)
-    assets.load()
-    if assets.earth == nil or #assets.earth == 0 then
-        return nil
-    end
-    return assets.earth[(math.floor(frame or 0) % #assets.earth) + 1]
+    return loadFrame("earth", 160, frame)
 end
