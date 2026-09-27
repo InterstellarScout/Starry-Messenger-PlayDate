@@ -268,6 +268,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| Consolidate Space Miner modes and improve menu navigation without changing save behavior. | Done — one Space Miner entry now offers Campaign and Endless Ore Mining; crank navigation is half-speed and detented; B returns to the immediate parent menu screen. Save formats and slots remain unchanged for the follow-up save pass. |
 | Generate Deep-Fold PixelPlanets asteroid rotations for Space Miner and an animated black hole for Orbital Defense. | Done — pre-rendered 8-frame small/medium/large asteroid sets now advance at distinct speeds; Orbital Defense uses the 12-frame black-hole background. Space Miner Settings retains a PixelPlanets Asteroids toggle for the original lightweight vector asteroids. |
 | Make Bubble Pop title text white and make every title label strictly the inverse of the selected title's main background color. | Done — title contrast now shares the Vibes live-background rule, so Bubble Pop and every black-base Vibe use white menu text while white-base Vibes use black. |
 | In Puck Ring, add a rectangular score board to each top corner showing pucks scored. | Done — Left and Right score boards now track each net's puck total. |

@@ -867,11 +867,11 @@ function SpaceMiner.getModeLabel(modeId)
     elseif modeId == SpaceMiner.MODE_CONTINUE then
         return "Continue Mining"
     elseif modeId == SpaceMiner.MODE_CONTINUE_STORY then
-        return "Continue Story Mode"
+        return "Continue Campaign"
     elseif modeId == SpaceMiner.MODE_NEW_SAVE then
-        return "New Story Mode"
+        return "New Campaign"
     end
-    return "Story Mode"
+    return "Campaign"
 end
 
 function SpaceMiner.getStorySlotKey(slot)
@@ -1198,6 +1198,7 @@ function SpaceMiner.new(width, height, options)
     self.menuOpen = false
     self.menuType = "ship"
     self.homeMenuScreen = "directory"
+    self.homeMenuScreenStack = {}
     self.menuIndex = 1
     self.menuInputIgnoreFrames = 0
     self.menuCrankAccumulator = 0
@@ -1215,6 +1216,7 @@ function SpaceMiner.new(width, height, options)
     self.homeMenuScoutHidden = false
     self.homeMenuAutoCloseFrames = nil
     self.shipMenuScreen = "directory"
+    self.shipMenuScreenStack = {}
     self.shipMenuPreviousScreenForCommunication = nil
     self.shipDirectoryIndex = 1
     self.rightButtonMode = "missile"
@@ -2593,6 +2595,8 @@ function SpaceMiner:openShipMenu()
     self.menuType = "ship"
     self.homeMenuScreen = "directory"
     self.shipMenuScreen = "directory"
+    self.homeMenuScreenStack = {}
+    self.shipMenuScreenStack = {}
     self.shipMenuPreviousScreenForCommunication = "directory"
     self.shipDirectoryIndex = 1
     self.menuScrollOffset = 1
@@ -2616,6 +2620,8 @@ function SpaceMiner:openHomeBaseMenu()
     self.menuOpen = true
     self.menuType = "home"
     self.homeMenuScreen = self.weaponsDisabled and "apology" or "directory"
+    self.homeMenuScreenStack = {}
+    self.shipMenuScreenStack = {}
     self.menuScrollOffset = 1
     self.menuIndex = 1
     self.menuCrankAccumulator = 0
@@ -2943,9 +2949,32 @@ function SpaceMiner:closeMenu()
     self.homeMenuAutoCloseFrames = nil
     self.menuScrollOffset = 1
     self.shipMenuPreviousScreenForCommunication = nil
+    self.homeMenuScreenStack = {}
+    self.shipMenuScreenStack = {}
     self.player.laserOn = false
     self.input.laser = false
     self:playMenuBackSound()
+end
+
+function SpaceMiner:openMenuScreen(screen)
+    local isHomeMenu = self.menuType == "home"
+    local currentScreen = isHomeMenu and self.homeMenuScreen or self.shipMenuScreen
+    local stack = isHomeMenu and self.homeMenuScreenStack or self.shipMenuScreenStack
+    stack = stack or {}
+    table.insert(stack, {
+        screen = currentScreen or "directory",
+        index = self.menuIndex or 1,
+        scrollOffset = self.menuScrollOffset or 1
+    })
+    if isHomeMenu then
+        self.homeMenuScreenStack = stack
+        self.homeMenuScreen = screen
+    else
+        self.shipMenuScreenStack = stack
+        self.shipMenuScreen = screen
+    end
+    self.menuIndex = 1
+    self.menuScrollOffset = 1
 end
 
 function SpaceMiner:getMenuItems()
@@ -3535,7 +3564,7 @@ function SpaceMiner:toggleMenuSelection()
     elseif item.action == "open-screen" then
         if self.menuType == "home" then
             self.homeDirectoryIndex = self.menuIndex
-            self.homeMenuScreen = item.targetScreen or item.id
+            self:openMenuScreen(item.targetScreen or item.id)
             if self.homeMenuScreen == "communications" then
                 self.communicationHistoryCursorIndex = 1
                 self.communicationHistoryScrollY = 0
@@ -3546,7 +3575,7 @@ function SpaceMiner:toggleMenuSelection()
             if self.shipMenuScreen == "directory" then
                 self.shipDirectoryIndex = self.menuIndex
             end
-            self.shipMenuScreen = item.targetScreen or item.id
+            self:openMenuScreen(item.targetScreen or item.id)
             if self.shipMenuScreen == "communications" then
                 self.communicationHistoryCursorIndex = 1
                 self.communicationHistoryScrollY = 0
@@ -3554,8 +3583,6 @@ function SpaceMiner:toggleMenuSelection()
                 self.shipMenuPreviousScreenForCommunication = previousScreen
             end
         end
-        self.menuIndex = 1
-        self.menuScrollOffset = 1
     elseif item.action == "auto-home-base" then
         self:startHomeBaseAutopilot()
         return
@@ -3570,20 +3597,18 @@ function SpaceMiner:toggleMenuSelection()
         return
     elseif item.action == "history-reader" then
         if self.menuType == "home" then
-            self.homeMenuScreen = "communications"
+            self:openMenuScreen("communications")
         else
             local previousScreen = self.shipMenuScreen or "directory"
             if self.shipMenuScreen == "directory" then
                 self.shipDirectoryIndex = self.menuIndex
             end
-            self.shipMenuScreen = "communications"
+            self:openMenuScreen("communications")
             self.shipMenuPreviousScreenForCommunication = previousScreen
         end
         self.communicationHistoryCursorIndex = 1
         self.communicationHistoryScrollY = 0
         self.communicationHistoryCrankAccumulator = 0
-        self.menuIndex = 1
-        self.menuScrollOffset = 1
         return
     elseif item.action == "buy-upgrade" or item.action == "equip-upgrade" then
         self:purchaseOrEquipUpgrade(item.category, item.id)
@@ -3862,27 +3887,10 @@ function SpaceMiner:updateRotaryMenuSpin()
         or (self.menuType == "ship" and self.shipMenuScreen == "communications") then
         return
     end
-    local velocity = self.menuRotaryVelocity or 0
-    local fractionalOffset = self.menuCrankAccumulator or 0
-    if math.abs(velocity) < 0.02 and math.abs(fractionalOffset) < 0.02 then
-        self.menuRotaryVelocity = 0
-        self.menuCrankAccumulator = 0
-        self.menuRotaryFreeSpin = false
-        return
-    end
-    self.menuCrankAccumulator = fractionalOffset + velocity
-    while self.menuCrankAccumulator >= 1 do
-        self:stepMenuSelection(1)
-        self.menuCrankAccumulator = self.menuCrankAccumulator - 1
-    end
-    while self.menuCrankAccumulator <= -1 do
-        self:stepMenuSelection(-1)
-        self.menuCrankAccumulator = self.menuCrankAccumulator + 1
-    end
-    if math.abs(velocity) < 0.02 then
-        self.menuCrankAccumulator = self.menuCrankAccumulator * 0.72
-    end
-    self.menuRotaryVelocity = velocity * 0.88
+    -- Selection motion is driven only by applyCrank. Do not add momentum here:
+    -- a stopped crank must leave the highlighted option completely still.
+    self.menuRotaryVelocity = 0
+    self.menuRotaryFreeSpin = false
 end
 
 function SpaceMiner:handleMenuVerticalInput(upPressed, downPressed)
@@ -3922,57 +3930,20 @@ function SpaceMiner:handleBack()
     if self.menuOpen and self.menuType == "home" and self.homeMenuScreen == "apology" then
         return true
     end
-    if self.menuOpen and self.menuType == "home" and (self.homeMenuScreen == "communications" or self.homeMenuScreen == "trigger-event" or self.homeMenuScreen == "resources") then
-        self.homeMenuScreen = "settings"
-        self.menuIndex = self.homeDirectoryIndex or 1
-        self.menuScrollOffset = 1
-        self:playMenuBackSound()
-        return true
+    if not self.menuOpen then
+        return false
     end
-    if self.menuOpen and self.menuType == "ship" and self.shipMenuScreen == "auto-pilot" then
-        self.shipMenuScreen = "directory"
-        self.menuIndex = 1
-        self.menuScrollOffset = 1
-        self:playMenuBackSound()
-        return true
-    end
-    if self.menuOpen and self.menuType == "ship" and self.shipMenuScreen == "right-button" then
-        self.shipMenuScreen = "directory"
-        self.menuIndex = 2
-        self.menuScrollOffset = 1
-        self:playMenuBackSound()
-        return true
-    end
-    if self.menuOpen and self.menuType == "ship" and self.shipMenuScreen == "trigger-event" then
-        self.shipMenuScreen = "directory"
-        self.menuIndex = self.shipDirectoryIndex or 1
-        self.menuScrollOffset = 1
-        self:playMenuBackSound()
-        return true
-    end
-    if self.menuOpen and self.menuType == "ship" and self.shipMenuScreen == "communications" then
-        self.shipMenuScreen = self.shipMenuPreviousScreenForCommunication or "directory"
-        self.shipMenuPreviousScreenForCommunication = nil
-        if self.shipMenuScreen == "directory" then
-            self.menuIndex = self.shipDirectoryIndex or 1
+    local isHomeMenu = self.menuType == "home"
+    local stack = isHomeMenu and self.homeMenuScreenStack or self.shipMenuScreenStack
+    if stack ~= nil and #stack > 0 then
+        local previous = table.remove(stack)
+        if isHomeMenu then
+            self.homeMenuScreen = previous.screen
         else
-            self.menuIndex = 1
+            self.shipMenuScreen = previous.screen
         end
-        self.menuScrollOffset = 1
-        self:playMenuBackSound()
-        return true
-    end
-    if self.menuOpen and self.menuType == "home" and self.homeMenuScreen == "resources" then
-        self.homeMenuScreen = "settings"
-        self.menuIndex = 1
-        self.menuScrollOffset = 1
-        self:playMenuBackSound()
-        return true
-    end
-    if self.menuOpen and self.menuType == "home" and self.homeMenuScreen ~= "directory" then
-        self.homeMenuScreen = "directory"
-        self.menuIndex = self.homeDirectoryIndex or 1
-        self.menuScrollOffset = 1
+        self.menuIndex = previous.index or 1
+        self.menuScrollOffset = previous.scrollOffset or 1
         self:playMenuBackSound()
         return true
     end
@@ -6113,14 +6084,15 @@ function SpaceMiner:applyCrank(change)
             end
             return
         end
-        self.menuCrankAccumulator = (self.menuCrankAccumulator or 0) + input
-        while self.menuCrankAccumulator >= MENU_CRANK_STEP do
+        -- Keep the visual offset in menu-option units. Scaling the physical
+        -- travel to half speed gives each option a clear, intentional detent.
+        self.menuCrankAccumulator = (self.menuCrankAccumulator or 0) + ((input * (SPACE_MINER_CONFIG.menuCrankInputScale or 0.5)) / MENU_CRANK_STEP)
+        if self.menuCrankAccumulator >= 1 then
             self:stepMenuSelection(1)
-            self.menuCrankAccumulator = self.menuCrankAccumulator - MENU_CRANK_STEP
-        end
-        while self.menuCrankAccumulator <= -MENU_CRANK_STEP do
+            self.menuCrankAccumulator = self.menuCrankAccumulator - 1
+        elseif self.menuCrankAccumulator <= -1 then
             self:stepMenuSelection(-1)
-            self.menuCrankAccumulator = self.menuCrankAccumulator + MENU_CRANK_STEP
+            self.menuCrankAccumulator = self.menuCrankAccumulator + 1
         end
         return
     end

@@ -57,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.53"
+local APP_VERSION <const> = "0.2.54"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -202,24 +202,11 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = WackyInflatable.getModeLabel
     },
     {
-        id = "spaceminer-mining",
-        openViewId = "spaceminer",
-        label = "Space Miner: Mining",
-        modes = {
-            SpaceMiner.MODE_ENDLESS,
-            SpaceMiner.MODE_CONTINUE
-        },
-        modeId = SpaceMiner.MODE_ENDLESS,
-        getModeLabel = SpaceMiner.getModeLabel
-    },
-    {
-        id = "spaceminer-story",
-        openViewId = "spaceminer",
-        label = "Space Miner: Story",
+        id = "spaceminer",
+        label = "Space Miner",
         modes = {
             SpaceMiner.MODE_STORY,
-            SpaceMiner.MODE_CONTINUE_STORY,
-            SpaceMiner.MODE_NEW_SAVE
+            SpaceMiner.MODE_OREMINER
         },
         modeId = SpaceMiner.MODE_STORY,
         getModeLabel = SpaceMiner.getModeLabel

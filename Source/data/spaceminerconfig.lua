@@ -85,6 +85,9 @@ SpaceMinerConfig = {
     upgradeCostMultiplier = 1.1,
     -- homeBaseMenuRadius: radius for radial menu control hit area around home base.
     homeBaseMenuRadius = 56,
+    -- menuCrankInputScale: scales physical crank travel for menu navigation. Half-speed
+    -- keeps the carousel readable and requires a deliberate turn for each option.
+    menuCrankInputScale = 0.5,
     -- entityLogIntervalFrames: cadence for entity debug logs when enabled.
     entityLogIntervalFrames = 30,
     -- menuAutoNavigateEnabled: enables automatic menu alignment when the ship is near home base.
