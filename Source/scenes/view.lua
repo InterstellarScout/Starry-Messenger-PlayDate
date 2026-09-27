@@ -58,7 +58,7 @@ function ViewScene.new(config)
     self.tutorialOpen = Tutorials.shouldShow(self.viewId, self.modeId)
     self.tutorialScroll = 0
 
-    if config.effect and self.viewId ~= "snake" then
+    if config.effect and self.viewId ~= "snake" and self.viewId ~= "babychicks" and self.viewId ~= "donthitme" then
         self.effect = config.effect
     elseif self.viewId == "fall" then
         self.effect = Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.liveStarCount or 420, {
@@ -782,6 +782,8 @@ function ViewScene:update()
             if not (self.effect.isMenuOpen and self.effect:isMenuOpen()) then
                 self.effect:handlePrimaryAction()
             end
+        elseif self.viewId == "babychicks" or self.viewId == "donthitme" then
+            self.effect:handlePrimaryAction()
         elseif self.viewId == "smokebloom" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "touchinggrass" then
@@ -869,6 +871,9 @@ function ViewScene:update()
         if not (self.effect.isMenuOpen and self.effect:isMenuOpen()) then
             self.effect:applyCrank(change)
         end
+        self.crankAccumulator = 0
+    elseif self.viewId == "babychicks" then
+        self.effect:applyCrank(change)
         self.crankAccumulator = 0
     elseif self.viewId == "smokebloom" then
         self.effect:applyCrank(change)
@@ -1050,6 +1055,13 @@ function ViewScene:update()
                 pd.buttonJustPressed(pd.kButtonDown)
             )
         end
+    elseif self.viewId == "babychicks" or self.viewId == "donthitme" then
+        self.effect:handleDirectionalInput(
+            pd.buttonIsPressed(pd.kButtonLeft),
+            pd.buttonIsPressed(pd.kButtonRight),
+            pd.buttonIsPressed(pd.kButtonUp),
+            pd.buttonIsPressed(pd.kButtonDown)
+        )
     elseif self.viewId == "smokebloom" then
         self.effect:handleDirectionalInput(
             pd.buttonIsPressed(pd.kButtonLeft),
