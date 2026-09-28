@@ -3169,9 +3169,10 @@ function SpaceMiner:startHomeBaseAutopilot()
     self:startCoordinateAutopilot(self.baseWorldX or BASE_WORLD_X, self.baseWorldY or BASE_WORLD_Y, {
         mode = "home-base",
         label = "Home Base",
-        settleRadius = BASE_SHIELD_RADIUS + 8,
-        stopThreshold = 0.2,
-        snapToTarget = true
+        settleRadius = 30,
+        brakeRadius = 150,
+        stopThreshold = 0.12,
+        snapToTarget = false
     })
 end
 
@@ -3282,7 +3283,7 @@ function SpaceMiner:steerAutopilotToward(targetX, targetY, options)
     local approachDistance = math.max(0, distance - settleRadius)
     local brakingAcceleration = math.max(0.01, PLAYER_THRUST * self:getThrusterAccelerationMultiplier() * 0.82)
     local stoppingDistance = closingSpeed > 0 and ((closingSpeed * closingSpeed) / (2 * brakingAcceleration)) or 0
-    local plannedSpeed = math.max(stopThreshold, math.sqrt(math.max(0, approachDistance) * brakingAcceleration * 1.35))
+    local plannedSpeed = math.max(stopThreshold, math.sqrt(math.max(0, approachDistance) * brakingAcceleration * 2) * 0.82)
     local shouldBrake = false
     if autopilot ~= nil then
         local lastDistance = autopilot.lastDistance or distance
@@ -3303,7 +3304,7 @@ function SpaceMiner:steerAutopilotToward(targetX, targetY, options)
         desiredAngle = targetAngle
     end
 
-    self.player.angle = lerpAngle(self.player.angle, desiredAngle, shouldBrake and 0.36 or 0.22)
+    self.player.angle = lerpAngle(self.player.angle, desiredAngle, shouldBrake and 0.52 or 0.22)
     local angleError = math.abs(shortestAngleDelta(self.player.angle, desiredAngle))
     self.input.thrust = angleError <= 70 and (approachDistance > 0 or speed > stopThreshold) and 1 or 0
     self.input.reverse = 0
@@ -4651,6 +4652,26 @@ function SpaceMiner:addAsteroid(asteroid, source)
     end
 end
 
+function SpaceMiner:chooseAsteroidSpriteType(stage)
+    -- Keep the largest bodies visually weighty while allowing each spawn to
+    -- receive its own generated PixelPlanets family within its stage.
+    if stage <= 0 then
+        return math.random() < 0.68 and "large" or "medium"
+    elseif stage == 1 then
+        local roll = math.random()
+        return roll < 0.50 and "medium" or (roll < 0.78 and "large" or "small")
+    elseif stage == 2 then
+        return math.random() < 0.62 and "small" or "medium"
+    end
+    return "small"
+end
+
+function SpaceMiner:getAsteroidSpriteScale(asteroid)
+    local spriteType = asteroid.spriteType or "small"
+    local sourceRadius = spriteType == "large" and 34 or (spriteType == "medium" and 32 or 28)
+    return clamp((asteroid.radius or 1) / sourceRadius, 0.18, 1.0)
+end
+
 function SpaceMiner:getAsteroidScreenState(asteroid)
     local drawX, drawY = worldToScreen(self.player.x, self.player.y, asteroid.x, asteroid.y)
     local visible = drawX >= -asteroid.radius
@@ -4747,6 +4768,8 @@ function SpaceMiner:spawnAsteroid(stage, originX, originY)
         vx = math.cos(angle + math.pi * 0.5) * speed,
         vy = math.sin(angle + math.pi * 0.5) * speed,
         stage = stage,
+        spriteType = self:chooseAsteroidSpriteType(stage),
+        spriteFrameOffset = math.random(0, 159),
         layer = math.random(1, 5),
         material = material,
         radius = config.radius,
@@ -4854,6 +4877,8 @@ function SpaceMiner:spawnFragments(asteroid, options)
             vx = asteroid.vx * 0.55 + math.cos(angle) * speed,
             vy = asteroid.vy * 0.55 + math.sin(angle) * speed,
             stage = nextStage,
+            spriteType = self:chooseAsteroidSpriteType(nextStage),
+            spriteFrameOffset = math.random(0, 159),
             layer = math.random(1, 5),
             material = asteroid.material or self:chooseAsteroidMaterial(),
             radius = nextConfig.radius,
@@ -7747,7 +7772,11 @@ function SpaceMiner:update()
     self:updateInstructionOverlay()
     self:updateDashboardIndicator()
 
-    if not self.menuOpen then
+    -- The Ship and Home Base menus pause the simulation clock. Stage and
+    -- wave schedules use this clock, so enemies cannot spawn while a player
+    -- is comparing equipment or settings.
+    local gameTimerPaused = self.menuOpen == true
+    if not gameTimerPaused then
         self.frame = self.frame + 1
     end
     if self:isStoryMode() or self:isOreMinerMode() then
@@ -7759,13 +7788,13 @@ function SpaceMiner:update()
             self:updateDestroyedCommunications()
         end
     end
-    if self.baseUnderAttackFrames > 0 and not (self.menuOpen and self.menuType == "home") then
+    if self.baseUnderAttackFrames > 0 and not gameTimerPaused then
         self.baseUnderAttackFrames = self.baseUnderAttackFrames - 1
     end
-    if (self.supernovaFlashFrames or 0) > 0 then
+    if (self.supernovaFlashFrames or 0) > 0 and not gameTimerPaused then
         self.supernovaFlashFrames = self.supernovaFlashFrames - 1
     end
-    if (self.baseModeTransitionFrame or BASE_MODE_TRANSITION_FRAMES) < BASE_MODE_TRANSITION_FRAMES then
+    if not gameTimerPaused and (self.baseModeTransitionFrame or BASE_MODE_TRANSITION_FRAMES) < BASE_MODE_TRANSITION_FRAMES then
         self.baseModeTransitionFrame = math.min(BASE_MODE_TRANSITION_FRAMES, (self.baseModeTransitionFrame or 0) + 1)
         if self.baseModeTransitionFrame >= BASE_MODE_TRANSITION_FRAMES then
             self.previousBaseModeId = nil
@@ -8680,18 +8709,19 @@ function SpaceMiner:drawAsteroids()
         local drawX, drawY = worldToScreen(self.player.x, self.player.y, asteroid.x, asteroid.y)
         if drawX >= -30 and drawX <= (SCREEN_WIDTH + 30) and drawY >= -30 and drawY <= (SCREEN_HEIGHT + 30) then
             if self.pixelAsteroidsEnabled == true then
-                local size = asteroid.stage == 0 and "large" or (asteroid.stage == 1 and "medium" or "small")
-                -- Each size advances at a distinct cadence, while the object's serial
-                -- gives siblings a different starting orientation.
+                local size = asteroid.spriteType or (asteroid.stage == 0 and "large" or (asteroid.stage == 1 and "medium" or "small"))
+                -- Each spawned asteroid owns a sprite family and starting
+                -- orientation; siblings therefore do not enter in lockstep.
                 local cadence = size == "large" and 6 or (size == "medium" and 4 or 2)
-                local frameOffset = math.floor((tonumber(asteroid.id) or 0) % 160)
+                local frameOffset = math.floor(tonumber(asteroid.spriteFrameOffset) or ((tonumber(asteroid.id) or 0) % 160))
                 -- 160 Deep-Fold frames replace the prior 50-frame set. Scale
                 -- the source-frame advance so real-time rotation stays the
                 -- same while the visible motion becomes much smoother.
                 local animationFrame = math.floor((pixelFrame * 160) / (cadence * 50))
                 local image = PixelPlanetsAssets.asteroidFrame(size, animationFrame + frameOffset)
                 if image ~= nil then
-                    image:drawCentered(drawX, drawY)
+                    local scale = self:getAsteroidSpriteScale(asteroid)
+                    image:drawScaled(drawX - (50 * scale), drawY - (50 * scale), scale)
                 end
             else
                 if asteroid.stage >= 2 then
