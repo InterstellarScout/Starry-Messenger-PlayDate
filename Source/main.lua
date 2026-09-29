@@ -57,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.59"
+local APP_VERSION <const> = "0.2.60"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -191,6 +191,8 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = getDripDropModeLabel
     },
     { id = "tiltballs", label = "Bouncy Balls" },
+    { id = "babychicks", label = "Baby Chicks" },
+    { id = "donthitme", label = "Don't Hit Me" },
     {
         id = "wacky",
         label = "Wacky",
@@ -230,8 +232,6 @@ local SINGLE_VIEW_ITEMS <const> = {
         modeId = SnakeGame.MODE_STANDARD,
         getModeLabel = SnakeGame.getModeLabel
     },
-    { id = "babychicks", label = "Baby Chicks" },
-    { id = "donthitme", label = "Don't Hit Me" },
     {
         id = "fishpond",
         label = "Fishy Pond",

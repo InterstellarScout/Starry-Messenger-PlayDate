@@ -764,6 +764,14 @@ function TitleScene:setPreview(forceFresh)
             return TiltBalls.new(400, 240, {
                 preview = true
             })
+        elseif actualViewId == "babychicks" then
+            return BabyChicks.new(400, 240, {
+                preview = true
+            })
+        elseif actualViewId == "donthitme" then
+            return DontHitMe.new(400, 240, {
+                preview = true
+            })
         elseif actualViewId == "wacky" then
             return WackyInflatable.new(400, 240, {
                 modeId = selectedView.modeId,

@@ -23,6 +23,21 @@ local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
 end
 
+-- Views can be suspended and restored by the system menu. Keep every field
+-- used by the frame loop valid so a partially restored mini-game never turns
+-- a missing value into a runtime error.
+function DontHitMe:ensureState()
+    self.width = tonumber(self.width) or SCREEN_WIDTH
+    self.height = tonumber(self.height) or SCREEN_HEIGHT
+    self.frame = tonumber(self.frame) or 0
+    self.playerX = tonumber(self.playerX) or PIVOT_X
+    self.playerY = tonumber(self.playerY) or 181
+    self.dodges = tonumber(self.dodges) or 0
+    self.hits = tonumber(self.hits) or 0
+    self.activePass = self.activePass == true
+    self.status = type(self.status) == "string" and self.status or "Move out of the marked swing path!"
+end
+
 function DontHitMe.new(width, height, options)
     options = options or {}
     local self = setmetatable({}, DontHitMe)
@@ -40,10 +55,12 @@ function DontHitMe.new(width, height, options)
 end
 
 function DontHitMe:setPreview(enabled)
+    self:ensureState()
     self.preview = enabled == true
 end
 
 function DontHitMe:handlePrimaryAction()
+    self:ensureState()
     self.playerX = PIVOT_X
     self.playerY = 181
     self.dodges = 0
@@ -52,6 +69,7 @@ function DontHitMe:handlePrimaryAction()
 end
 
 function DontHitMe:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHeld)
+    self:ensureState()
     local dx = (rightHeld and 1 or 0) - (leftHeld and 1 or 0)
     local dy = (downHeld and 1 or 0) - (upHeld and 1 or 0)
     self.playerX = clamp(self.playerX + (dx * PLAYER_SPEED), 14, self.width - 14)
@@ -59,11 +77,13 @@ function DontHitMe:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHeld)
 end
 
 function DontHitMe:getSwingPosition()
+    self:ensureState()
     local angle = math.sin(self.frame * 0.075) * 0.94
     return PIVOT_X + (math.sin(angle) * ROPE_LENGTH), PIVOT_Y + (math.cos(angle) * ROPE_LENGTH), angle
 end
 
 function DontHitMe:update()
+    self:ensureState()
     self.frame = self.frame + 1
     local swingX, swingY = self:getSwingPosition()
     local passingThroughZone = swingY > 126
@@ -124,6 +144,7 @@ function DontHitMe:drawPlayer()
 end
 
 function DontHitMe:draw()
+    self:ensureState()
     local swingX, swingY = self:getSwingPosition()
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRect(0, 0, self.width, self.height)
