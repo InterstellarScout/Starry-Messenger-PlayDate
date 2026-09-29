@@ -57,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.58"
+local APP_VERSION <const> = "0.2.59"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -337,6 +337,8 @@ local function getCatalogViewItems(catalog)
         return SINGLE_VIEW_ITEMS
     elseif catalog == "utilities" then
         return UTILITIES_VIEW_ITEMS
+    elseif catalog == "favorites" then
+        return getFavoriteViewItems()
     end
     return ROOT_VIEW_ITEMS
 end
@@ -637,6 +639,11 @@ buildGameTitleScene = function(catalog, options)
         previewModeId = options.previewModeId,
         headerTitle = folderName == "" and "STARRY MESSENGER" or folderName,
         headerSubtitle = folderName == "" and "" or (catalog == "multi" and string.format("%d Beings", app.session.playerCount) or ""),
+        onSelectionChanged = function(item)
+            safeCall("buildTitleFavoritesMenu", function()
+                buildSystemMenu(viewItems, nil, nil, item and item.id)
+            end)
+        end,
         onBack = function()
             if catalog == "multi" then
                 app.session:setPlayerCount(1)
@@ -709,6 +716,11 @@ buildVibesTitleScene = function(options)
         previewModeId = options.previewModeId,
         headerTitle = "Vibes",
         headerSubtitle = "",
+        onSelectionChanged = function(item)
+            safeCall("buildVibesFavoritesMenu", function()
+                buildSystemMenu(VIBES_VIEW_ITEMS, nil, nil, item and item.id)
+            end)
+        end,
         onBack = function()
             startVibesFolderExitTransition(function(nextScene)
                 app.session:setCatalog("root")
@@ -743,7 +755,7 @@ buildSplashScene = function()
     })
 end
 
-function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
+function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTitleId)
     local menu = pd.getSystemMenu()
     menu:removeAllMenuItems()
 
@@ -770,8 +782,30 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId)
         refreshActiveSceneAudio()
     end)
 
+    local favoriteId = activeViewId or selectedTitleId
+    local canFavorite = favoriteId ~= nil
+        and favoriteId ~= "favorites"
+        and favoriteId ~= "favorites_empty"
+        and favoriteId ~= "lowkey"
+        and favoriteId ~= "vibes"
+        and favoriteId ~= "multiplayer"
+        and favoriteId ~= "utilities"
+        and favoriteId ~= "settings"
+    if canFavorite then
+        local isFavorite = Favorites.has(favoriteId)
+        menu:addMenuItem(isFavorite and "Remove from Favorites" or "Add to Favorites", function()
+            Favorites.toggle(favoriteId)
+            -- Removing an entry while browsing Favorites immediately rebuilds
+            -- that catalog so the title disappears from the carousel.
+            if selectedTitleId ~= nil and app.session.catalog == "favorites" then
+                setScene(buildGameTitleScene("favorites"))
+            elseif selectedTitleId ~= nil then
+                buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTitleId)
+            end
+        end)
+    end
+
     if activeViewId ~= nil then
-        menu:addMenuItem((Favorites.has(activeViewId) and "Remove " or "Add ") .. tostring(activeViewId) .. " Favorite", function() Favorites.toggle(activeViewId) end)
         menu:addCheckmarkMenuItem("Show UI", UIState.isShown(), function(value)
             UIState.setShown(value)
         end)
@@ -880,6 +914,28 @@ function pd.gameWillResume()
         if not ok then
             drawFatalError()
         end
+    end
+end
+
+function pd.gameWillTerminate()
+    -- The OS calls this immediately before returning to the launcher. Render
+    -- a short explicit sequence here so choosing Exit from the Home menu has
+    -- a visible star-warp departure rather than an abrupt cut to black.
+    ViewAudio.stop()
+    local warp = Starfield.newWarpSpeed(400, 240, 72)
+    if warp == nil then
+        return
+    end
+    for frame = 1, 10 do
+        gfx.clear(gfx.kColorBlack)
+        warp.speed = 5 + (frame * frame * 0.7)
+        warp:update()
+        warp:draw()
+        pd.display.flush()
+        pd.wait(20)
+    end
+    if warp.shutdown then
+        warp:shutdown()
     end
 end
 

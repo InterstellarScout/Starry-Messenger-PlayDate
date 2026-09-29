@@ -268,6 +268,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| Add Home-menu favorites controls to title screens and warp out when exiting. | Done — selected eligible titles expose Add to Favorites or Remove from Favorites in the system menu; Favorites removes entries immediately; native exit plays a short star-warp sequence before returning to the launcher. |
 | Improve Space Miner asteroid variety/collision, menu timing, and Home Base autopilot docking. | Done — asteroids receive random stage-appropriate PixelPlanets families and orientations, render at their physics radius, menus pause the simulation clock, and Home Base autopilot brakes to a stop within 30 pixels. |
 | Fix the Orbital Defense title-preview crash caused by PixelPlanets assets. | Done — PixelPlanets now decodes requested frames lazily with a bounded rolling cache instead of loading all 652 source frames in one draw call. |
 | Make horizontal title-folder navigation wrap continuously without reversing mid-spin. | Done — mode carousel targets now chain from the prior target, preserving 1 → 2 → 3 → 1 motion during rapid repeated Left/Right presses. |

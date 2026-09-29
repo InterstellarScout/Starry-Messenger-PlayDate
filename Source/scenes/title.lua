@@ -124,6 +124,7 @@ function TitleScene.new(config)
     self.onSelectView = config.onSelectView
     self.onBack = config.onBack
     self.onResetSelection = config.onResetSelection
+    self.onSelectionChanged = config.onSelectionChanged
     self.catalog = config.catalog or "single"
     self.playerCount = config.playerCount or 1
     self.selected = config.selectedIndex or getDefaultSelectedIndex(config.viewItems)
@@ -169,6 +170,9 @@ function TitleScene.new(config)
         self:setPreview()
     end
     self:syncModeDisplayPosition(true)
+    if self.onSelectionChanged then
+        self.onSelectionChanged(self:getSelectedView())
+    end
     return self
 end
 
@@ -927,6 +931,9 @@ function TitleScene:updateSelection(delta)
     self:syncModeDisplayPosition(true)
     self.previewPauseFrames = PREVIEW_RESUME_DELAY_FRAMES
     StarryLog.info("title selection changed: index=%d label=%s", self.selected, self.viewItems[self.selected].label)
+    if self.onSelectionChanged then
+        self.onSelectionChanged(self:getSelectedView())
+    end
     if not self:shouldPersistLockedPreview(self:getSelectedView()) then
         self:setPreview()
     end
