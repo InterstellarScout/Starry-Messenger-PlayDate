@@ -650,6 +650,9 @@ function RCCarArena:drawObject(object)
 end
 
 function RCCarArena:drawCar(car)
+    -- Puck Ring's scoreboards leave the draw color black. Restore a bright
+    -- body outline here so every car remains visible against the black rink.
+    gfx.setColor(gfx.kColorWhite)
     local heading = car.heading or 0
 
     local function point(localX, localY)

@@ -3,6 +3,8 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Restore Puck Ring car visibility against the black rink. | Done |
+| Make held Starry Tunnel D-pad steering curve continuously and more dramatically across new radial star generations. | Done |
 | Keep Bouncy Balls gravity independent of crank/world rotation. | Done |
 | Expand Baby Chicks with animated hand/egg placement, flower lifecycle and chick interactions; persist a global sound setting with title, Settings, and in-game Home-menu controls. | Done |
 | Standardize every add-favorite action label to “Add To Favorites.” | Done |

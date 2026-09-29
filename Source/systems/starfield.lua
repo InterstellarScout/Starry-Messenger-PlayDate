@@ -487,9 +487,12 @@ function Starfield:seedSmoothWarpStar(star, randomizeDepth)
     star.screenY = self.centerY
     star.trailVisible = false
     -- Starry Tunnel steering belongs to each star, not the entire screen.
-    -- A fresh star therefore always begins on the normal radial path.
-    star.tunnelCurveX = 0
-    star.tunnelCurveY = 0
+    -- While held, newly launched stars inherit a small bend so the tunnel
+    -- continues turning instead of going neutral after one star generation.
+    local inputX = self.starryTunnelInputLocked and (self.starryTunnelLockedX or 0) or (self.starryTunnelInputX or 0)
+    local inputY = self.starryTunnelInputLocked and (self.starryTunnelLockedY or 0) or (self.starryTunnelInputY or 0)
+    star.tunnelCurveX = -inputX * 0.12
+    star.tunnelCurveY = -inputY * 0.12
 end
 
 function Starfield:buildSmoothWarpStars(count)
@@ -1244,7 +1247,9 @@ function Starfield:updateSmoothWarpSpeed()
         if self.warpStyleStarryTunnel then
             local inputX = self.starryTunnelInputLocked and (self.starryTunnelLockedX or 0) or (self.starryTunnelInputX or 0)
             local inputY = self.starryTunnelInputLocked and (self.starryTunnelLockedY or 0) or (self.starryTunnelInputY or 0)
-            local curveScale = 0.006 + (math.min(8, math.abs(speed)) * 0.0009)
+            -- Stronger continuous steering keeps a held D-pad direction
+            -- visibly arcing through successive radial 3D star generations.
+            local curveScale = 0.014 + (math.min(8, math.abs(speed)) * 0.0016)
             star.tunnelCurveX = (star.tunnelCurveX or 0) - (inputX * curveScale)
             star.tunnelCurveY = (star.tunnelCurveY or 0) - (inputY * curveScale)
         end
