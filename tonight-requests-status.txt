@@ -3,6 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Expand Baby Chicks with animated hand/egg placement, flower lifecycle and chick interactions; persist a global sound setting with title, Settings, and in-game Home-menu controls. | Done |
 | Standardize every add-favorite action label to “Add To Favorites.” | Done |
 | Make Baby Chicks and Don't Hit Me visible near the top of Low-Key Games, use live title previews, and guard Don't Hit Me against missing runtime state. | Done |
 | Improve Vibes title contrast, make inward Warp stars shrink at center, extend Fractal Tree growth with orbiting particles, add Touching Grass hand shadow, and accelerate held Crank Blocks movement. | Done |

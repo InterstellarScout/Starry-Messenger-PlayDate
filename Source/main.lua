@@ -57,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.61"
+local APP_VERSION <const> = "0.2.62"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -777,9 +777,10 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         end
     end)
 
-    menu:addCheckmarkMenuItem("Sound", ViewAudio.isEnabled(), function(value)
-        ViewAudio.setEnabled(value)
+    menu:addMenuItem(ViewAudio.isEnabled() and "Disable Sound" or "Enable Sound", function()
+        ViewAudio.setEnabled(not ViewAudio.isEnabled())
         refreshActiveSceneAudio()
+        buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTitleId)
     end)
 
     local favoriteId = activeViewId or selectedTitleId

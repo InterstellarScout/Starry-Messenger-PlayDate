@@ -8,6 +8,7 @@ Purpose:
 ]]
 local pd <const> = playdate
 local snd <const> = pd.sound
+local SAVE_KEY <const> = "starry-audio-settings-v1"
 
 ViewAudio = {}
 
@@ -15,7 +16,8 @@ ViewAudio.currentTracks = nil
 ViewAudio.currentIndex = 0
 ViewAudio.currentPlayer = nil
 ViewAudio.currentViewId = nil
-ViewAudio.enabled = false
+local savedSettings = pd.datastore and pd.datastore.read and pd.datastore.read(SAVE_KEY) or nil
+ViewAudio.enabled = type(savedSettings) == "table" and savedSettings.enabled == true
 
 local SHARED_AUDIO_FOLDERS <const> = {
     warp = {
@@ -84,6 +86,9 @@ end
 
 function ViewAudio.setEnabled(enabled)
     ViewAudio.enabled = enabled == true
+    if pd.datastore and pd.datastore.write then
+        pd.datastore.write({ enabled = ViewAudio.enabled }, SAVE_KEY)
+    end
     if not ViewAudio.enabled then
         ViewAudio.stop()
     end

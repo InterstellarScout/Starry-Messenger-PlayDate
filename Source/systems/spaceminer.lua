@@ -963,17 +963,32 @@ end
 function SpaceMiner.getStorySlots()
     local index = SpaceMiner.readStorySaveIndex()
     local slots = {}
+    local indexChanged = false
     for slot = 1, STORY_SAVE_SLOT_COUNT do
         local meta = index.slots[slot] or index.slots[tostring(slot)] or nil
-        if type(meta) == "table" then
+        local data = SpaceMiner.readStorySlot(slot)
+        -- A valid payload can outlive its lightweight slot index (for example,
+        -- after an older build saved the campaign). Rebuild its metadata here
+        -- so a working restored save is never presented as a new slot.
+        if data ~= nil and (type(meta) ~= "table" or meta.name == STORY_SAVE_EMPTY_SLOT_NAME) then
+            meta = {
+                name = data.playerName or data.saveName or SpaceMiner.getSaveTypeLabel(data.modeId),
+                modeId = SpaceMiner.getSaveMode(data.modeId),
+                sequence = tonumber(data.saveSequence) or 0
+            }
+            index.slots[slot] = meta
+            indexChanged = true
+        end
+        if data ~= nil or type(meta) == "table" then
             slots[#slots + 1] = {
                 slot = slot,
-                name = meta.name or STORY_SAVE_EMPTY_SLOT_NAME,
-                modeId = SpaceMiner.getSaveMode(meta.modeId),
-                sequence = tonumber(meta.sequence) or 0
+                name = (meta and meta.name) or (data and (data.playerName or data.saveName)) or STORY_SAVE_EMPTY_SLOT_NAME,
+                modeId = SpaceMiner.getSaveMode((meta and meta.modeId) or (data and data.modeId)),
+                sequence = tonumber((meta and meta.sequence) or (data and data.saveSequence)) or 0
             }
         end
     end
+    if indexChanged then SpaceMiner.writeStorySaveIndex(index) end
     return slots
 end
 
@@ -2116,8 +2131,8 @@ function SpaceMiner:openNewStorySlot(slotOverride)
         self.communicationSchedule = nil
     end
     self.storySaveSlot = slotChoice
-    self.storySaveName = SpaceMiner.getSaveTypeLabel(self.playMode)
-    self.playerName = self.storySaveName
+    self.storySaveName = STORY_SAVE_EMPTY_SLOT_NAME
+    self.playerName = nil
     self.storySaveSequence = 0
     self:prepareNewStorySaveState()
     self.storySlotSelectorOpen = false
@@ -2139,8 +2154,12 @@ function SpaceMiner:openNewStorySlot(slotOverride)
     self.storyNameKeyboardText = nil
     self.storyNameAccepted = false
     self.storySlotSelectorMode = nil
-    self:saveModeState()
     self.nameEntryOpen = self:isStoryMode()
+    if self.nameEntryOpen then
+        self:startStoryNameKeyboard()
+    else
+        self:saveModeState()
+    end
 end
 
 function SpaceMiner:normalizeSavedStageRuntime(rawRuntime)
