@@ -57,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.60"
+local APP_VERSION <const> = "0.2.61"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -793,7 +793,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         and favoriteId ~= "settings"
     if canFavorite then
         local isFavorite = Favorites.has(favoriteId)
-        menu:addMenuItem(isFavorite and "Remove from Favorites" or "Add to Favorites", function()
+        menu:addMenuItem(isFavorite and "Remove from Favorites" or "Add To Favorites", function()
             Favorites.toggle(favoriteId)
             -- Removing an entry while browsing Favorites immediately rebuilds
             -- that catalog so the title disappears from the carousel.
