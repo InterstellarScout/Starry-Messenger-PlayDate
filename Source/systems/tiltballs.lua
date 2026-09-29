@@ -5,7 +5,7 @@ import "gameconfig"
 
 Purpose:
 - rolls and bounces balls inside a crank-rotated world
-- turns the gravity direction with the crank-controlled world orientation
+-- keeps gravity screen-down while the crank-controlled world orientation spins
 - provides a low-cost animated preview for the title menu
 ]]
 local pd <const> = playdate
@@ -151,9 +151,10 @@ function TiltBalls:spawnBall()
 end
 
 function TiltBalls:getGravity()
-    local radians = math.rad(self.worldAngle or 0)
-    local gravityX = math.sin(radians)
-    local gravityY = math.cos(radians)
+    -- The crank changes the world frame only. Gravity remains in the original
+    -- screen-down direction, so spinning is a separate way to jostle balls.
+    local gravityX = 0
+    local gravityY = 1
     if pd.accelerometerIsRunning() then
         local ax, ay = pd.readAccelerometer()
         if ax ~= nil and ay ~= nil then
@@ -324,7 +325,7 @@ function TiltBalls:draw()
     if not self.preview and (not UIState or UIState.isShown()) then
         gfx.setImageDrawMode(gfx.kDrawModeInverted)
         gfx.drawText(string.format("Balls %d  World %03d", #self.balls, math.floor((self.worldAngle or 0) + 0.5) % 360), 10, 8)
-        gfx.drawText("Crank rotates world + gravity  A add ball  B back", 10, 220)
+    gfx.drawText("Crank rotates world  A add ball  B back", 10, 220)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
     end
 end
