@@ -772,6 +772,10 @@ function TitleScene:setPreview(forceFresh)
             return DontHitMe.new(400, 240, {
                 preview = true
             })
+        elseif actualViewId == "beaverbuilder" then
+            return BeaverBuilder.new(400, 240, {
+                preview = true
+            })
         elseif actualViewId == "wacky" then
             return WackyInflatable.new(400, 240, {
                 modeId = selectedView.modeId,
