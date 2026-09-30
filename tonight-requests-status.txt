@@ -3,6 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Make held Starry Tunnel input launch stars normally, then curve most toward the pressed screen edge while a minority retain radial exits. | Done |
 | Restore Puck Ring car visibility against the black rink. | Done |
 | Make held Starry Tunnel D-pad steering curve continuously and more dramatically across new radial star generations. | Done |
 | Keep Bouncy Balls gravity independent of crank/world rotation. | Done |
