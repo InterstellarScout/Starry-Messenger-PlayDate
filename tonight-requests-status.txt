@@ -3,6 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Expand Beaver Builder with shaking/strippable trees, falling branches, teeth, longer movable water logs, draining/resealing dams, water-log home pieces, and six-log pentagonal huts. | Done |
 | Prevent button-driven Low-Key games without a speed API from entering the generic crank-speed route. | Done |
 | Add Ping Pong: simple paddle-and-ball scoring with increasingly tilted walls and mountain courts after 20 points. | Done |
 | Add Beaver Builder: procedural winding river terrain, grass/trees, chewable trees, push-and-drag logs, and upstream dam pooling. | Done |
