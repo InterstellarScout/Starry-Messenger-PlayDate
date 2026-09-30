@@ -57,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.66"
+local APP_VERSION <const> = "0.2.67"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -759,7 +759,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
     local menu = pd.getSystemMenu()
     menu:removeAllMenuItems()
 
-    menu:addMenuItem("Go Back To Main Menu", function()
+    menu:addMenuItem(activeViewId ~= nil and "Go Back" or "Go Back To Main Menu", function()
         ViewAudio.stop()
         local selectedIndex = titleReturnViewId ~= nil and getViewIndex(viewItems, titleReturnViewId) or nil
         if app.session.catalog == "multi" then
@@ -777,11 +777,18 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         end
     end)
 
-    menu:addMenuItem(ViewAudio.isEnabled() and "Disable Sound" or "Enable Sound", function()
-        ViewAudio.setEnabled(not ViewAudio.isEnabled())
-        refreshActiveSceneAudio()
-        buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTitleId)
-    end)
+    if activeViewId ~= nil then
+        menu:addCheckmarkMenuItem("Sound", ViewAudio.isEnabled(), function(value)
+            ViewAudio.setEnabled(value)
+            refreshActiveSceneAudio()
+        end)
+    else
+        menu:addMenuItem(ViewAudio.isEnabled() and "Disable Sound" or "Enable Sound", function()
+            ViewAudio.setEnabled(not ViewAudio.isEnabled())
+            refreshActiveSceneAudio()
+            buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTitleId)
+        end)
+    end
 
     local favoriteId = activeViewId or selectedTitleId
     local canFavorite = favoriteId ~= nil
@@ -794,7 +801,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         and favoriteId ~= "settings"
     if canFavorite then
         local isFavorite = Favorites.has(favoriteId)
-        menu:addMenuItem(isFavorite and "Remove from Favorites" or "Add To Favorites", function()
+        menu:addMenuItem(isFavorite and "Remove from Faves" or "Add to Faves", function()
             Favorites.toggle(favoriteId)
             -- Removing an entry while browsing Favorites immediately rebuilds
             -- that catalog so the title disappears from the carousel.

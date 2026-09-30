@@ -640,6 +640,9 @@ function RCCarArena:drawObject(object)
     local y = object.y - (size / 2) - jumpOffset
 
     if self.modeId == RCCarArena.MODE_HOCKEY then
+        -- The rink and scoreboards are black. Keep every puck bright enough
+        -- to read clearly regardless of the previous drawing operation.
+        gfx.setColor(gfx.kColorWhite)
         gfx.drawCircleAtPoint(object.x, object.y - jumpOffset, size * 0.5)
         gfx.drawCircleAtPoint(object.x, object.y - jumpOffset, math.max(2, size * 0.22))
     else
