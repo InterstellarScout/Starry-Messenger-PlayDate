@@ -57,7 +57,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.67"
+local APP_VERSION <const> = "0.2.68"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -838,9 +838,13 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
     end
 
     if activeViewId == "duck" then
-        menu:addCheckmarkMenuItem("Duck Turn Mode", DuckGameScene.isTurnModeEnabled(), function(value)
-            DuckGameScene.setTurnModeEnabled(value)
+        local controlTypeItem = menu:addOptionsMenuItem("Control Type", {
+            "Crank Movement",
+            "D Pad Movement"
+        }, function(value)
+            DuckGameScene.setControlType(value == "D Pad Movement" and DuckGameScene.CONTROL_DPAD or DuckGameScene.CONTROL_CRANK)
         end)
+        controlTypeItem:setValue(DuckGameScene.getControlTypeLabel())
     end
 
     if activeViewId == "rccar" then

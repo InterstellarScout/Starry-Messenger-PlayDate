@@ -316,8 +316,8 @@ function ControlHelp.getEntrySpec(viewId, modeId)
             winLine = "Center Nest is an endless solo collection run."
         end
         return buildSpec("Duck Game Controls", {
-            "Normal mode: D-pad sets the lead duck's travel direction, and the crank drives the duck forward in that chosen direction.",
-            "Press A in game, or use Duck Turn Mode in the Home menu: the crank turns the duck, while Up and Down move it forward and backward.",
+            "Control Type is set in the Duck Game Home menu. D Pad Movement moves directly with the D-pad; Crank Movement turns with the crank while Up and Down move forward and backward.",
+            "A is currently unused during Duck Game play.",
             deliveryLine,
             modeLine,
             winLine,

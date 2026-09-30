@@ -33,6 +33,7 @@ local TURN_MODE_CRANK_DEGREES <const> = DUCK_CONFIG.turnModeCrankDegrees or 0.04
 local AUTO_DUCKY_IDLE_FRAMES <const> = DUCK_CONFIG.autoDuckyIdleFrames or 150
 local EDGE_TRANSITION_DISTANCE <const> = DUCK_CONFIG.edgeTransitionDistance or 18
 local DUCK_LIFETIME_TOTAL_SAVE_KEY <const> = "duck-game-lifetime-total"
+local DUCK_CONTROL_TYPE_SAVE_KEY <const> = "duck-game-control-type"
 
 -- Pond art stays inset, but the actual pond threshold is the screen edge.
 local PLAYFIELD_LEFT <const> = 0
@@ -188,7 +189,12 @@ DuckGameScene.MODE_SOLO_3 = "solo-3"
 DuckGameScene.MODE_SOLO_4 = "solo-4"
 DuckGameScene.MODE_SOLO_CENTER = "solo-center"
 DuckGameScene.MODE_AUTO_DUCKY = "auto-ducky"
-DuckGameScene.turnModeEnabled = true
+DuckGameScene.CONTROL_CRANK = "crank"
+DuckGameScene.CONTROL_DPAD = "dpad"
+local savedControlType = pd.datastore and pd.datastore.read and pd.datastore.read(DUCK_CONTROL_TYPE_SAVE_KEY) or nil
+DuckGameScene.controlType = savedControlType == DuckGameScene.CONTROL_DPAD
+    and DuckGameScene.CONTROL_DPAD
+    or DuckGameScene.CONTROL_CRANK
 
 function DuckGameScene.getModeLabel(modeId)
     if modeId == DuckGameScene.MODE_AUTO_DUCKY then
@@ -215,11 +221,32 @@ function DuckGameScene.getSoloDuckCount(modeId)
 end
 
 function DuckGameScene.isTurnModeEnabled()
-    return DuckGameScene.turnModeEnabled == true
+    return DuckGameScene.controlType == DuckGameScene.CONTROL_CRANK
 end
 
 function DuckGameScene.setTurnModeEnabled(enabled)
-    DuckGameScene.turnModeEnabled = enabled == true
+    DuckGameScene.setControlType(enabled and DuckGameScene.CONTROL_CRANK or DuckGameScene.CONTROL_DPAD)
+end
+
+function DuckGameScene.getControlType()
+    return DuckGameScene.controlType == DuckGameScene.CONTROL_DPAD
+        and DuckGameScene.CONTROL_DPAD
+        or DuckGameScene.CONTROL_CRANK
+end
+
+function DuckGameScene.getControlTypeLabel()
+    return DuckGameScene.getControlType() == DuckGameScene.CONTROL_DPAD
+        and "D Pad Movement"
+        or "Crank Movement"
+end
+
+function DuckGameScene.setControlType(controlType)
+    DuckGameScene.controlType = controlType == DuckGameScene.CONTROL_DPAD
+        and DuckGameScene.CONTROL_DPAD
+        or DuckGameScene.CONTROL_CRANK
+    if pd.datastore and pd.datastore.write then
+        pd.datastore.write(DuckGameScene.controlType, DUCK_CONTROL_TYPE_SAVE_KEY)
+    end
 end
 
 function DuckGameScene.new(config)
@@ -1685,10 +1712,6 @@ function DuckGameScene:update()
             self.entryOverlayVisible = false
             return
         end
-    end
-
-    if not self.networked and pd.buttonJustPressed(pd.kButtonA) then
-        DuckGameScene.setTurnModeEnabled(not DuckGameScene.isTurnModeEnabled())
     end
 
     if pd.buttonJustPressed(pd.kButtonB) then

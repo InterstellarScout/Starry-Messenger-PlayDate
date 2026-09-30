@@ -3,6 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Move Duck Game control selection from A to its Home-menu Control Type setting, offering persisted Crank Movement and D Pad Movement. | Done |
 | Make Puck Ring pucks white; shorten favorites controls; persist sound globally with title actions, Settings access, and in-view toggle UI; rename active-view return to Go Back. | Done |
 | Refine Baby Chicks hand and below-hand egg drop, and add randomized animated grass across the garden. | Done |
 | Make held Starry Tunnel input launch stars normally, then curve most toward the pressed screen edge while a minority retain radial exits. | Done |
