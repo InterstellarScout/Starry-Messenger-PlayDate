@@ -21,6 +21,7 @@ local HAND_SPEED <const> = 3
 local FLOWER_SPAWN_FRAMES <const> = 150
 local FLOWER_EAT_FRAMES <const> = 30
 local FLOWER_START_COUNT <const> = 5
+local GRASS_BLADE_COUNT <const> = 120
 
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
@@ -57,15 +58,18 @@ function BabyChicks.new(width, height, options)
     self.frame = 0
     self.chicks = {}
     self.flowers = {}
+    self.grass = {}
     self.flowerSpawnFrames = FLOWER_SPAWN_FRAMES
     self.eggX = self.width * 0.5
     self.eggY = 126
+    self.eggTargetY = nil
     self.state = "egg"
     self.status = "I wonder what's inside?"
 
     for _ = 1, FLOWER_START_COUNT do
         self:spawnFlower()
     end
+    self:seedGrass()
 
     if self.preview then
         self:addChick(132, 144)
@@ -107,6 +111,18 @@ function BabyChicks:spawnFlower()
     }
 end
 
+function BabyChicks:seedGrass()
+    for _ = 1, GRASS_BLADE_COUNT do
+        self.grass[#self.grass + 1] = {
+            x = 4 + math.random() * (self.width - 8),
+            y = 52 + math.random() * (self.height - 91),
+            height = math.random(3, 8),
+            phase = math.random() * math.pi * 2,
+            lean = math.random() < 0.5 and -1 or 1
+        }
+    end
+end
+
 function BabyChicks:loadGarden()
     local saved = pd.datastore and pd.datastore.read and pd.datastore.read(SAVE_KEY) or nil
     if type(saved) == "table" and type(saved.chicks) == "table" then
@@ -142,8 +158,12 @@ function BabyChicks:beginEgg(dropX, dropY)
     self.state = "egg"
     self.eggProgress = 0
     self.eggX = clamp(dropX or self.handX, 18, self.width - 18)
-    self.eggY = clamp(dropY or self.handY, 61, self.height - 30)
-    self.status = "A mystery egg lands by your hand."
+    local handY = dropY or self.handY
+    -- Reserve the lower status area, while ensuring a newly dropped egg lands
+    -- below the hand rather than returning to the center of the garden.
+    self.eggTargetY = clamp(handY + 28, 71, self.height - 54)
+    self.eggY = math.max(61, self.eggTargetY - 18)
+    self.status = "A mystery egg drops below your hand."
 end
 
 function BabyChicks:hatchEgg()
@@ -186,7 +206,7 @@ function BabyChicks:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHeld
     local dx = (rightHeld and 1 or 0) - (leftHeld and 1 or 0)
     local dy = (downHeld and 1 or 0) - (upHeld and 1 or 0)
     self.handX = clamp(self.handX + (dx * HAND_SPEED), 10, self.width - 10)
-    self.handY = clamp(self.handY + (dy * HAND_SPEED), 42, self.height - 10)
+    self.handY = clamp(self.handY + (dy * HAND_SPEED), 42, self.height - 75)
 end
 
 function BabyChicks:applyCrank(change)
@@ -305,8 +325,23 @@ end
 function BabyChicks:update()
     self.frame = self.frame + 1
     if self.handActionFrames > 0 then self.handActionFrames = self.handActionFrames - 1 end
+    if self.eggTargetY ~= nil and self.eggY < self.eggTargetY then
+        self.eggY = math.min(self.eggTargetY, self.eggY + 3)
+        if self.eggY >= self.eggTargetY then self.eggTargetY = nil end
+    end
     self:updateFlowers()
     for _, chick in ipairs(self.chicks) do self:updateChick(chick) end
+end
+
+function BabyChicks:drawGrass()
+    gfx.setColor(gfx.kColorBlack)
+    for _, blade in ipairs(self.grass) do
+        local sway = math.sin((self.frame * 0.07) + blade.phase) * blade.lean * 1.8
+        gfx.drawLine(blade.x, blade.y, blade.x + sway, blade.y - blade.height)
+        if blade.height >= 6 then
+            gfx.drawLine(blade.x + sway, blade.y - blade.height + 2, blade.x + sway + blade.lean * 2, blade.y - blade.height + 4)
+        end
+    end
 end
 
 function BabyChicks:drawNest()
@@ -388,20 +423,24 @@ function BabyChicks:drawHand()
     local y = math.floor(self.handY + 0.5)
     gfx.setColor(gfx.kColorWhite)
     local closing = self.handActionFrames > 0 and (self.handActionFrames % 4 < 2)
-    gfx.fillRoundRect(x - 8, y - 2, 16, 20, 6)
-    gfx.fillRoundRect(x - 13, y + 2, 7, 11, 3)
+    -- Palm, wrist, thumb, and articulated fingers give the cursor a clear
+    -- hand silhouette rather than a round glove.
+    gfx.fillRoundRect(x - 8, y - 1, 17, 18, 6)
+    gfx.fillRoundRect(x - 4, y + 14, 10, 11, 3)
+    gfx.fillRoundRect(x - 14, y + 2, 8, 10, 4)
     if closing then
-        gfx.fillRect(x - 5, y - 8, 10, 9)
+        for finger = -5, 5, 4 do gfx.fillRoundRect(x + finger - 1, y - 7, 3, 8, 2) end
     else
-        for finger = -5, 5, 4 do gfx.fillRoundRect(x + finger - 1, y - 12, 3, 12, 2) end
+        for finger = -5, 5, 4 do gfx.fillRoundRect(x + finger - 1, y - 13, 3, 14, 2) end
     end
     gfx.setColor(gfx.kColorBlack)
-    gfx.drawRoundRect(x - 8, y - 2, 16, 20, 6)
-    gfx.drawRoundRect(x - 13, y + 2, 7, 11, 3)
+    gfx.drawRoundRect(x - 8, y - 1, 17, 18, 6)
+    gfx.drawRoundRect(x - 4, y + 14, 10, 11, 3)
+    gfx.drawRoundRect(x - 14, y + 2, 8, 10, 4)
     if closing then
-        gfx.drawLine(x - 5, y - 8, x + 5, y - 8)
+        for finger = -5, 5, 4 do gfx.drawLine(x + finger - 1, y - 7, x + finger - 1, y) end
     else
-        for finger = -5, 5, 4 do gfx.drawLine(x + finger - 1, y - 12, x + finger - 1, y - 1) end
+        for finger = -5, 5, 4 do gfx.drawLine(x + finger - 1, y - 13, x + finger - 1, y - 1) end
     end
 end
 
@@ -413,6 +452,7 @@ function BabyChicks:draw()
     gfx.drawTextAligned("GARDEN OF CHICKS", self.width * 0.5, 10, kTextAlignment.center)
     gfx.drawTextAligned(string.format("Chicks %d", #self.chicks), 12, 25, kTextAlignment.left)
 
+    self:drawGrass()
     for _, flower in ipairs(self.flowers) do self:drawFlower(flower) end
     if self.state == "egg" then
         self:drawEgg()
