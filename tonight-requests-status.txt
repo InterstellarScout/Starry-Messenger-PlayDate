@@ -3,6 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Align the README's documented game placement with the title menu's Low-Key Games, Vibes, Multiplayer, and Utilities folder names. | Done |
 | Expand Beaver Builder with shaking/strippable trees, falling branches, teeth, longer movable water logs, draining/resealing dams, water-log home pieces, and six-log pentagonal huts. | Done |
 | Prevent button-driven Low-Key games without a speed API from entering the generic crank-speed route. | Done |
 | Add Ping Pong: simple paddle-and-ball scoring with increasingly tilted walls and mountain courts after 20 points. | Done |

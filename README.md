@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.2.72`
-- Build number: `257`
+- Version: `0.2.73`
+- Build number: `258`
 
 ## Install
 
@@ -47,7 +47,17 @@ The supported generated app bundle is `StarryMessenger.pdx` in this project root
 
 ## Mini Games And Views
 
-| Game Name | Game Type | Description | Play Instructions |
+The title menu folders below are the authoritative placement for every active view. Favorites is dynamic: it can contain an item from any folder.
+
+| Title Menu Folder | Games and views |
+| --- | --- |
+| Low-Key Games | Star Fall, Warp Speed, Game of Life, Fireworks, Drip Drop, Bouncy Balls, Baby Chicks, Don't Hit Me, Wacky, Space Miner, Marble Run, Marble Madness, Touching Grass, Crank Blocks, Crank Snake, Fishy Pond, Duck Game, Beaver Builder, Ping Pong, Orbital Defense, RC Arena |
+| Vibes | CRT TV, Billowing Smoke, Raising Smoke, Dropper, Dimensional Split, Starry Top, Fractal Tree, Lava Lamp, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, Bubble Pop |
+| Multiplayer | Multiplayer Duck Game, Multiplayer Orbital Defense, Crash Racing |
+| Utilities | Photo Viewer, GIF Player, Text Viewer |
+| Not currently in the title menu | Brick Builder |
+
+| Game Name | Legacy Category | Description | Play Instructions |
 | --- | --- | --- | --- |
 | Star Fall | Main | A falling starfield toy with normal and inverted modes. | Crank changes fall speed. D-pad steers the field. `A` opens the view and toggles speed/spin control in-game. `B` returns to the title. |
 | Warp Speed | Main | A forward-flight starfield with normal and inverse warp styles, plus Smooth Engine, Starry Tunnel, and Different Sizes toggles in the settings menu. Smooth Engine and Starry Tunnel route through the Smooth Sailing-style depth star model. | Crank changes star speed. D-pad steers direction. In Starry Tunnel, D-pad bends the tunnel opposite the pressed direction and returns to neutral on release; hold D-pad and press `A` to lock or unlock that direction. `A` otherwise opens the warp settings menu. `B` returns to the title while preserving the current speed; press `B` again on the Warp title item to reset the preview. |
