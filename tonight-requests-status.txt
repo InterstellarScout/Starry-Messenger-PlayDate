@@ -3,6 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Prevent button-driven Low-Key games without a speed API from entering the generic crank-speed route. | Done |
 | Add Ping Pong: simple paddle-and-ball scoring with increasingly tilted walls and mountain courts after 20 points. | Done |
 | Add Beaver Builder: procedural winding river terrain, grass/trees, chewable trees, push-and-drag logs, and upstream dam pooling. | Done |
 | Move Duck Game control selection from A to its Home-menu Control Type setting, offering persisted Crank Movement and D Pad Movement. | Done |
