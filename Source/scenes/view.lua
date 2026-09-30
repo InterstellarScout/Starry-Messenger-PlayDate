@@ -58,7 +58,7 @@ function ViewScene.new(config)
     self.tutorialOpen = Tutorials.shouldShow(self.viewId, self.modeId)
     self.tutorialScroll = 0
 
-    if config.effect and self.viewId ~= "snake" and self.viewId ~= "babychicks" and self.viewId ~= "donthitme" and self.viewId ~= "beaverbuilder" then
+    if config.effect and self.viewId ~= "snake" and self.viewId ~= "babychicks" and self.viewId ~= "donthitme" and self.viewId ~= "beaverbuilder" and self.viewId ~= "pingpong" then
         self.effect = config.effect
     elseif self.viewId == "fall" then
         self.effect = Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.liveStarCount or 420, {
@@ -131,6 +131,10 @@ function ViewScene.new(config)
         })
     elseif self.viewId == "beaverbuilder" then
         self.effect = BeaverBuilder.new(400, 240, {
+            preview = false
+        })
+    elseif self.viewId == "pingpong" then
+        self.effect = PingPong.new(400, 240, {
             preview = false
         })
     elseif self.viewId == "smokebloom" then
@@ -786,7 +790,7 @@ function ViewScene:update()
             if not (self.effect.isMenuOpen and self.effect:isMenuOpen()) then
                 self.effect:handlePrimaryAction()
             end
-        elseif self.viewId == "babychicks" or self.viewId == "donthitme" or self.viewId == "beaverbuilder" then
+        elseif self.viewId == "babychicks" or self.viewId == "donthitme" or self.viewId == "beaverbuilder" or self.viewId == "pingpong" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "smokebloom" then
             self.effect:handlePrimaryAction()
@@ -1059,7 +1063,7 @@ function ViewScene:update()
                 pd.buttonJustPressed(pd.kButtonDown)
             )
         end
-    elseif self.viewId == "babychicks" or self.viewId == "donthitme" or self.viewId == "beaverbuilder" then
+    elseif self.viewId == "babychicks" or self.viewId == "donthitme" or self.viewId == "beaverbuilder" or self.viewId == "pingpong" then
         self.effect:handleDirectionalInput(
             pd.buttonIsPressed(pd.kButtonLeft),
             pd.buttonIsPressed(pd.kButtonRight),

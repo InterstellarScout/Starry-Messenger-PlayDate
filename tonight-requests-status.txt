@@ -3,6 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Add Ping Pong: simple paddle-and-ball scoring with increasingly tilted walls and mountain courts after 20 points. | Done |
 | Add Beaver Builder: procedural winding river terrain, grass/trees, chewable trees, push-and-drag logs, and upstream dam pooling. | Done |
 | Move Duck Game control selection from A to its Home-menu Control Type setting, offering persisted Crank Movement and D Pad Movement. | Done |
 | Make Puck Ring pucks white; shorten favorites controls; persist sound globally with title actions, Settings access, and in-view toggle UI; rename active-view return to Go Back. | Done |

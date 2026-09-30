@@ -33,6 +33,7 @@ import "systems/snakegame"
 import "systems/babychicks"
 import "systems/donthitme"
 import "systems/beaverbuilder"
+import "systems/pingpong"
 import "systems/smokebloom"
 import "systems/touchinggrass"
 import "systems/fractaltree"
@@ -58,7 +59,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.69"
+local APP_VERSION <const> = "0.2.70"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -257,6 +258,7 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = DuckGameScene.getModeLabel
     },
     { id = "beaverbuilder", label = "Beaver Builder" },
+    { id = "pingpong", label = "Ping Pong" },
     { id = "orbital", label = "Orbital Defense" },
     {
         id = "rccar",
