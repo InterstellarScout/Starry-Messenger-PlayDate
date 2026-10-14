@@ -523,6 +523,21 @@ function TitleScene:drawFreeSpinSpeedOverlay()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function TitleScene:drawFreeSpinStatusUI()
+    if not self.freeSpinActive or (UIState and not UIState.isShown()) then
+        return
+    end
+
+    local crankSpeed = math.abs(self.freeSpinVelocity or 0)
+    local starSpeed = self.freeSpinStarPreview and self.freeSpinStarPreview.speed or 0
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(4, 4, 128, 28)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.drawText(string.format("Crank Speed %.2f", crankSpeed), 7, 6)
+    gfx.drawText(string.format("Star Speed %.2f", starSpeed), 7, 18)
+end
+
 function TitleScene:updateSelectedIndexFromDisplayPosition()
     local count = #self.viewItems
     local roundedIndex = roundNearest(self.displayPosition)
@@ -1481,6 +1496,7 @@ function TitleScene:update()
         self:drawFreeSpinStarPreview(true)
     end
     self:drawMenu()
+    self:drawFreeSpinStatusUI()
     self:drawFreeSpinSpeedOverlay()
     if not self.freeSpinActive and not self.freeSpinSettling then
         self:processPendingPreview()

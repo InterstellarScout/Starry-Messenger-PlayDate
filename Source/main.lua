@@ -59,7 +59,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.78"
+local APP_VERSION <const> = "0.2.79"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -817,11 +817,9 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         end)
     end
 
-    if activeViewId ~= nil then
-        menu:addCheckmarkMenuItem("Show UI", UIState.isShown(), function(value)
-            UIState.setShown(value)
-        end)
-    end
+    menu:addCheckmarkMenuItem("Show UI", UIState.isShown(), function(value)
+        UIState.setShown(value)
+    end)
 
     if activeViewId == "fishpond" then
         menu:addCheckmarkMenuItem("Fish Spawn Mode", FishPond.isSpawnModeEnabled(), function(value)

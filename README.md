@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.2.78`
-- Build number: `263`
+- Version: `0.2.79`
+- Build number: `264`
 
 ## Install
 
@@ -106,7 +106,7 @@ The title menu folders below are the authoritative placement for every active vi
 
 The Playdate Home menu always includes `Title Menu` and `Sound`. Some views add extra toggles while active:
 
-- `Show UI` for gameplay views with stationary HUD text, off by default.
+- `Show UI` for gameplay views with stationary HUD text and the title carousel's free-spin crank/star-speed readout, on by default.
 - `Fish Spawn Mode` for Fishy Pond.
 - `Control Type` for Duck Game: Crank Movement or D Pad Movement.
 - `RC Auto Brake` for RC Arena.
