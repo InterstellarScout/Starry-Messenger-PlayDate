@@ -883,7 +883,10 @@ function ViewScene:update()
     elseif self.viewId == "babychicks" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
-    elseif self.viewId == "donthitme" or self.viewId == "beaverbuilder" or self.viewId == "pingpong" then
+    elseif self.viewId == "pingpong" then
+        self.effect:applyCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "donthitme" or self.viewId == "beaverbuilder" then
         -- These games use their dedicated button controls and do not expose
         -- the generic effect speed API used by visual toys.
         self.crankAccumulator = 0

@@ -8,8 +8,14 @@ local PADDLE_W <const> = 7
 local PADDLE_H <const> = 38
 local BALL_R <const> = 4
 local PLAYER_SPEED <const> = 3.3
+local PLAYER_CRANK_SCALE <const> = 0.55
+local BALL_SPEED_MIN <const> = 2.1
+local BALL_SPEED_MAX <const> = 7.4
+local BALL_SPEED_STEP <const> = 0.06
+local PADDLE_MAX_BOUNCE_ANGLE <const> = math.rad(62)
 
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
+local function vectorLength(x, y) return math.sqrt((x * x) + (y * y)) end
 
 function PingPong.new(width, height, options)
     local self = setmetatable({}, PingPong)
@@ -24,8 +30,34 @@ function PingPong.new(width, height, options)
 end
 
 function PingPong:setPreview(enabled) self.preview = enabled == true end
-function PingPong:handleDirectionalInput(_left, _right, up, down)
+function PingPong:handleDirectionalInput(left, right, up, down)
     self.playerInput = (down and 1 or 0) - (up and 1 or 0)
+    local speedChange = (right and 1 or 0) - (left and 1 or 0)
+    if speedChange ~= 0 then
+        self:adjustBallSpeed(speedChange * BALL_SPEED_STEP)
+    end
+end
+
+function PingPong:applyCrank(change)
+    if self.preview or math.abs(change) <= 0.01 then
+        return
+    end
+    self.playerY = clamp(self.playerY + (change * PLAYER_CRANK_SCALE), 42, self.height - 42)
+end
+
+function PingPong:adjustBallSpeed(amount)
+    local ball = self.ball
+    if ball == nil then
+        return
+    end
+    local speed = vectorLength(ball.vx, ball.vy)
+    if speed <= 0.001 then
+        ball.vx, ball.vy = BALL_SPEED_MIN, 0
+        return
+    end
+    local adjustedSpeed = clamp(speed + amount, BALL_SPEED_MIN, BALL_SPEED_MAX)
+    local scale = adjustedSpeed / speed
+    ball.vx, ball.vy = ball.vx * scale, ball.vy * scale
 end
 function PingPong:handlePrimaryAction()
     self:serve(self.ball and (self.ball.vx >= 0 and -1 or 1) or 1)
@@ -79,19 +111,50 @@ end
 function PingPong:collidePaddle(x, y, paddleX, paddleY, toward)
     if math.abs(x - paddleX) <= PADDLE_W + BALL_R and math.abs(y - paddleY) <= (PADDLE_H * .5) + BALL_R then
         self.ball.x = paddleX + (toward * (PADDLE_W + BALL_R + 1))
-        self.ball.vx = toward * math.min(6.5, math.abs(self.ball.vx) + .14)
-        self.ball.vy = clamp(self.ball.vy + ((y - paddleY) / PADDLE_H) * 2.5, -5.5, 5.5)
+        local hitOffset = clamp((y - paddleY) / (PADDLE_H * .5), -1, 1)
+        local bounceAngle = hitOffset * PADDLE_MAX_BOUNCE_ANGLE
+        local bounceSpeed = clamp(vectorLength(self.ball.vx, self.ball.vy) + 0.14, BALL_SPEED_MIN, BALL_SPEED_MAX)
+        -- A center hit travels nearly straight across; edge hits bend sharply
+        -- toward the matching side of the court.
+        self.ball.vx = toward * math.cos(bounceAngle) * bounceSpeed
+        self.ball.vy = math.sin(bounceAngle) * bounceSpeed
         return true
     end
     return false
+end
+
+function PingPong:getWallSlope(x, top)
+    local sampleDistance = 2
+    local leftX = clamp(x - sampleDistance, 0, self.width)
+    local rightX = clamp(x + sampleDistance, 0, self.width)
+    if rightX <= leftX then
+        return 0
+    end
+    return (self:getWallY(rightX, top) - self:getWallY(leftX, top)) / (rightX - leftX)
+end
+
+function PingPong:bounceOffWall(top, wallY)
+    local ball = self.ball
+    local slope = self:getWallSlope(ball.x, top)
+    -- Normals point into the playable court, so reflection follows the new
+    -- wall's local tilt or mountain face instead of only flipping vertical speed.
+    local normalX, normalY = top and -slope or slope, top and 1 or -1
+    local normalLength = vectorLength(normalX, normalY)
+    normalX, normalY = normalX / normalLength, normalY / normalLength
+    local normalVelocity = (ball.vx * normalX) + (ball.vy * normalY)
+    if normalVelocity < 0 then
+        ball.vx = ball.vx - (2 * normalVelocity * normalX)
+        ball.vy = ball.vy - (2 * normalVelocity * normalY)
+    end
+    ball.y = wallY + (top and BALL_R or -BALL_R)
 end
 
 function PingPong:updateBall()
     local ball = self.ball
     ball.x, ball.y = ball.x + ball.vx, ball.y + ball.vy
     local top, bottom = self:getWallY(ball.x, true), self:getWallY(ball.x, false)
-    if ball.y - BALL_R <= top then ball.y, ball.vy = top + BALL_R, math.abs(ball.vy) end
-    if ball.y + BALL_R >= bottom then ball.y, ball.vy = bottom - BALL_R, -math.abs(ball.vy) end
+    if ball.y - BALL_R <= top then self:bounceOffWall(true, top) end
+    if ball.y + BALL_R >= bottom then self:bounceOffWall(false, bottom) end
     if ball.vx < 0 then self:collidePaddle(ball.x, ball.y, 22, self.playerY, 1) else self:collidePaddle(ball.x, ball.y, self.width - 22, self.aiY, -1) end
     if ball.x < -BALL_R then self:score(false) elseif ball.x > self.width + BALL_R then self:score(true) end
 end

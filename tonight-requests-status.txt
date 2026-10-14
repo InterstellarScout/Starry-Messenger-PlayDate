@@ -284,6 +284,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| In Ping Pong, add crank paddle control, Left/Right ball-speed controls, trajectory-aware changing walls, and center-to-edge paddle bounce angles. | Done — crank and Up/Down move the paddle, Left/Right continuously adjust ball speed, wall impacts now reflect off each local tilt or mountain slope, and paddle contact angle depends on the hit position. |
 | In Puck Ring, do not tie the other player's speed to the user's speed. Have it run independently. | Done — the Puck Ring rival now uses its own steady puck-chasing speed, unaffected by the local car's speed or crank-set maximum. |
 | Add Home-menu favorites controls to title screens and warp out when exiting. | Done — selected eligible titles expose Add to Favorites or Remove from Favorites in the system menu; Favorites removes entries immediately; native exit plays a short star-warp sequence before returning to the launcher. |
 | Improve Space Miner asteroid variety/collision, menu timing, and Home Base autopilot docking. | Done — asteroids receive random stage-appropriate PixelPlanets families and orientations, render at their physics radius, menus pause the simulation clock, and Home Base autopilot brakes to a stop within 30 pixels. |

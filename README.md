@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.2.74`
-- Build number: `259`
+- Version: `0.2.75`
+- Build number: `260`
 
 ## Install
 
@@ -75,6 +75,7 @@ The title menu folders below are the authoritative placement for every active vi
 | Brick Builder | Main | A swinging brick stacking game where crank height controls the hoist and poor alignment adds tower lean until the stack tips over. | Crank raises and lowers the swinging brick; lowering into the stack drops it. `A` instantly drops the current brick, or resets after the tower tips. |
 | Crank Blocks | Main | A Tetris-inspired falling block toy with crank/A rotation, D-pad movement, line clears, and persistent total row/block counters plus current-session counters. | Crank rotates the active block. `A` also rotates it. `Left`/`Right` slide it, `Down` drops it one row, and `Up` nudges it upward when `GameConfig.crankBlocks.allowUpMove` is enabled. |
 | Snake | Main | A forgiving snake game with Standard and Competitive modes, saved player state, crank or D-pad steering, diagonal movement, food, optional NPC snakes, timed player respawns, and screen wrapping. | Crank turns when D-pad is not held. D-pad steers directly, including diagonals. Tap the direction you are already moving to bump forward. The player head shows a direction indicator. `A` opens the Snake menu with NPC Snake 1-4 toggles, Reset Size, and Trim Fat. Each enabled NPC adds one extra board food slot without resetting the map. Competitive uses the same NPC system with NPC Snake 1 locked on as the opponent, starts with 2 food, queues up to 3 before NPC bonuses, despawns defeated NPC snakes, and respawns the player after 5 seconds when the center is available. |
+| Ping Pong | Main | Paddle-and-ball scoring on increasingly tilted and mountain-shaped courts. | Crank or `Up`/`Down` moves your paddle. `Right` increases ball speed; `Left` decreases it. Paddle-center hits return the ball straight while edge hits bend its trajectory. `A` serves again. |
 | Billowing Smoke / Raising Smoke | Vibes | Full-screen smoke-line effects inside the Vibes folder. Billowing Smoke expands from a movable cursor; Raising Smoke combines a random bottom source with a D-pad-controlled center source. | In Billowing, D-pad moves the cursor, crank changes billow rotation, and `A` restarts. In Raising, D-pad moves the center source, crank accelerates upward smoke motion, and `A` randomizes the bottom source. |
 | Dropper | Vibes | A leak-plugging ripple game with capped active leaks and no more than 50 visible wave lines. | D-pad moves the white stone. `A` flashes outward to plug leaks. Crank changes ripple speed. |
 | Photo Viewer | Main | A monochrome Artemis photo slideshow with fill, fit, and inverted display modes. | Crank or `Left`/`Right` changes photos. `A` toggles autoplay. `Up` hides or shows the info plaque. `Down` changes view mode. |
