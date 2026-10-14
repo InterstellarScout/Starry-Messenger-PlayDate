@@ -284,6 +284,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| Fix Space Miner campaign save slots so they show the saved pilot name once, do not overlap duplicate Campaign Save labels, and Back returns to the main menu instead of starting a new campaign. | Done — slot payloads now refresh stale index metadata, each slot renders one label such as `Save 1: Scout` or `(New Save)`, and the selector Back action returns to the title. |
 | Duck Game is throwing a nil error when the user loads into it. Please clear that up so the app can be used. | Done — replaced unsupported `math.atan2` calls in Duck Game’s player creation and movement paths with Playdate Lua’s two-argument `math.atan`, eliminating the nil function call during load and play. |
 | In Ping Pong, add crank paddle control, Left/Right ball-speed controls, trajectory-aware changing walls, and center-to-edge paddle bounce angles. | Done — crank and Up/Down move the paddle, Left/Right continuously adjust ball speed, wall impacts now reflect off each local tilt or mountain slope, and paddle contact angle depends on the hit position. |
 | In Puck Ring, do not tie the other player's speed to the user's speed. Have it run independently. | Done — the Puck Ring rival now uses its own steady puck-chasing speed, unaffected by the local car's speed or crank-set maximum. |

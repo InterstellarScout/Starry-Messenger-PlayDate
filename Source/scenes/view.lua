@@ -1183,6 +1183,14 @@ function ViewScene:update()
     elseif not self:isLifeScrubbing() then
         self.effect:update()
     end
+    if self.viewId == "spaceminer" and self.effect and self.effect.consumeReturnToTitleRequest and self.effect:consumeReturnToTitleRequest() then
+        if self.onReturnToTitle then
+            local effect = self.effect
+            self.effect = nil
+            self.onReturnToTitle(self.returnViewId or self.viewId, effect)
+        end
+        return
+    end
     self.effect:draw()
     self:drawWarpMenu()
     self:drawEntryOverlay()

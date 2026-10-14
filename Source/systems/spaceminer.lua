@@ -970,11 +970,26 @@ function SpaceMiner.getStorySlots()
         -- A valid payload can outlive its lightweight slot index (for example,
         -- after an older build saved the campaign). Rebuild its metadata here
         -- so a working restored save is never presented as a new slot.
-        if data ~= nil and (type(meta) ~= "table" or meta.name == STORY_SAVE_EMPTY_SLOT_NAME) then
+        -- The slot payload is the source of truth. The index is only a
+        -- lightweight cache and can retain the old generic "Campaign Save"
+        -- label after a player has named their pilot.
+        local savedName = data and data.playerName or nil
+        if savedName == nil or savedName == "" or savedName == STORY_SAVE_EMPTY_SLOT_NAME then
+            savedName = data and data.saveName or nil
+        end
+        local resolvedName = savedName or (meta and meta.name) or STORY_SAVE_EMPTY_SLOT_NAME
+        local resolvedMode = SpaceMiner.getSaveMode((data and data.modeId) or (meta and meta.modeId))
+        local resolvedSequence = tonumber((data and data.saveSequence) or (meta and meta.sequence)) or 0
+        if data ~= nil and (
+            type(meta) ~= "table"
+            or meta.name ~= resolvedName
+            or SpaceMiner.getSaveMode(meta.modeId) ~= resolvedMode
+            or (tonumber(meta.sequence) or 0) ~= resolvedSequence
+        ) then
             meta = {
-                name = data.playerName or data.saveName or SpaceMiner.getSaveTypeLabel(data.modeId),
-                modeId = SpaceMiner.getSaveMode(data.modeId),
-                sequence = tonumber(data.saveSequence) or 0
+                name = resolvedName,
+                modeId = resolvedMode,
+                sequence = resolvedSequence
             }
             index.slots[slot] = meta
             indexChanged = true
@@ -982,9 +997,9 @@ function SpaceMiner.getStorySlots()
         if data ~= nil or type(meta) == "table" then
             slots[#slots + 1] = {
                 slot = slot,
-                name = (meta and meta.name) or (data and (data.playerName or data.saveName)) or STORY_SAVE_EMPTY_SLOT_NAME,
-                modeId = SpaceMiner.getSaveMode((meta and meta.modeId) or (data and data.modeId)),
-                sequence = tonumber((meta and meta.sequence) or (data and data.saveSequence)) or 0
+                name = resolvedName,
+                modeId = resolvedMode,
+                sequence = resolvedSequence
             }
         end
     end
@@ -1597,7 +1612,7 @@ function SpaceMiner:saveModeState()
     end)
     if ok then
         -- Only advertise a slot after its payload has been written.
-        self.storySaveSequence = SpaceMiner.markStorySlotSaved(self.storySaveSlot, self.storySaveName, self.playMode)
+        self.storySaveSequence = SpaceMiner.markStorySlotSaved(self.storySaveSlot, self.playerName or self.storySaveName, self.playMode)
     elseif not ok then
         StarryLog.error("space miner save failed: %s", tostring(errorMessage))
     end
@@ -1754,14 +1769,13 @@ function SpaceMiner:getStorySlotSelectorItems()
             items[#items + 1] = {
                 action = "load",
                 slot = slot,
-                label = string.format("Save %d: %s", slot, SpaceMiner.getSaveTypeLabel(slotInfo.modeId)),
-                value = slotInfo.name or ""
+                label = string.format("Save %d: %s", slot, slotInfo.name or SpaceMiner.getSaveTypeLabel(slotInfo.modeId))
             }
         else
             items[#items + 1] = {
                 action = "new",
                 slot = slot,
-                label = string.format("Save %d: New %s", slot, SpaceMiner.getSaveTypeLabel(self.storySlotSelectorMode))
+                label = string.format("Save %d: %s", slot, STORY_SAVE_EMPTY_SLOT_NAME)
             }
         end
     end
@@ -2337,7 +2351,7 @@ function SpaceMiner:handleStorySlotSelector(upPressed, downPressed, primaryJustP
             end
             self.storySaveSlot = selected.slot
             local data = SpaceMiner.readStorySlot(selected.slot)
-            self.storySaveName = data and data.saveName or selected.label
+            self.storySaveName = data and (data.playerName or data.saveName) or selected.label
             self.storySlotSelectorOpen = false
             self.storySlotSelectorCrankAccumulator = 0
             self.storySlotSelectorMode = nil
@@ -2378,6 +2392,7 @@ function SpaceMiner:handleStorySlotSelector(upPressed, downPressed, primaryJustP
             self.storySlotSelectorCrankAccumulator = 0
             self.storySlotSelectorMode = nil
             self.storySlotSelectorDeleteMode = false
+            self.returnToTitleRequested = true
         end
     end
     return true
@@ -2409,12 +2424,16 @@ function SpaceMiner:drawStorySlotSelector()
         local rowY = boxY + 38 + ((index - 1) * (rowHeight + rowGap))
         local selected = index == self.storySlotSelectorIndex
         self:drawModernMenuButton({ label = tostring(item.label or "") }, boxX + 10, rowY, boxWidth - 20, rowHeight, selected)
-        if item.value ~= nil and item.value ~= "" then
-            gfx.setImageDrawMode(selected and gfx.kDrawModeFillBlack or gfx.kDrawModeFillWhite)
-            gfx.drawTextAligned(tostring(item.value), boxX + boxWidth - 18, rowY + 8, kTextAlignment.right)
-        end
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
     end
+end
+
+function SpaceMiner:consumeReturnToTitleRequest()
+    if self.returnToTitleRequested ~= true then
+        return false
+    end
+    self.returnToTitleRequested = false
+    return true
 end
 
 function SpaceMiner:drawNameEntryPage()
