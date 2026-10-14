@@ -164,7 +164,8 @@ local function createPlayer(slot, controlKind)
         moving = false,
         facingX = facingX,
         facingY = 0,
-        headingAngle = math.atan2(0, facingX),
+        -- Playdate Lua exposes the two-argument atan(y, x), not atan2.
+        headingAngle = math.atan(0, facingX),
         controlKind = controlKind or "remote",
         score = 0,
         chicks = {},
@@ -699,7 +700,7 @@ function DuckGameScene:updateAutoDuckyInput(player)
     player.inputX = inputX
     player.inputY = inputY
     player.moving = true
-    player.headingAngle = math.atan2(inputY, inputX)
+    player.headingAngle = math.atan(inputY, inputX)
 end
 
 function DuckGameScene:updateLocalInput()
@@ -719,7 +720,7 @@ function DuckGameScene:updateLocalInput()
             player.inputX = normalizedX
             player.inputY = normalizedY
             player.moving = true
-            player.headingAngle = math.atan2(normalizedY, normalizedX)
+            player.headingAngle = math.atan(normalizedY, normalizedX)
             return
         end
 
@@ -766,7 +767,7 @@ function DuckGameScene:updateLocalInput()
         player.inputX = normalizedX
         player.inputY = normalizedY
         player.moving = true
-        player.headingAngle = math.atan2(normalizedY, normalizedX)
+        player.headingAngle = math.atan(normalizedY, normalizedX)
     elseif crankDriving and (math.abs(player.inputX) > 0.001 or math.abs(player.inputY) > 0.001) then
         player.moving = true
     else
@@ -809,7 +810,7 @@ function DuckGameScene:updatePlayerMovement(player, dt)
     if math.abs(inputX) > 0.001 or math.abs(inputY) > 0.001 then
         player.facingX = inputX
         player.facingY = inputY
-        player.headingAngle = math.atan2(inputY, inputX)
+        player.headingAngle = math.atan(inputY, inputX)
     end
 
     self:wrapPlayerPosition(player, inputX, inputY)

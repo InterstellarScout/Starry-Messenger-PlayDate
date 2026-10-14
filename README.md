@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.2.75`
-- Build number: `260`
+- Version: `0.2.76`
+- Build number: `261`
 
 ## Install
 
@@ -82,7 +82,7 @@ The title menu folders below are the authoritative placement for every active vi
 | Text Viewer | Main | A simple document reader that opens to a file-selection library. Each piece uses the first two lines of its source as the displayed title and description, supports optional property lines such as `font: sasser-slab`, supports styled markdown headings, hides image/wiki-link lines without leaving extra blank image gaps, includes a Font Sampler document, and includes top-of-reader toggles for cursor and page rolling. Documents without a font property use the saved default font. | Crank or D-pad chooses a document in the library. `A` opens the selected piece, then toggles the line cursor while reading. In Font Sampler, `A` on a font line applies it; `A` on the checkbox controls whether that choice is saved as the default. In the reader, crank moves a highlighted cursor up and down the first letter of each text line and scrolls the page when the cursor reaches mid-page. `Up`/`Down` also move the cursor, `Left` toggles page rolling, `Right` toggles the cursor, and `B` backs from the reader to the library, then to title. |
 | Gif Player | Main | A category browser and fullscreen GIF player with frame scrubbing, optional synced audio, and black-outlined white overlay text. | Crank or D-pad chooses categories and GIFs. `A` opens, plays, or cycles playback modes. Crank scrubs frames or changes spin speed. `B` backs out one level. Show UI turns overlay text on or off. |
 | Fishy Pond | Main | A fish-and-bubble toy with Pond, Bubbles, and Tank modes. | In Pond/Bubbles, crank moves the bubble maker, `Left`/`Right` moves the fish, hold `A` or `Up` to make bubbles, and press `Down` to add another fish. In Tank, crank creates current and shake triggers panic. |
-| Duck Game | Main | A chick-collecting duck game with solo center-nest, Auto Ducky, and multi-duck variants. | Normal mode uses D-pad for direction and crank for forward movement. Auto Ducky collects loose chicks until D-pad input takes over, then resumes after five seconds. Collect chicks and bank them at nests. |
+| Duck Game | Main | A chick-collecting duck game with solo center-nest, Auto Ducky, and multi-duck variants. | Normal mode uses D-pad for direction and crank for forward movement. Auto Ducky collects loose chicks until D-pad input takes over, then resumes after five seconds. Collect chicks and bank them at nests. The startup path uses Playdate-compatible direction math so the game loads normally. |
 | Orbital Defense | Main | A shield-defense turret game with laser fire, missiles, bot assist, and multiplayer support. In single-player, holding the laser on Earth for five seconds triggers the Obi-Wan finale: a five-second warning, then five seconds of wingmate retaliation, ending with “Everyone loses.” | Crank aims; hold `Left` for laser fire; `Right` launches or detonates a missile; `Up`/`Down` moves around the shield; `A` opens upgrades. During the Obi-Wan finale, `A` resets after the ending; `B` returns to title. |
 | RC Arena | Main | RC car modes for puck hockey, crash racing, and block sliding. | Crank rotates the car. `A` toggles crank steering/speed control. D-pad steers and accelerates. Home menu can enable auto brake. In Puck Ring, the AI rival chases pucks at an independent speed, and pucks that escape the ring more than 3 times respawn. |
 | Lava Lamp | Main | A tilt-driven bubble simulation with merging, wall travel, and crank agitation. | Tilt sets the current top side. Crank agitates bubbles while moving. `Up`/`Down` changes overall bubble speed. |
