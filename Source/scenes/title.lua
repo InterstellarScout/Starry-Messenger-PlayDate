@@ -152,6 +152,7 @@ function TitleScene.new(config)
     self.frame = 0
     self.freeSpinActive = false
     self.freeSpinVelocity = 0
+    self.titleCrankSpeed = 0
     self.freeSpinSettling = false
     self.freeSpinStarPreview = nil
     self.freeSpinStarFade = 0
@@ -523,13 +524,10 @@ function TitleScene:drawFreeSpinSpeedOverlay()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
-function TitleScene:drawFreeSpinStatusUI()
-    if not self.freeSpinActive or (UIState and not UIState.isShown()) then
-        return
-    end
-
-    local crankSpeed = math.abs(self.freeSpinVelocity or 0)
-    local starSpeed = self.freeSpinStarPreview and self.freeSpinStarPreview.speed or 0
+function TitleScene:drawTitleSpeedUI()
+    local crankSpeed = math.abs(self.titleCrankSpeed or 0)
+    local starSource = self.freeSpinActive and self.freeSpinStarPreview or self.preview
+    local starSpeed = starSource and starSource.speed or 0
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRect(4, 4, 128, 28)
     gfx.setColor(gfx.kColorBlack)
@@ -1168,6 +1166,7 @@ function TitleScene:updateFreeSpin(acceleratedChange)
 end
 
 function TitleScene:updateCrank(change, acceleratedChange)
+    self.titleCrankSpeed = acceleratedChange or 0
     local isHomeBase = self.catalog == "root"
     local effectiveChange = isHomeBase and (change or 0) or acceleratedChange
     if not isHomeBase and math.abs(change or 0) > math.abs(effectiveChange or 0) then
@@ -1496,7 +1495,7 @@ function TitleScene:update()
         self:drawFreeSpinStarPreview(true)
     end
     self:drawMenu()
-    self:drawFreeSpinStatusUI()
+    self:drawTitleSpeedUI()
     self:drawFreeSpinSpeedOverlay()
     if not self.freeSpinActive and not self.freeSpinSettling then
         self:processPendingPreview()

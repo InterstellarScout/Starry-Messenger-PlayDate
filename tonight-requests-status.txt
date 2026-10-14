@@ -284,7 +284,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
-| Add a Home-menu Show UI setting for the main menu crank-spin animation, with black crank-speed and star-speed text at top left. | Done — Show UI is now available from title menus and displays a black-on-white top-left crank and star-speed readout during free spin. |
+| Show crank speed and star speed while cranking in the title menu. | Done — the black-on-white top-left readout is always visible throughout the title scene, including ordinary browsing cranks and free spin, without requiring a Home-menu option. |
 | In Beaver Pond, release carried logs on or beside water where the player is standing and have the river expand around them instead of throwing them forward. | Done — water-side drops now stay under the beaver, ignore nearby-player shove physics, and widen the local river until picked up again. |
 | Fix Space Miner campaign save slots so they show the saved pilot name once, do not overlap duplicate Campaign Save labels, and Back returns to the main menu instead of starting a new campaign. | Done — slot payloads now refresh stale index metadata, each slot renders one label such as `Save 1: Scout` or `(New Save)`, and the selector Back action returns to the title. |
 | Duck Game is throwing a nil error when the user loads into it. Please clear that up so the app can be used. | Done — replaced unsupported `math.atan2` calls in Duck Game’s player creation and movement paths with Playdate Lua’s two-argument `math.atan`, eliminating the nil function call during load and play. |
