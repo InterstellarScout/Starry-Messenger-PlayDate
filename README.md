@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.2.73`
-- Build number: `258`
+- Version: `0.2.74`
+- Build number: `259`
 
 ## Install
 
@@ -82,8 +82,8 @@ The title menu folders below are the authoritative placement for every active vi
 | Gif Player | Main | A category browser and fullscreen GIF player with frame scrubbing, optional synced audio, and black-outlined white overlay text. | Crank or D-pad chooses categories and GIFs. `A` opens, plays, or cycles playback modes. Crank scrubs frames or changes spin speed. `B` backs out one level. Show UI turns overlay text on or off. |
 | Fishy Pond | Main | A fish-and-bubble toy with Pond, Bubbles, and Tank modes. | In Pond/Bubbles, crank moves the bubble maker, `Left`/`Right` moves the fish, hold `A` or `Up` to make bubbles, and press `Down` to add another fish. In Tank, crank creates current and shake triggers panic. |
 | Duck Game | Main | A chick-collecting duck game with solo center-nest, Auto Ducky, and multi-duck variants. | Normal mode uses D-pad for direction and crank for forward movement. Auto Ducky collects loose chicks until D-pad input takes over, then resumes after five seconds. Collect chicks and bank them at nests. |
-| Orbital Defense | Main | A shield-defense turret game with laser fire, missiles, bot assist, and multiplayer support. | Crank or `Left`/`Right` aims. `Up`/`Down` moves around the shield. Hold `A` for laser fire. `B` launches or detonates a missile. |
-| RC Arena | Main | RC car modes for puck hockey, crash racing, and block sliding. | Crank rotates the car. `A` toggles crank steering/speed control. D-pad steers and accelerates. Home menu can enable auto brake. In Puck Ring, pucks that escape the ring more than 3 times respawn. |
+| Orbital Defense | Main | A shield-defense turret game with laser fire, missiles, bot assist, and multiplayer support. In single-player, holding the laser on Earth for five seconds triggers the Obi-Wan finale: a five-second warning, then five seconds of wingmate retaliation, ending with “Everyone loses.” | Crank aims; hold `Left` for laser fire; `Right` launches or detonates a missile; `Up`/`Down` moves around the shield; `A` opens upgrades. During the Obi-Wan finale, `A` resets after the ending; `B` returns to title. |
+| RC Arena | Main | RC car modes for puck hockey, crash racing, and block sliding. | Crank rotates the car. `A` toggles crank steering/speed control. D-pad steers and accelerates. Home menu can enable auto brake. In Puck Ring, the AI rival chases pucks at an independent speed, and pucks that escape the ring more than 3 times respawn. |
 | Lava Lamp | Main | A tilt-driven bubble simulation with merging, wall travel, and crank agitation. | Tilt sets the current top side. Crank agitates bubbles while moving. `Up`/`Down` changes overall bubble speed. |
 | Multiplayer Duck Game | Main | Portal-enabled Duck Game for 2-4 players. | Choose player count from the Multiplayer title entry, then collect and steal chicks while banking them at player nests. |
 | Multiplayer Orbital Defense | Main | Portal-enabled Orbital Defense for 2-4 turrets. | Choose player count from the Multiplayer title entry, then coordinate turret movement, laser fire, and missiles around the shared shield. |

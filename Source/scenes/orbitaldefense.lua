@@ -48,6 +48,11 @@ local ENDLESS_TIER_FRAMES <const> = 30 * 30
 local PLANNED_TIER_COUNT <const> = 6
 local RESULTS_SAVE_KEY <const> = "orbital-defense-results-v1"
 local cachedResults = nil
+local EARTH_BETRAYAL_TRIGGER_FRAMES <const> = 30 * 5
+local EARTH_BETRAYAL_OVERLAY_FRAMES <const> = 30 * 5
+local TURRET_RETALIATION_FRAMES <const> = 30 * 5
+local OBI_WAN_IMAGE_PATH <const> = "images/obi-wan-betrayal"
+local obiWanImage = gfx.image.new(OBI_WAN_IMAGE_PATH)
 
 local PLAYER_ANCHORS <const> = {
     [1] = { orbitAngle = -60, defaultAngle = 18, label = "P1" },
@@ -325,6 +330,9 @@ function OrbitalDefenseScene:resetMatch(modeId, localSlot)
     self.gameOver = false
     self.resultsRecorded = false
     self.matchResults = nil
+    self.earthLaserFrames = 0
+    self.finalePhase = nil
+    self.finaleFrames = 0
     self.localSlot = localSlot or 1
     self.localIdleFrames = 0
 
@@ -804,6 +812,74 @@ function OrbitalDefenseScene:applyLasers()
     end
 end
 
+function OrbitalDefenseScene:updateEarthBetrayal()
+    -- This is a single-player gag sequence: the local turret must keep its
+    -- laser continuously on Earth for five seconds before the wingmate reacts.
+    if self.multiplayer or self.finalePhase ~= nil then
+        return
+    end
+
+    local player = self.players[self.localSlot]
+    if player == nil or player.controlKind ~= "local" or not player.laserOn then
+        self.earthLaserFrames = 0
+        return
+    end
+
+    local originX, originY = self:getPlayerOrigin(self.localSlot, player)
+    local radians = math.rad(player.angle)
+    local endX = originX + (math.cos(radians) * LASER_RANGE)
+    local endY = originY + (math.sin(radians) * LASER_RANGE)
+    if linePointDistanceSquared(PLANET_X, PLANET_Y, originX, originY, endX, endY) > (PLANET_RADIUS * PLANET_RADIUS) then
+        self.earthLaserFrames = 0
+        return
+    end
+
+    self.earthLaserFrames = self.earthLaserFrames + 1
+    if self.earthLaserFrames >= EARTH_BETRAYAL_TRIGGER_FRAMES then
+        self.earthLaserFrames = EARTH_BETRAYAL_TRIGGER_FRAMES
+        self.finalePhase = "obiwan"
+        self.finaleFrames = EARTH_BETRAYAL_OVERLAY_FRAMES
+        for _, turret in ipairs(self.players) do
+            turret.laserOn = false
+            turret.pendingMissileTrigger = false
+            turret.missile = nil
+        end
+    end
+end
+
+function OrbitalDefenseScene:updateFinale()
+    if self.finalePhase == nil then
+        return false
+    end
+
+    if self.finalePhase == "obiwan" then
+        self.finaleFrames = self.finaleFrames - 1
+        if self.finaleFrames <= 0 then
+            self.finalePhase = "retaliation"
+            self.finaleFrames = TURRET_RETALIATION_FRAMES
+        end
+        return true
+    end
+
+    if self.finalePhase == "retaliation" then
+        local player = self.players[self.localSlot]
+        local wingmate = self.players[self.localSlot == 1 and 2 or 1]
+        if player ~= nil and wingmate ~= nil then
+            local wingmateX, wingmateY = self:getPlayerOrigin(wingmate.id, wingmate)
+            local playerX, playerY = self:getPlayerOrigin(player.id, player)
+            wingmate.angle = math.deg(math.atan(playerY - wingmateY, playerX - wingmateX))
+            wingmate.laserOn = true
+        end
+        self.finaleFrames = self.finaleFrames - 1
+        if self.finaleFrames <= 0 then
+            self:finishMatch("Everyone loses")
+        end
+        return true
+    end
+
+    return true
+end
+
 function OrbitalDefenseScene:updateExplosions()
     for index = #self.explosions, 1, -1 do
         local explosion = self.explosions[index]
@@ -860,6 +936,8 @@ function OrbitalDefenseScene:serializeState()
         ringHealth = self.ringHealth,
         remainingFrames = self.remainingFrames,
         gameOver = self.gameOver,
+        finalePhase = self.finalePhase,
+        finaleFrames = self.finaleFrames,
         matchResults = self.matchResults,
         players = players,
         enemies = enemies,
@@ -874,7 +952,7 @@ function OrbitalDefenseScene:getRenderState()
     return self:serializeState()
 end
 
-function OrbitalDefenseScene:finishMatch()
+function OrbitalDefenseScene:finishMatch(endMessage)
     if self.gameOver then
         return
     end
@@ -895,7 +973,8 @@ function OrbitalDefenseScene:finishMatch()
     self.matchResults = {
         totalKills = totalKills,
         playerKills = playerKills,
-        highScore = highScore
+        highScore = highScore,
+        endMessage = endMessage
     }
     self.resultsRecorded = true
     saveResults(self.matchResults)
@@ -913,6 +992,10 @@ end
 function OrbitalDefenseScene:updateLocalGame()
     self.frame = self.frame + 1
     self.elapsedFrames = (self.elapsedFrames or 0) + 1
+    if self:updateFinale() then
+        self:updateExplosions()
+        return
+    end
     if self.networked then
         self:readLocalControls()
     elseif #self.players >= 2 then
@@ -923,6 +1006,7 @@ function OrbitalDefenseScene:updateLocalGame()
     self:updateAIPlayers()
     self:updateEnemies()
     self:applyLasers()
+    self:updateEarthBetrayal()
     self:updateMissiles()
     self:updateExplosions()
 end
@@ -1090,7 +1174,7 @@ function OrbitalDefenseScene:drawGameOver(state)
     gfx.setColor(gfx.kColorWhite)
     gfx.drawRoundRect(36, 72, 328, 112, 10)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    gfx.drawTextAligned("EARTH DESTROYED :(", 200, 86, kTextAlignment.center)
+    gfx.drawTextAligned(results.endMessage or "EARTH DESTROYED :(", 200, 86, kTextAlignment.center)
     local playerKills = results.playerKills or {}
     local scoreLine = {}
     for index, kills in ipairs(playerKills) do
@@ -1099,7 +1183,33 @@ function OrbitalDefenseScene:drawGameOver(state)
     gfx.drawTextAligned(table.concat(scoreLine, "   "), 200, 110, kTextAlignment.center)
     gfx.drawTextAligned(string.format("Enemies destroyed: %d", results.totalKills or 0), 200, 130, kTextAlignment.center)
     gfx.drawTextAligned(string.format("High score: %d", results.highScore or 0), 200, 148, kTextAlignment.center)
-    gfx.drawTextAligned("B: return to title", 200, 168, kTextAlignment.center)
+    local controls = results.endMessage ~= nil and "A: reset game   B: return to title" or "B: return to title"
+    gfx.drawTextAligned(controls, 200, 168, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function OrbitalDefenseScene:drawEarthBetrayalOverlay(state)
+    if state.finalePhase ~= "obiwan" then
+        return
+    end
+
+    -- The meme replaces the planet briefly so the player can still see the
+    -- consequence of holding the laser on Earth.
+    if obiWanImage ~= nil then
+        local scale = 0.19
+        local width = 600 * scale
+        local height = 487 * scale
+        obiWanImage:drawScaled(PLANET_X - (width * 0.5), PLANET_Y - (height * 0.5), scale)
+    else
+        gfx.setColor(gfx.kColorBlack)
+        gfx.fillCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
+    end
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRoundRect(44, 56, 312, 26, 6)
+    gfx.setColor(gfx.kColorWhite)
+    gfx.drawRoundRect(44, 56, 312, 26, 6)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned("you weren't supposed to join them", 200, 62, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -1197,6 +1307,7 @@ function OrbitalDefenseScene:drawGameState(state)
     self:drawWorld(state)
     self:drawHud(state)
     self:drawUpgradeMenu(state)
+    self:drawEarthBetrayalOverlay(state)
     self:drawGameOver(state)
 end
 
@@ -1266,6 +1377,12 @@ function OrbitalDefenseScene:update()
             end
             return
         end
+    end
+
+    if self.gameOver and pd.buttonJustPressed(pd.kButtonA) and not self.multiplayer then
+        self:resetMatch("single", 1)
+        self:draw()
+        return
     end
 
     if self.gameOver and pd.buttonJustPressed(pd.kButtonB) then

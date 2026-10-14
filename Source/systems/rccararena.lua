@@ -399,7 +399,12 @@ function RCCarArena:updateCars()
 
             if self.preview then
                 car.targetSpeed = previewSpeed
-            elseif (self.modeId == RCCarArena.MODE_VERSUS or self.modeId == RCCarArena.MODE_HOCKEY) and self.playerCar then
+            elseif self.modeId == RCCarArena.MODE_HOCKEY then
+                -- Puck Ring's rival has its own cruising speed. It should
+                -- keep chasing pucks even when the local car stops or changes
+                -- its speed limit with the crank.
+                car.targetSpeed = CAR_DEFAULT_MAX_SPEED * 0.55
+            elseif self.modeId == RCCarArena.MODE_VERSUS and self.playerCar then
                 car.targetSpeed = self.playerCar.driveSpeed
             else
                 if self.playerTargetSpeed == 0 then

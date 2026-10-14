@@ -240,6 +240,7 @@
 ##### Orbital Defense
 | Request | Status |
 | --- | --- |
+| When the player shoots Earth for five seconds, show an Obi-Wan warning, have the wingmate retaliate for five seconds, then end with “Everyone loses” and reset with A. | Done — the single-player Earth laser trigger now runs the timed Obi-Wan overlay and wingmate retaliation, then presents the resettable “Everyone loses” result. |
 | When uploading Orbital Defense to the Playdate, the install failed with Windows cloud file provider errors copying from OneDrive-backed files. | Answered |
 
 ##### Ant Farm
@@ -283,6 +284,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| In Puck Ring, do not tie the other player's speed to the user's speed. Have it run independently. | Done — the Puck Ring rival now uses its own steady puck-chasing speed, unaffected by the local car's speed or crank-set maximum. |
 | Add Home-menu favorites controls to title screens and warp out when exiting. | Done — selected eligible titles expose Add to Favorites or Remove from Favorites in the system menu; Favorites removes entries immediately; native exit plays a short star-warp sequence before returning to the launcher. |
 | Improve Space Miner asteroid variety/collision, menu timing, and Home Base autopilot docking. | Done — asteroids receive random stage-appropriate PixelPlanets families and orientations, render at their physics radius, menus pause the simulation clock, and Home Base autopilot brakes to a stop within 30 pixels. |
 | Fix the Orbital Defense title-preview crash caused by PixelPlanets assets. | Done — PixelPlanets now decodes requested frames lazily with a bounded rolling cache instead of loading all 652 source frames in one draw call. |

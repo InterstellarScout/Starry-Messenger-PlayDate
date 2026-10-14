@@ -377,7 +377,7 @@ function ControlHelp.getEntrySpec(viewId, modeId)
                 "RC Auto Brake in the Home menu returns the target speed to zero when Up and Down are released.",
                 "Push pucks into the opponent's net and keep them out of yours.",
                 "Pucks that escape the ring more than 3 times are respawned so the auto car cannot pin them outside.",
-                "In crank speed mode, the crank changes the shared max speed in both directions, such as +7 and -7 or +90 and -90.",
+                "In crank speed mode, the crank changes your max speed in both directions, such as +7 and -7 or +90 and -90. The rival keeps its own independent puck-chasing speed.",
                 "B: return to title."
             })
         end
