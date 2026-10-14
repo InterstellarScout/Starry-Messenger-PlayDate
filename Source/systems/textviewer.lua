@@ -633,6 +633,9 @@ function TextViewerEffect:drawReader()
     local contentTop = READER_CONTENT_TOP
     local contentBottom = READER_CONTENT_BOTTOM
     gfx.setColor(gfx.kColorBlack)
+    -- Document glyphs must be explicitly filled black; a preceding inverted
+    -- UI draw mode can otherwise leave the reader body invisible on white.
+    gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
     local yOffset = contentTop - self.scrollY
     local rollAmount = self.pageRollingEnabled and clamp(self.pageRollAngle or 0, -3, 3) or 0
     local lastFont = nil
@@ -659,7 +662,7 @@ function TextViewerEffect:drawReader()
                 gfx.fillRect(18 + rollX, y - 1, 364, line.height)
                 gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
                 gfx.drawText(line.text, 22 + rollX, y)
-                gfx.setImageDrawMode(gfx.kDrawModeCopy)
+                gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
             elseif line.kind == "body" or line.kind == "fontOption" or line.kind == "fontDefaultToggle" then
                 gfx.drawText(line.text, 22 + rollX, y)
             end
@@ -686,7 +689,7 @@ function TextViewerEffect:drawReader()
                     end
                     gfx.drawText(string.sub(cursorLine.text, 1, 1), 22 + rollX, cursorY)
                 end
-                gfx.setImageDrawMode(gfx.kDrawModeCopy)
+                gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
             end
         end
     end
@@ -703,6 +706,7 @@ function TextViewerEffect:drawReader()
     if previousFont ~= nil then
         gfx.setFont(previousFont)
     end
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
 function TextViewerEffect:drawPreview()
