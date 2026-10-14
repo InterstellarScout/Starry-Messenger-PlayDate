@@ -33,6 +33,10 @@ function BeaverBuilder:riverHalfHeightAt(x)
     local h = self.breached and 7 or 24
     for _, log in ipairs(self.logs) do
         if log.dammed then local upstream = log.x - x; if upstream >= 0 and upstream < 135 and not self.breached then h = h + (1 - upstream / 135) * 16 end end
+        if log.waterPlaced then
+            local distance, expansionRadius = math.abs(log.x - x), 58
+            if distance < expansionRadius then h = h + (1 - distance / expansionRadius) * 18 end
+        end
     end
     return h
 end
@@ -86,6 +90,13 @@ function BeaverBuilder:handlePrimaryAction()
     end
 end
 function BeaverBuilder:releaseLog(log)
+    if self:isRiverAt(self.player.x, self.player.y, 18) then
+        log.x, log.y, log.vx, log.vy = self.player.x, self.player.y, 0, 0
+        log.dammed, log.homePiece, log.waterPlaced = false, false, true
+        self.status = "Log placed. The river spreads around it."
+        return
+    end
+    log.waterPlaced = false
     local center, edgeDistance = self:riverCenterAt(log.x), math.abs(log.y - self:riverCenterAt(log.x))
     if self:isRiverAt(log.x, log.y, 0) then
         log.vx, log.vy = 0, 0
@@ -128,16 +139,19 @@ function BeaverBuilder:updateLogs()
     local holding = not self.preview and pd.buttonIsPressed(pd.kButtonA)
     if holding and not self.draggedLog then
         self.draggedLog = self:getNearbyLog()
-        if self.draggedLog and self.draggedLog.dammed then
-            self.draggedLog.dammed, self.breached = false, true
-            self.status = "The dam has a breach! Put the log back in the water."
+        if self.draggedLog then
+            self.draggedLog.waterPlaced = false
+            if self.draggedLog.dammed then
+                self.draggedLog.dammed, self.breached = false, true
+                self.status = "The dam has a breach! Put the log back in the water."
+            end
         end
     end
     if not holding and self.draggedLog then self:releaseLog(self.draggedLog); self.draggedLog = nil end
     for _, log in ipairs(self.logs) do
         if log == self.draggedLog then
             log.x, log.y, log.vx, log.vy = self.player.x - self.player.dx * 16, self.player.y - self.player.dy * 16, 0, 0
-        elseif not log.dammed and not log.inHut then
+        elseif not log.dammed and not log.inHut and not log.waterPlaced then
             if d2(self.player.x, self.player.y, log.x, log.y) < 400 then log.vx, log.vy = log.vx + self.player.dx * .55, log.vy + self.player.dy * .55 end
             log.x, log.y = clamp(log.x + log.vx, 8, self.width - 8), clamp(log.y + log.vy, 45, self.height - 24)
             log.vx, log.vy = log.vx * LOG_FRICTION, log.vy * LOG_FRICTION
