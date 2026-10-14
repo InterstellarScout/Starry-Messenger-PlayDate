@@ -59,7 +59,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.81"
+local APP_VERSION <const> = "0.2.83"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -796,6 +796,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
 
     local favoriteId = activeViewId or selectedTitleId
     local canFavorite = favoriteId ~= nil
+        and activeViewId ~= "duck"
         and favoriteId ~= "favorites"
         and favoriteId ~= "favorites_empty"
         and favoriteId ~= "lowkey"
@@ -817,7 +818,7 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         end)
     end
 
-    if activeViewId ~= nil then
+    if activeViewId ~= nil and activeViewId ~= "duck" then
         menu:addCheckmarkMenuItem("Show UI", UIState.isShown(), function(value)
             UIState.setShown(value)
         end)
@@ -848,7 +849,9 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         }, function(value)
             DuckGameScene.setControlType(value == "D Pad Movement" and DuckGameScene.CONTROL_DPAD or DuckGameScene.CONTROL_CRANK)
         end)
-        controlTypeItem:setValue(DuckGameScene.getControlTypeLabel())
+        if controlTypeItem ~= nil then
+            controlTypeItem:setValue(DuckGameScene.getControlTypeLabel())
+        end
     end
 
     if activeViewId == "rccar" then

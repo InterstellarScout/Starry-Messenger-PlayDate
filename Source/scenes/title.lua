@@ -152,7 +152,6 @@ function TitleScene.new(config)
     self.frame = 0
     self.freeSpinActive = false
     self.freeSpinVelocity = 0
-    self.titleCrankSpeed = 0
     self.freeSpinSettling = false
     self.freeSpinStarPreview = nil
     self.freeSpinStarFade = 0
@@ -389,7 +388,7 @@ function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
 
     local fidgetMetric = self:getFreeSpinFidgetMetric()
     if self.freeSpinEffectMode == "warp" then
-        if fidgetMetric < TITLE_FIDGET_WARP_THRESHOLD then
+        if fidgetMetric < TITLE_FIDGET_WARP_THRESHOLD and (self.freeSpinWarpMetric or 0) <= 0 then
             self:switchFreeSpinEffect("fidget")
         end
     elseif fidgetMetric >= TITLE_FIDGET_WARP_THRESHOLD then
@@ -405,7 +404,11 @@ function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
         if self.freeSpinWarpMetric == nil then
             self.freeSpinWarpMetric = 0
         end
-        self.freeSpinWarpMetric = self.freeSpinWarpMetric + (self:getFreeSpinWarpVisualMetric(fidgetMetric) * TITLE_FIDGET_WARP_BUILD_SCALE)
+        if math.abs(acceleratedChange or 0) > 0.01 then
+            self.freeSpinWarpMetric = self.freeSpinWarpMetric + (self:getFreeSpinWarpVisualMetric(fidgetMetric) * TITLE_FIDGET_WARP_BUILD_SCALE)
+        else
+            self.freeSpinWarpMetric = math.max(0, self.freeSpinWarpMetric - math.max(20, self.freeSpinWarpMetric * 0.06))
+        end
         self.freeSpinStarPreview:setWarpStarSizePercent(self:getFreeSpinWarpStarSizePercent(self.freeSpinWarpMetric))
         self.freeSpinStarPreview.speed = math.max(
             TITLE_FIDGET_WARP_VISUAL_MIN_SPEED,
@@ -522,20 +525,6 @@ function TitleScene:drawFreeSpinSpeedOverlay()
         kTextAlignment.center
     )
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
-end
-
-function TitleScene:drawTitleSpeedUI()
-    local crankSpeed = math.abs(self.titleCrankSpeed or 0)
-    local starSource = self.freeSpinActive and self.freeSpinStarPreview or self.preview
-    local starSpeed = starSource and starSource.speed or 0
-    local starSize = starSource and starSource.getWarpStarSizePercent and starSource:getWarpStarSizePercent() or 0
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(4, 4, 128, 40)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    gfx.drawText(string.format("Crank Speed %.2f", crankSpeed), 7, 6)
-    gfx.drawText(string.format("Star Speed %.2f", starSpeed), 7, 18)
-    gfx.drawText(string.format("Star Size %d%%", starSize), 7, 30)
 end
 
 function TitleScene:updateSelectedIndexFromDisplayPosition()
@@ -1162,13 +1151,13 @@ function TitleScene:updateFreeSpin(acceleratedChange)
         self.previewPauseFrames = self.previewPauseFrames - 1
     end
 
-    if math.abs(self.freeSpinVelocity) <= TITLE_FREE_SPIN_STOP_VELOCITY and math.abs(acceleratedChange or 0) <= 0.01 then
+    local isUnwindingStarSize = self.freeSpinEffectMode == "warp" and (self.freeSpinWarpMetric or 0) > 0
+    if math.abs(self.freeSpinVelocity) <= TITLE_FREE_SPIN_STOP_VELOCITY and math.abs(acceleratedChange or 0) <= 0.01 and not isUnwindingStarSize then
         self:finishFreeSpin()
     end
 end
 
 function TitleScene:updateCrank(change, acceleratedChange)
-    self.titleCrankSpeed = acceleratedChange or 0
     local isHomeBase = self.catalog == "root"
     local effectiveChange = isHomeBase and (change or 0) or acceleratedChange
     if not isHomeBase and math.abs(change or 0) > math.abs(effectiveChange or 0) then
@@ -1497,7 +1486,6 @@ function TitleScene:update()
         self:drawFreeSpinStarPreview(true)
     end
     self:drawMenu()
-    self:drawTitleSpeedUI()
     self:drawFreeSpinSpeedOverlay()
     if not self.freeSpinActive and not self.freeSpinSettling then
         self:processPendingPreview()

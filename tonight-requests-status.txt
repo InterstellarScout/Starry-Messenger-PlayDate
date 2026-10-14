@@ -3,6 +3,8 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
+| Create a new crank-driven dice-counter app with D20, D100, D1000, D12, D10, D8, D6, D4, D3, and D2. | Done — added standalone `SpinCounter` with a title-style die carousel and a crank-spun roll counter. |
+| Fix Duck Game's Home-menu nil error when loading. | Done — Duck now reserves a System Menu slot for Control Type and safely handles an unavailable selector, avoiding the nil method call. |
 | Align the README's documented game placement with the title menu's Low-Key Games, Vibes, Multiplayer, and Utilities folder names. | Done |
 | Expand Beaver Builder with shaking/strippable trees, falling branches, teeth, longer movable water logs, draining/resealing dams, water-log home pieces, and six-log pentagonal huts. | Done |
 | Prevent button-driven Low-Key games without a speed API from entering the generic crank-speed route. | Done |
@@ -284,6 +286,7 @@
 ##### Latest Fixes
 | Request | Status |
 | --- | --- |
+| Remove the title-menu speed/size readout and ease star size back down after crank spinning stops. | Done — the title readout is gone, and warp-star size now steps down through its existing size tiers before the title returns to its normal preview. |
 | Add star size to the title-menu spinning info graphic. | Done — the always-visible title readout now includes active star size as a percentage. |
 | Show crank speed and star speed while cranking in the title menu. | Done — the black-on-white top-left readout is always visible throughout the title scene, including ordinary browsing cranks and free spin, without requiring a Home-menu option. |
 | In Beaver Pond, release carried logs on or beside water where the player is standing and have the river expand around them instead of throwing them forward. | Done — water-side drops now stay under the beaver, ignore nearby-player shove physics, and widen the local river until picked up again. |
