@@ -528,12 +528,14 @@ function TitleScene:drawTitleSpeedUI()
     local crankSpeed = math.abs(self.titleCrankSpeed or 0)
     local starSource = self.freeSpinActive and self.freeSpinStarPreview or self.preview
     local starSpeed = starSource and starSource.speed or 0
+    local starSize = starSource and starSource.getWarpStarSizePercent and starSource:getWarpStarSizePercent() or 0
     gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(4, 4, 128, 28)
+    gfx.fillRect(4, 4, 128, 40)
     gfx.setColor(gfx.kColorBlack)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
     gfx.drawText(string.format("Crank Speed %.2f", crankSpeed), 7, 6)
     gfx.drawText(string.format("Star Speed %.2f", starSpeed), 7, 18)
+    gfx.drawText(string.format("Star Size %d%%", starSize), 7, 30)
 end
 
 function TitleScene:updateSelectedIndexFromDisplayPosition()
