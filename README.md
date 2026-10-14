@@ -6,8 +6,8 @@ The project is still in active development. The packaged app metadata is:
 
 - Name: `Starry Messenger`
 - Bundle ID: `com.deansheldon.starrymessenger.playdate`
-- Version: `0.2.83`
-- Build number: `268`
+- Version: `0.2.84`
+- Build number: `269`
 
 ## Install
 
@@ -54,7 +54,7 @@ The title menu folders below are the authoritative placement for every active vi
 | Low-Key Games | Star Fall, Warp Speed, Game of Life, Fireworks, Drip Drop, Bouncy Balls, Baby Chicks, Don't Hit Me, Wacky, Space Miner, Marble Run, Marble Madness, Touching Grass, Crank Blocks, Crank Snake, Fishy Pond, Duck Game, Beaver Builder, Ping Pong, Orbital Defense, RC Arena |
 | Vibes | CRT TV, Billowing Smoke, Raising Smoke, Dropper, Dimensional Split, Starry Top, Fractal Tree, Lava Lamp, Smooth Sailing, Spiral, Tunnel Bars, Fractal Spiral, Line Bloom, Loop Fall, Polygon Storm, Micro Rotate, Cloud Bubbles, Bubble Pop |
 | Multiplayer | Multiplayer Duck Game, Multiplayer Orbital Defense, Crash Racing |
-| Utilities | Photo Viewer, GIF Player, Text Viewer |
+| Utilities | Photo Viewer, GIF Player, Text Viewer, Spin Counter |
 | Not currently in the title menu | Brick Builder |
 
 | Game Name | Legacy Category | Description | Play Instructions |
@@ -81,6 +81,7 @@ The title menu folders below are the authoritative placement for every active vi
 | Photo Viewer | Main | A monochrome Artemis photo slideshow with fill, fit, and inverted display modes. | Crank or `Left`/`Right` changes photos. `A` toggles autoplay. `Up` hides or shows the info plaque. `Down` changes view mode. |
 | Text Viewer | Main | A simple document reader that opens to a file-selection library. Each piece uses the first two lines of its source as the displayed title and description, supports optional property lines such as `font: sasser-slab`, supports styled markdown headings, hides image/wiki-link lines without leaving extra blank image gaps, includes a Font Sampler document, and includes top-of-reader toggles for cursor and page rolling. Documents without a font property use the saved default font. | Crank or D-pad chooses a document in the library. `A` opens the selected piece, then toggles the line cursor while reading. In Font Sampler, `A` on a font line applies it; `A` on the checkbox controls whether that choice is saved as the default. In the reader, crank moves a highlighted cursor up and down the first letter of each text line and scrolls the page when the cursor reaches mid-page. `Up`/`Down` also move the cursor, `Left` toggles page rolling, `Right` toggles the cursor, and `B` backs from the reader to the library, then to title. |
 | Gif Player | Main | A category browser and fullscreen GIF player with frame scrubbing, optional synced audio, and black-outlined white overlay text. | Crank or D-pad chooses categories and GIFs. `A` opens, plays, or cycles playback modes. Crank scrubs frames or changes spin speed. `B` backs out one level. Show UI turns overlay text on or off. |
+| Spin Counter | Utilities | A crank-driven dice chooser and rolling counter. | Crank or Up/Down chooses D20, D100, D1000, D12, D10, D8, D6, D4, D3, or D2. `A` spins the selected counter; spin the crank again to keep it rolling. `B` returns from a roll to the die picker, then to the Utilities title. |
 | Fishy Pond | Main | A fish-and-bubble toy with Pond, Bubbles, and Tank modes. | In Pond/Bubbles, crank moves the bubble maker, `Left`/`Right` moves the fish, hold `A` or `Up` to make bubbles, and press `Down` to add another fish. In Tank, crank creates current and shake triggers panic. |
 | Duck Game | Main | A chick-collecting duck game with solo center-nest, Auto Ducky, and multi-duck variants. | Normal mode uses D-pad for direction and crank for forward movement. Auto Ducky collects loose chicks until D-pad input takes over, then resumes after five seconds. Collect chicks and bank them at nests. The startup path uses Playdate-compatible direction math so the game loads normally. |
 | Orbital Defense | Main | A shield-defense turret game with laser fire, missiles, bot assist, and multiplayer support. In single-player, holding the laser on Earth for five seconds triggers the Obi-Wan finale: a five-second warning, then five seconds of wingmate retaliation, ending with “Everyone loses.” | Crank aims; hold `Left` for laser fire; `Right` launches or detonates a missile; `Up`/`Down` moves around the shield; `A` opens upgrades. During the Obi-Wan finale, `A` resets after the ending; `B` returns to title. |

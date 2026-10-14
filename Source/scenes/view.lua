@@ -137,6 +137,10 @@ function ViewScene.new(config)
         self.effect = PingPong.new(400, 240, {
             preview = false
         })
+    elseif self.viewId == "spincounter" then
+        self.effect = SpinCounter.new(400, 240, {
+            preview = false
+        })
     elseif self.viewId == "smokebloom" then
         self.effect = SmokeBloom.new(400, 240, {
             modeId = self.modeId
@@ -710,7 +714,7 @@ function ViewScene:update()
         if self:isLifeReviewMode() and self.effect:handleReviewBack() then
             return
         end
-        if (self.viewId == "gifplayer" or self.viewId == "textviewer") and self.effect and self.effect.handleBack and self.effect:handleBack() then
+        if (self.viewId == "gifplayer" or self.viewId == "textviewer" or self.viewId == "spincounter") and self.effect and self.effect.handleBack and self.effect:handleBack() then
             return
         end
         if self.onReturnToTitle then
@@ -790,7 +794,7 @@ function ViewScene:update()
             if not (self.effect.isMenuOpen and self.effect:isMenuOpen()) then
                 self.effect:handlePrimaryAction()
             end
-        elseif self.viewId == "babychicks" or self.viewId == "donthitme" or self.viewId == "beaverbuilder" or self.viewId == "pingpong" then
+        elseif self.viewId == "babychicks" or self.viewId == "donthitme" or self.viewId == "beaverbuilder" or self.viewId == "pingpong" or self.viewId == "spincounter" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "smokebloom" then
             self.effect:handlePrimaryAction()
@@ -883,8 +887,8 @@ function ViewScene:update()
     elseif self.viewId == "babychicks" then
         self.effect:applyCrank(change)
         self.crankAccumulator = 0
-    elseif self.viewId == "pingpong" then
-        self.effect:applyCrank(change)
+    elseif self.viewId == "pingpong" or self.viewId == "spincounter" then
+        self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
     elseif self.viewId == "donthitme" or self.viewId == "beaverbuilder" then
         -- These games use their dedicated button controls and do not expose
@@ -1070,6 +1074,13 @@ function ViewScene:update()
                 pd.buttonJustPressed(pd.kButtonDown)
             )
         end
+    elseif self.viewId == "spincounter" then
+        self.effect:handleDirectionalInput(
+            pd.buttonJustPressed(pd.kButtonLeft),
+            pd.buttonJustPressed(pd.kButtonRight),
+            pd.buttonJustPressed(pd.kButtonUp),
+            pd.buttonJustPressed(pd.kButtonDown)
+        )
     elseif self.viewId == "babychicks" or self.viewId == "donthitme" or self.viewId == "beaverbuilder" or self.viewId == "pingpong" then
         self.effect:handleDirectionalInput(
             pd.buttonIsPressed(pd.kButtonLeft),

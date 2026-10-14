@@ -3,7 +3,7 @@
 ##### Current Request
 | Request | Status |
 | --- | --- |
-| Create a new crank-driven dice-counter app with D20, D100, D1000, D12, D10, D8, D6, D4, D3, and D2. | Done — added standalone `SpinCounter` with a title-style die carousel and a crank-spun roll counter. |
+| Add a crank-driven dice counter with D20, D100, D1000, D12, D10, D8, D6, D4, D3, and D2 to Utilities. | Done — Spin Counter is now a Utilities view with a title-style die carousel and a crank-spun roll counter. |
 | Fix Duck Game's Home-menu nil error when loading. | Done — Duck now reserves a System Menu slot for Control Type and safely handles an unavailable selector, avoiding the nil method call. |
 | Align the README's documented game placement with the title menu's Low-Key Games, Vibes, Multiplayer, and Utilities folder names. | Done |
 | Expand Beaver Builder with shaking/strippable trees, falling branches, teeth, longer movable water logs, draining/resealing dams, water-log home pieces, and six-log pentagonal huts. | Done |

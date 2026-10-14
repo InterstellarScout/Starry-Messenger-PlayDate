@@ -34,6 +34,7 @@ import "systems/babychicks"
 import "systems/donthitme"
 import "systems/beaverbuilder"
 import "systems/pingpong"
+import "systems/spincounter"
 import "systems/smokebloom"
 import "systems/touchinggrass"
 import "systems/fractaltree"
@@ -59,7 +60,7 @@ import "scenes/orbitaldefense"
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local APP_NAME <const> = "Starry Messenger"
-local APP_VERSION <const> = "0.2.83"
+local APP_VERSION <const> = "0.2.84"
 local TITLE_CONFIG <const> = GameConfig and GameConfig.title or {}
 
 StarryMessengerAppVersion = APP_VERSION
@@ -291,7 +292,8 @@ local ROOT_VIEW_ITEMS <const> = {
 local UTILITIES_VIEW_ITEMS <const> = {
     { id = "photoviewer", label = "Photo Viewer" },
     { id = "gifplayer", label = "GIF Player" },
-    { id = "textviewer", label = "Text Viewer" }
+    { id = "textviewer", label = "Text Viewer" },
+    { id = "spincounter", label = "Spin Counter" }
 }
 
 local function getRCCarMultiplayerModeLabel(modeId)
