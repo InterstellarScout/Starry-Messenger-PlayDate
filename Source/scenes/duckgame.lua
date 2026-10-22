@@ -422,12 +422,17 @@ function DuckGameScene:addRipple(x, y, radius)
 end
 
 function DuckGameScene:addNestPixel(slot)
-    local nestX, nestY = self:getNestPosition(slot)
-    self.nestPixels[slot] = self.nestPixels[slot] or {}
-    self.nestPixels[slot][#self.nestPixels[slot] + 1] = {
-        x = nestX + math.random(-10, 10),
-        y = nestY + math.random(-10, 10)
+    local nest = self.nests and self.nests[slot]
+    if nest == nil then return end
+    nest.residentDots = nest.residentDots or {}
+    -- Home ducks become permanent nest-owned marks. Their random dither tone
+    -- and bounded positions naturally overlap as the nest fills.
+    nest.residentDots[#nest.residentDots + 1] = {
+        x = nest.x + math.random(-10, 10),
+        y = nest.y + math.random(-10, 10),
+        tone = 0.28 + (math.random() * 0.48)
     }
+    self.nestPixels[slot] = nest.residentDots -- snapshot compatibility
 end
 
 function DuckGameScene:addFreeChick(x, y)
@@ -496,11 +501,11 @@ function DuckGameScene:resetMatch(modeId, localSlot)
 
     for slot = 1, activeCount do
         self.activeSlots[#self.activeSlots + 1] = slot
-        self.nestPixels[slot] = {}
         local layout = SLOT_LAYOUT[slot]
         self.nests[slot] = self:isCenterNestMode() and slot == 1
-            and { x = CENTER_NEST_X, y = CENTER_NEST_Y, vx = 0, vy = 0 }
-            or { x = layout.nestX, y = layout.nestY, vx = 0, vy = 0 }
+            and { x = CENTER_NEST_X, y = CENTER_NEST_Y, vx = 0, vy = 0, residentDots = {} }
+            or { x = layout.nestX, y = layout.nestY, vx = 0, vy = 0, residentDots = {} }
+        self.nestPixels[slot] = self.nests[slot].residentDots
         local controlKind = "remote"
         if modeId == "single" then
             controlKind = slot == self.localSlot and "local" or "bot"
@@ -900,7 +905,6 @@ function DuckGameScene:updateDeliveringChicks(dt)
                         self.totalCollectedEver = (self.totalCollectedEver or 0) + 1
                         saveLifetimeCollectedTotal(self.totalCollectedEver)
                         self:addNestPixel(slot)
-                        self:addRipple(chick.x, chick.y, 2)
 
                         if not self:isCenterNestMode() and player.score >= self:getTargetGoal() and self.state ~= "finished" then
                             self.state = "finished"
@@ -1116,14 +1120,15 @@ function DuckGameScene:serializeState()
         for pixelIndex, pixel in ipairs(pixels) do
             nestPixels[slot][pixelIndex] = {
                 x = pixel.x,
-                y = pixel.y
+                y = pixel.y,
+                tone = pixel.tone
             }
         end
     end
 
     local nests = {}
     for slot, nest in pairs(self.nests or {}) do
-        nests[slot] = { x = nest.x, y = nest.y }
+        nests[slot] = { x = nest.x, y = nest.y, residentDots = nest.residentDots }
     end
 
     return {
@@ -1206,10 +1211,9 @@ end
 function DuckGameScene:drawNestPixels(pixels)
     for _, pixel in ipairs(pixels or {}) do
         gfx.setColor(gfx.kColorBlack)
-        gfx.fillRect(pixel.x, pixel.y, 1, 1)
-        gfx.setImageDrawMode(gfx.kDrawModeNXOR)
-        gfx.fillRect(pixel.x + 1, pixel.y, 1, 1)
-        gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        gfx.setDitherPattern(pixel.tone or 0.55, gfx.image.kDitherTypeBayer8x8)
+        gfx.fillCircleAtPoint(pixel.x, pixel.y, 2)
+        gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
     end
 end
 
@@ -1503,7 +1507,7 @@ function DuckGameScene:drawNest(slot, score, pixels, nest)
     gfx.fillCircleAtPoint(x - 6, y - 2, 2)
     gfx.fillCircleAtPoint(x + 2, y + 4, 2)
     gfx.fillCircleAtPoint(x + 7, y - 4, 2)
-    self:drawNestPixels(pixels)
+    self:drawNestPixels((nest and nest.residentDots) or pixels)
     gfx.setImageDrawMode(gfx.kDrawModeNXOR)
     gfx.drawTextAligned(tostring(score or 0), x, y - 6, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)

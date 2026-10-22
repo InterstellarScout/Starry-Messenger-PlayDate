@@ -1696,9 +1696,9 @@ function SpaceMiner:loadModeSave()
         end
     end
     self.testModeEnabled = data.testModeEnabled == true
-    if data.pixelAsteroidsEnabled ~= nil then
-        self.pixelAsteroidsEnabled = data.pixelAsteroidsEnabled == true
-    end
+    -- Restore the generated asteroid renderer even for saves made while the
+    -- temporary fallback setting was off.
+    self.pixelAsteroidsEnabled = true
     self:loadOwnedUpgradeState("laser", data.ownedLaserUpgrades, data.activeLaserUpgrade)
     self:loadOwnedUpgradeState("missile", data.ownedMissileUpgrades, data.activeMissileUpgrade)
     self:loadOwnedUpgradeState("shield", data.ownedShieldUpgrades, data.activeShieldUpgrade)

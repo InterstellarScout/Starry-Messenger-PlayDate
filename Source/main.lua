@@ -820,7 +820,10 @@ function buildSystemMenu(viewItems, activeViewId, titleReturnViewId, selectedTit
         end)
     end
 
-    if activeViewId ~= nil and activeViewId ~= "duck" then
+    -- This also applies to the animated Home/title scene.  Keeping it here,
+    -- rather than only in individual games, makes the title spinner's live
+    -- diagnostics available before a view is opened.
+    if activeViewId ~= "duck" then
         menu:addCheckmarkMenuItem("Show UI", UIState.isShown(), function(value)
             UIState.setShown(value)
         end)

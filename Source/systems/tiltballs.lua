@@ -151,15 +151,15 @@ function TiltBalls:spawnBall()
 end
 
 function TiltBalls:getGravity()
-    -- The crank changes the world frame only. Gravity remains in the original
-    -- screen-down direction, so spinning is a separate way to jostle balls.
+    -- Live gravity comes entirely from the Playdate's orientation. The old
+    -- screen-down base force caused balls to fall regardless of device tilt.
     local gravityX = 0
-    local gravityY = 1
+    local gravityY = 0
     if pd.accelerometerIsRunning() then
         local ax, ay = pd.readAccelerometer()
         if ax ~= nil and ay ~= nil then
-            gravityX = gravityX + (ax * TILT_INFLUENCE)
-            gravityY = gravityY + (ay * TILT_INFLUENCE)
+            gravityX = ax
+            gravityY = ay
             return normalize(gravityX, gravityY)
         end
     end
@@ -167,6 +167,9 @@ function TiltBalls:getGravity()
     self.previewAngle = self.previewAngle + 0.03
     if self.preview then
         self.worldAngle = (self.worldAngle + 0.45) % 360
+    end
+    if self.preview then
+        return math.cos(self.previewAngle), math.sin(self.previewAngle)
     end
     return gravityX, gravityY
 end

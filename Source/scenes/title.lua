@@ -277,10 +277,22 @@ function TitleScene:pulseFreeSpinStars(directionAngle)
 end
 
 function TitleScene:getFreeSpinWarpStarSizePercent(warpMetric)
-    if warpMetric == nil or warpMetric < TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD then
+    if warpMetric == nil then
         return 0
     end
 
+    -- Start the size ramp before full warp engages, rather than stepping from
+    -- a grown star straight back to its base size at one threshold.  That
+    -- gives a stopped crank the same gradual, reverse growth motion it had
+    -- while spinning.
+    local rampStart = TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD * 0.5
+    if warpMetric <= rampStart then
+        return 0
+    end
+    if warpMetric < TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD then
+        local progress = (warpMetric - rampStart) / (TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD - rampStart)
+        return math.floor((progress * TITLE_FIDGET_WARP_STAR_SIZE_PERCENT_STEP) + 0.5)
+    end
     local tierIndex = math.floor((warpMetric - TITLE_FIDGET_WARP_STAR_TIER_THRESHOLD) / TITLE_FIDGET_WARP_STAR_TIER_STEP) + 1
     return tierIndex * TITLE_FIDGET_WARP_STAR_SIZE_PERCENT_STEP
 end
@@ -407,7 +419,9 @@ function TitleScene:updateFreeSpinStarPreview(acceleratedChange)
         if math.abs(acceleratedChange or 0) > 0.01 then
             self.freeSpinWarpMetric = self.freeSpinWarpMetric + (self:getFreeSpinWarpVisualMetric(fidgetMetric) * TITLE_FIDGET_WARP_BUILD_SCALE)
         else
-            self.freeSpinWarpMetric = math.max(0, self.freeSpinWarpMetric - math.max(20, self.freeSpinWarpMetric * 0.06))
+            -- Ease down slowly enough that the visible star-size range winds
+            -- back through its growth stages instead of snapping to zero.
+            self.freeSpinWarpMetric = math.max(0, self.freeSpinWarpMetric - math.max(4, self.freeSpinWarpMetric * 0.015))
         end
         self.freeSpinStarPreview:setWarpStarSizePercent(self:getFreeSpinWarpStarSizePercent(self.freeSpinWarpMetric))
         self.freeSpinStarPreview.speed = math.max(
@@ -695,7 +709,7 @@ function TitleScene:shouldHandoffPreview(selectedView)
     end
 
     local actualViewId = selectedView.openViewId or selectedView.id
-    if actualViewId == "duck" or actualViewId == "orbital" or selectedView.id == "rccar_multi" or actualViewId == "multiplayer" or actualViewId == "crttv" or actualViewId == "life" or actualViewId == "spaceminer" then
+    if actualViewId == "duck" or actualViewId == "orbital" or selectedView.id == "rccar_multi" or actualViewId == "multiplayer" or actualViewId == "crttv" or actualViewId == "life" or actualViewId == "spaceminer" or actualViewId == "spincounter" then
         return false
     end
 
@@ -1486,7 +1500,6 @@ function TitleScene:update()
         self:drawFreeSpinStarPreview(true)
     end
     self:drawMenu()
-    self:drawFreeSpinSpeedOverlay()
     if not self.freeSpinActive and not self.freeSpinSettling then
         self:processPendingPreview()
     end

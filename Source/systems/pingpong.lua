@@ -42,7 +42,8 @@ function PingPong:applyCrank(change)
     if self.preview or math.abs(change) <= 0.01 then
         return
     end
-    self.playerY = clamp(self.playerY + (change * PLAYER_CRANK_SCALE), 42, self.height - 42)
+    -- Counter-rotate the paddle: turning the crank forward moves it upward.
+    self.playerY = clamp(self.playerY - (change * PLAYER_CRANK_SCALE), 42, self.height - 42)
 end
 
 function PingPong:adjustBallSpeed(amount)
@@ -192,6 +193,8 @@ function PingPong:draw()
     gfx.setColor(gfx.kColorBlack)
     gfx.fillCircleAtPoint(self.ball.x, self.ball.y, BALL_R)
     if not self.preview and (not UIState or UIState.isShown()) then
+        gfx.drawText("YOU " .. tostring(self.playerScore), 8, 8)
+        gfx.drawTextAligned("RIVAL " .. tostring(self.aiScore), self.width - 8, 8, kTextAlignment.right)
         gfx.drawTextAligned(string.format("YOU %d    %d RIVAL", self.playerScore, self.aiScore), self.width * .5, self.height - 34, kTextAlignment.center)
         gfx.drawTextAligned(self.status, self.width * .5, self.height - 18, kTextAlignment.center)
     end

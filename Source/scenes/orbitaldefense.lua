@@ -683,7 +683,7 @@ function OrbitalDefenseScene:updateSinglePlayerLocalControlState()
     end
 end
 
-function OrbitalDefenseScene:updateEnemies()
+function OrbitalDefenseScene:updateEnemies(targetPlayer)
     local difficulty = self:getEndlessDifficulty()
     self.spawnTimer = self.spawnTimer - 1
     if self.spawnTimer <= 0 then
@@ -693,14 +693,21 @@ function OrbitalDefenseScene:updateEnemies()
 
     for enemyIndex = #self.enemies, 1, -1 do
         local enemy = self.enemies[enemyIndex]
-        local dx = PLANET_X - enemy.x
-        local dy = PLANET_Y - enemy.y
+        local targetX, targetY = PLANET_X, PLANET_Y
+        if targetPlayer ~= nil then
+            targetX, targetY = self:getPlayerOrigin(self.localSlot, targetPlayer)
+        end
+        local dx = targetX - enemy.x
+        local dy = targetY - enemy.y
         local distance = math.max(1, math.sqrt((dx * dx) + (dy * dy)))
         enemy.x = enemy.x + ((dx / distance) * enemy.speed) + (enemy.driftX or 0)
         enemy.y = enemy.y + ((dy / distance) * enemy.speed) + (enemy.driftY or 0)
 
         -- Enemy ships now burst on shield impact instead of lingering on the ring and draining it every frame.
-        if distance <= (RING_RADIUS + enemy.size) and self.ringHealth > 0 then
+        if targetPlayer ~= nil and distance <= (10 + enemy.size) then
+            self:addExplosion(enemy.x, enemy.y, 10, 7)
+            table.remove(self.enemies, enemyIndex)
+        elseif distance <= (RING_RADIUS + enemy.size) and self.ringHealth > 0 then
             self.ringHealth = math.max(0, self.ringHealth - 1)
             self:addExplosion(enemy.x, enemy.y, 10, 7)
             table.remove(self.enemies, enemyIndex)
@@ -869,6 +876,9 @@ function OrbitalDefenseScene:updateFinale()
             local playerX, playerY = self:getPlayerOrigin(player.id, player)
             wingmate.angle = math.deg(math.atan(playerY - wingmateY, playerX - wingmateX))
             wingmate.laserOn = true
+            -- Once betrayed, the invaders abandon Earth and converge on the
+            -- player alongside the wingmate's sustained retaliation beam.
+            self:updateEnemies(player)
         end
         self.finaleFrames = self.finaleFrames - 1
         if self.finaleFrames <= 0 then
@@ -1193,23 +1203,19 @@ function OrbitalDefenseScene:drawEarthBetrayalOverlay(state)
         return
     end
 
-    -- The meme replaces the planet briefly so the player can still see the
-    -- consequence of holding the laser on Earth.
+    -- The full meme is scaled to fit the Playdate display, rather than being
+    -- squeezed into Earth's old planet bounds where it read as a black box.
     if obiWanImage ~= nil then
-        local scale = 0.19
+        local scale = math.min(SCREEN_WIDTH / 600, 240 / 487)
         local width = 600 * scale
         local height = 487 * scale
-        obiWanImage:drawScaled(PLANET_X - (width * 0.5), PLANET_Y - (height * 0.5), scale)
+        obiWanImage:drawScaled((SCREEN_WIDTH - width) * 0.5, (240 - height) * 0.5, scale)
     else
         gfx.setColor(gfx.kColorBlack)
         gfx.fillCircleAtPoint(PLANET_X, PLANET_Y, PLANET_RADIUS)
     end
-    gfx.setColor(gfx.kColorBlack)
-    gfx.fillRoundRect(44, 56, 312, 26, 6)
-    gfx.setColor(gfx.kColorWhite)
-    gfx.drawRoundRect(44, 56, 312, 26, 6)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    gfx.drawTextAligned("you weren't supposed to join them", 200, 62, kTextAlignment.center)
+    gfx.drawTextAligned("you weren't supposed to join them", 200, 102, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 

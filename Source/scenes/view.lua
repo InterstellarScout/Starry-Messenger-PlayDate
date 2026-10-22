@@ -58,7 +58,10 @@ function ViewScene.new(config)
     self.tutorialOpen = Tutorials.shouldShow(self.viewId, self.modeId)
     self.tutorialScroll = 0
 
-    if config.effect and self.viewId ~= "snake" and self.viewId ~= "babychicks" and self.viewId ~= "donthitme" and self.viewId ~= "beaverbuilder" and self.viewId ~= "pingpong" then
+    -- Spin Counter has a dedicated stateful controller. Never accept the
+    -- title's generic preview as its live effect or crank routing will land
+    -- on an object without SpinCounter:applyCrank.
+    if config.effect and self.viewId ~= "snake" and self.viewId ~= "babychicks" and self.viewId ~= "donthitme" and self.viewId ~= "beaverbuilder" and self.viewId ~= "pingpong" and self.viewId ~= "spincounter" then
         self.effect = config.effect
     elseif self.viewId == "fall" then
         self.effect = Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.liveStarCount or 420, {
