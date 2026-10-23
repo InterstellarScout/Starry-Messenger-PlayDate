@@ -567,9 +567,11 @@ end
 
 function TextViewerEffect:drawPanel()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    gfx.setColor(self.darkMode and gfx.kColorBlack or gfx.kColorWhite)
+    -- Library and reader chrome always use a light page: inactive text is
+    -- black, while the one selected row supplies its own white-on-black state.
+    gfx.setColor(gfx.kColorWhite)
     gfx.fillRect(0, 0, self.width, self.height)
-    gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
+    gfx.setColor(gfx.kColorBlack)
     gfx.drawRect(6, 6, self.width - 12, self.height - 12)
 end
 
@@ -578,7 +580,7 @@ function TextViewerEffect:drawLibrary()
     self:drawPanel()
 
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
+    gfx.setColor(gfx.kColorBlack)
     gfx.drawTextAligned("Text Viewer", 200, 18, kTextAlignment.center)
     gfx.drawLine(22, 39, 378, 39)
 
@@ -595,14 +597,17 @@ function TextViewerEffect:drawLibrary()
         if doc ~= nil then
             local y = 52 + ((row - 1) * 34)
             if documentIndex == self.index then
-                gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
+                gfx.setColor(gfx.kColorBlack)
                 gfx.fillRoundRect(18, y - 2, 364, 28, 4)
-                gfx.setImageDrawMode(gfx.kDrawModeInverted)
+                gfx.setColor(gfx.kColorWhite)
+            else
+                gfx.setImageDrawMode(gfx.kDrawModeCopy)
+                gfx.setColor(gfx.kColorBlack)
             end
             gfx.drawTextInRect(doc.title, 28, y + 2, 310, 16)
             if documentIndex == self.index then
                 gfx.setImageDrawMode(gfx.kDrawModeCopy)
-                gfx.setColor(self.darkMode and gfx.kColorWhite or gfx.kColorBlack)
+                gfx.setColor(gfx.kColorBlack)
             end
         end
     end
@@ -620,6 +625,8 @@ function TextViewerEffect:drawReader()
         return
     end
 
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setColor(gfx.kColorBlack)
     gfx.drawTextInRect(doc.title, 18, 13, 190, 18)
     gfx.drawTextAligned(string.format("%d%%", math.floor((self.scrollY / math.max(1, self.maxScrollY)) * 100)), 378, 13, kTextAlignment.right)
     gfx.drawLine(14, 34, 386, 34)

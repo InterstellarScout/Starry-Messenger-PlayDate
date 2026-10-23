@@ -52,6 +52,8 @@ local POND_CENTER_X <const> = 200
 local POND_CENTER_Y <const> = 120
 local CENTER_NEST_X <const> = 200
 local CENTER_NEST_Y <const> = 120
+local FREE_CHICK_MAX_SPEED <const> = DUCK_SPEED / 8
+local FREE_CHICK_JOIN_DISTANCE <const> = 6
 
 local SLOT_LAYOUT <const> = {
     [1] = { nestX = 42, nestY = 42, startX = 184, startY = 110, label = "P1" },
@@ -425,13 +427,22 @@ function DuckGameScene:addNestPixel(slot)
     local nest = self.nests and self.nests[slot]
     if nest == nil then return end
     nest.residentDots = nest.residentDots or {}
-    -- Home ducks become permanent nest-owned marks. Their random dither tone
-    -- and bounded positions naturally overlap as the nest fills.
-    nest.residentDots[#nest.residentDots + 1] = {
+    local egg = {
         x = nest.x + math.random(-10, 10),
         y = nest.y + math.random(-10, 10),
-        tone = 0.28 + (math.random() * 0.48)
+        radius = math.random(3, 4),
+        tone = 0.68 + (math.random() * 0.24)
     }
+    -- Newer eggs sit on top. Remove an older egg only when it is virtually
+    -- invisible (about 98% covered), leaving a naturally crowded nest.
+    for index = #nest.residentDots, 1, -1 do
+        local older = nest.residentDots[index]
+        local distance = math.sqrt(squaredDistance(egg.x, egg.y, older.x, older.y))
+        if distance <= math.max(0, egg.radius - ((older.radius or 2) * 0.99)) then
+            table.remove(nest.residentDots, index)
+        end
+    end
+    nest.residentDots[#nest.residentDots + 1] = egg
     self.nestPixels[slot] = nest.residentDots -- snapshot compatibility
 end
 
@@ -449,7 +460,9 @@ function DuckGameScene:addFreeChick(x, y)
         homeY = chickY,
         vx = 0,
         vy = 0,
-        seed = math.random() * (math.pi * 2)
+        seed = math.random() * (math.pi * 2),
+        groupId = nil,
+        followOrder = math.random(1, 3)
     }
     self:addRipple(chickX, chickY, 2)
 end
@@ -484,6 +497,7 @@ function DuckGameScene:resetMatch(modeId, localSlot)
     self.ripples = {}
     self.nestPixels = {}
     self.nests = {}
+    self.nextFreeChickGroupId = 1
     self:resetLog()
     self.frame = 0
     self.state = "playing"
@@ -827,15 +841,66 @@ function DuckGameScene:updatePlayerMovement(player, dt)
 end
 
 function DuckGameScene:updateFreeChicks(dt)
+    local groups = {}
+    for index, chick in ipairs(self.freeChicks) do
+        local nearest, nearestDistance = nil, math.huge
+        for otherIndex, other in ipairs(self.freeChicks) do
+            if index ~= otherIndex then
+                local distance = math.sqrt(squaredDistance(chick.x, chick.y, other.x, other.y))
+                if distance < nearestDistance then nearest, nearestDistance = other, distance end
+            end
+        end
+        if nearest ~= nil and nearestDistance <= FREE_CHICK_JOIN_DISTANCE then
+            local groupId = chick.groupId or nearest.groupId
+            if groupId == nil then
+                groupId = self.nextFreeChickGroupId
+                self.nextFreeChickGroupId = self.nextFreeChickGroupId + 1
+            end
+            chick.groupId, nearest.groupId = groupId, groupId
+        end
+        if chick.groupId ~= nil then
+            groups[chick.groupId] = groups[chick.groupId] or {}
+            groups[chick.groupId][#groups[chick.groupId] + 1] = chick
+        end
+    end
+    for _, group in pairs(groups) do
+        table.sort(group, function(a, b) return a.followOrder < b.followOrder end)
+    end
     for _, chick in ipairs(self.freeChicks) do
-        local swayX = math.cos((self.frame * 0.03) + chick.seed) * 3.5
-        local swayY = math.sin((self.frame * 0.02) + chick.seed) * 2.5
-        local targetX = chick.homeX + swayX
-        local targetY = chick.homeY + swayY
-        chick.vx = (chick.vx + ((targetX - chick.x) * 2.0 * dt)) * 0.88
-        chick.vy = (chick.vy + ((targetY - chick.y) * 2.0 * dt)) * 0.88
-        chick.x = clamp(chick.x + chick.vx, PLAYFIELD_LEFT + 10, PLAYFIELD_RIGHT - 10)
-        chick.y = clamp(chick.y + chick.vy, PLAYFIELD_TOP + 10, PLAYFIELD_BOTTOM - 10)
+        local targetX, targetY = chick.homeX, chick.homeY
+        local group = chick.groupId and groups[chick.groupId] or nil
+        if group ~= nil then
+            local order = 1
+            for index, member in ipairs(group) do if member == chick then order = index; break end end
+            if order == 1 then
+                local closestDuck, closestDistance = nil, math.huge
+                for _, slot in ipairs(self.activeSlots) do
+                    local duck = self.players[slot]
+                    if duck ~= nil then
+                        local distance = squaredDistance(chick.x, chick.y, duck.x, duck.y)
+                        if distance < closestDistance then closestDuck, closestDistance = duck, distance end
+                    end
+                end
+                if closestDuck ~= nil then targetX, targetY = closestDuck.x, closestDuck.y end
+            else
+                targetX, targetY = group[order - 1].x, group[order - 1].y
+            end
+        else
+            local closest, closestDistance = nil, math.huge
+            for _, other in ipairs(self.freeChicks) do
+                if other ~= chick then
+                    local distance = squaredDistance(chick.x, chick.y, other.x, other.y)
+                    if distance < closestDistance then closest, closestDistance = other, distance end
+                end
+            end
+            if closest ~= nil then targetX, targetY = closest.x, closest.y end
+        end
+        local towardX, towardY, distance = normalize(targetX - chick.x, targetY - chick.y)
+        local weave = math.sin((self.frame * 0.11) + chick.seed) * 0.55
+        local moveX, moveY = towardX - (towardY * weave), towardY + (towardX * weave)
+        local step = math.min(FREE_CHICK_MAX_SPEED * dt, distance)
+        chick.x = clamp(chick.x + (moveX * step), PLAYFIELD_LEFT + 10, PLAYFIELD_RIGHT - 10)
+        chick.y = clamp(chick.y + (moveY * step), PLAYFIELD_TOP + 10, PLAYFIELD_BOTTOM - 10)
     end
 end
 
@@ -1211,9 +1276,16 @@ end
 function DuckGameScene:drawNestPixels(pixels)
     for _, pixel in ipairs(pixels or {}) do
         gfx.setColor(gfx.kColorBlack)
+        local radius = pixel.radius or 2
         gfx.setDitherPattern(pixel.tone or 0.55, gfx.image.kDitherTypeBayer8x8)
-        gfx.fillCircleAtPoint(pixel.x, pixel.y, 2)
+        gfx.fillEllipseInRect(pixel.x - radius, pixel.y - radius, radius * 2, radius * 2 + 2)
         gfx.setDitherPattern(1.0, gfx.image.kDitherTypeBayer8x8)
+        -- A 2px outline with 2x-radius edge strokes keeps overlapping eggs
+        -- legible without adding sprites or per-frame allocations.
+        gfx.setLineWidth(2)
+        gfx.drawEllipseInRect(pixel.x - radius, pixel.y - radius, radius * 2, radius * 2 + 2)
+        gfx.drawLine(pixel.x - (radius * 2), pixel.y + radius, pixel.x + (radius * 2), pixel.y + radius)
+        gfx.setLineWidth(1)
     end
 end
 

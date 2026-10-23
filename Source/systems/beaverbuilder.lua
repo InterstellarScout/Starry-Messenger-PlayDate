@@ -10,6 +10,10 @@ local PLAYER_SPEED <const> = 2.1
 local LOG_FRICTION <const> = 0.91
 local LOG_LENGTH <const> = 42
 local HUT_LOGS_REQUIRED <const> = 6
+local CRANK_TURN_RADIANS_PER_DEGREE <const> = 0.04
+local FLOAT_ROTATION_AMPLITUDE <const> = math.rad(30)
+local FLOAT_CYCLE_MIN_FRAMES <const> = 3 * 30
+local FLOAT_CYCLE_MAX_FRAMES <const> = 6 * 30
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 local function d2(ax, ay, bx, by) local x, y = ax - bx, ay - by return x * x + y * y end
 
@@ -18,7 +22,7 @@ function BeaverBuilder.new(width, height, options)
     self.width, self.height = width or 400, height or 240
     self.preview = options and options.preview == true
     self.frame, self.riverSeed = 0, math.random() * math.pi * 2
-    self.player = { x = self.width * .5, y = 68, dx = 1, dy = 0, inputX = 0, inputY = 0 }
+    self.player = { x = self.width * .5, y = 68, dx = 1, dy = 0, throttle = 0, inputX = 0, inputY = 0 }
     self.trees, self.logs, self.grass, self.branches, self.draggedLog = {}, {}, {}, {}, nil
     self.breached, self.hut = false, nil
     self.status = "A: chew a tree   Hold A: drag or place logs"
@@ -34,7 +38,8 @@ function BeaverBuilder:riverHalfHeightAt(x)
     for _, log in ipairs(self.logs) do
         if log.dammed then local upstream = log.x - x; if upstream >= 0 and upstream < 135 and not self.breached then h = h + (1 - upstream / 135) * 16 end end
         if log.waterPlaced then
-            local distance, expansionRadius = math.abs(log.x - x), 58
+            -- Water from a dropped log reaches half as far as the original pool.
+            local distance, expansionRadius = math.abs(log.x - x), 29
             if distance < expansionRadius then h = h + (1 - distance / expansionRadius) * 18 end
         end
     end
@@ -53,7 +58,16 @@ function BeaverBuilder:seedTerrain()
     for _ = 1, GRASS_COUNT do local x, y = self:randomLandPoint(); self.grass[#self.grass + 1] = { x = x, y = y, h = math.random(3, 8), seed = math.random() * math.pi * 2 } end
 end
 function BeaverBuilder:handleDirectionalInput(left, right, up, down)
-    self.player.inputX, self.player.inputY = (right and 1 or 0) - (left and 1 or 0), (down and 1 or 0) - (up and 1 or 0)
+    -- Match Duck Pond turn controls: the crank selects facing; Up/Down moves
+    -- forward/backward. Left/Right remain available to title/menu navigation
+    -- and intentionally have no active-game movement assignment here.
+    self.player.throttle = (up and 1 or 0) - (down and 1 or 0)
+end
+function BeaverBuilder:applyCrank(change)
+    local p = self.player
+    if self.preview or math.abs(change or 0) < 0.001 then return end
+    local angle = math.atan(p.dy, p.dx) + (change * CRANK_TURN_RADIANS_PER_DEGREE)
+    p.dx, p.dy = math.cos(angle), math.sin(angle)
 end
 function BeaverBuilder:getNearbyTree()
     for _, tree in ipairs(self.trees) do if d2(self.player.x, self.player.y, tree.x, tree.y) < 625 then return tree end end
@@ -90,13 +104,19 @@ function BeaverBuilder:handlePrimaryAction()
     end
 end
 function BeaverBuilder:releaseLog(log)
+    -- A released log rests in the direction the beaver was facing. Water logs
+    -- retain this as their neutral heading while they gently float.
+    log.angle = math.atan(self.player.dy, self.player.dx)
     if self:isRiverAt(self.player.x, self.player.y, 18) then
         log.x, log.y, log.vx, log.vy = self.player.x, self.player.y, 0, 0
         log.dammed, log.homePiece, log.waterPlaced = false, false, true
+        log.floatPhase = math.random() * math.pi * 2
+        log.floatCycleFrames = math.random(FLOAT_CYCLE_MIN_FRAMES, FLOAT_CYCLE_MAX_FRAMES)
         self.status = "Log placed. The river spreads around it."
         return
     end
     log.waterPlaced = false
+    log.floatPhase, log.floatCycleFrames = nil, nil
     local center, edgeDistance = self:riverCenterAt(log.x), math.abs(log.y - self:riverCenterAt(log.x))
     if self:isRiverAt(log.x, log.y, 0) then
         log.vx, log.vy = 0, 0
@@ -128,11 +148,20 @@ function BeaverBuilder:tryBuildHut()
     self.hut, self.status = { x = x, y = y }, "Home built! A six-log beaver hut stands."
 end
 function BeaverBuilder:updatePlayer()
-    local p, x, y = self.player, self.player.inputX or 0, self.player.inputY or 0
-    local length = math.sqrt(x * x + y * y)
-    if length > 0 then
-        x, y = x / length, y / length; p.dx, p.dy = x, y
-        p.x, p.y = clamp(p.x + x * PLAYER_SPEED, 10, self.width - 10), clamp(p.y + y * PLAYER_SPEED, 48, self.height - 28)
+    local p = self.player
+    if self.preview then
+        local x, y = p.inputX or 0, p.inputY or 0
+        local length = math.sqrt(x * x + y * y)
+        if length > 0 then
+            x, y = x / length, y / length; p.dx, p.dy = x, y
+            p.x, p.y = clamp(p.x + x * PLAYER_SPEED, 10, self.width - 10), clamp(p.y + y * PLAYER_SPEED, 48, self.height - 28)
+        end
+        return
+    end
+    local throttle = p.throttle or 0
+    if throttle ~= 0 then
+        p.x = clamp(p.x + p.dx * throttle * PLAYER_SPEED, 10, self.width - 10)
+        p.y = clamp(p.y + p.dy * throttle * PLAYER_SPEED, 48, self.height - 28)
     end
 end
 function BeaverBuilder:updateLogs()
@@ -201,7 +230,11 @@ function BeaverBuilder:drawFallenBranches()
     end
 end
 function BeaverBuilder:drawLog(log)
-    local angle, dx, dy = log.angle or 0, math.cos(log.angle or 0) * LOG_LENGTH * .5, math.sin(log.angle or 0) * LOG_LENGTH * .5
+    local angle = log.angle or 0
+    if log.waterPlaced and log.floatCycleFrames then
+        angle = angle + math.sin((self.frame / log.floatCycleFrames) * math.pi * 2 + (log.floatPhase or 0)) * FLOAT_ROTATION_AMPLITUDE
+    end
+    local dx, dy = math.cos(angle) * LOG_LENGTH * .5, math.sin(angle) * LOG_LENGTH * .5
     gfx.setColor(gfx.kColorBlack); gfx.setLineWidth(8); gfx.drawLine(log.x - dx, log.y - dy, log.x + dx, log.y + dy); gfx.setLineWidth(1)
     gfx.setColor(gfx.kColorWhite); gfx.drawLine(log.x - dx * .7, log.y - dy * .7, log.x + dx * .7, log.y + dy * .7); gfx.setColor(gfx.kColorBlack)
     if log.dammed then gfx.drawText("+", log.x - 3, log.y - 17) end
@@ -231,6 +264,6 @@ function BeaverBuilder:draw()
     self:drawHut()
     self:drawBeaver()
     if not self.preview and (not UIState or UIState.isShown()) then
-        gfx.setColor(gfx.kColorBlack); gfx.drawTextAligned("BEAVER BUILDER", self.width * .5, 8, kTextAlignment.center); gfx.drawText("Trees " .. #self.trees .. "  Logs " .. #self.logs, 10, 24); gfx.drawTextAligned(self.status, self.width * .5, 214, kTextAlignment.center); gfx.drawTextAligned("D-pad move   A chew / hold drag", self.width * .5, 228, kTextAlignment.center)
+        gfx.setColor(gfx.kColorBlack); gfx.drawTextAligned("BEAVER BUILDER", self.width * .5, 8, kTextAlignment.center); gfx.drawText("Trees " .. #self.trees .. "  Logs " .. #self.logs, 10, 24); gfx.drawTextAligned(self.status, self.width * .5, 214, kTextAlignment.center); gfx.drawTextAligned("Crank turn   Up/Down move   A chew / hold drag", self.width * .5, 228, kTextAlignment.center)
     end
 end

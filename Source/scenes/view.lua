@@ -61,7 +61,7 @@ function ViewScene.new(config)
     -- Spin Counter has a dedicated stateful controller. Never accept the
     -- title's generic preview as its live effect or crank routing will land
     -- on an object without SpinCounter:applyCrank.
-    if config.effect and self.viewId ~= "snake" and self.viewId ~= "babychicks" and self.viewId ~= "donthitme" and self.viewId ~= "beaverbuilder" and self.viewId ~= "pingpong" and self.viewId ~= "spincounter" then
+    if config.effect and self.viewId ~= "snake" and self.viewId ~= "babychicks" and self.viewId ~= "donthitme" and self.viewId ~= "beaverbuilder" and self.viewId ~= "pingpong" and self.viewId ~= "spincounter" and self.viewId ~= "tiltballs" then
         self.effect = config.effect
     elseif self.viewId == "fall" then
         self.effect = Starfield.newStarFall(400, 240, STAR_FALL_CONFIG.liveStarCount or 420, {
@@ -75,10 +75,10 @@ function ViewScene.new(config)
         self.effect = FireworksShow.new(400, 240)
     elseif self.viewId == "crttv" then
         self.effect = CRTTVEffect.new(400, 240)
-    elseif self.viewId == "vibes" then
+    elseif self.viewId == "vibes" or self.viewId == "bubblepop" then
         self.effect = VibesEffect.new(400, 240, {
-            modeId = self.modeId,
-            selectionLocked = self.modeId ~= nil
+            modeId = self.viewId == "bubblepop" and "bubblepop" or self.modeId,
+            selectionLocked = self.viewId == "bubblepop" or self.modeId ~= nil
         })
     elseif self.viewId == "puddledrops" then
         self.effect = PuddleDrops.new(400, 240, {
@@ -89,7 +89,7 @@ function ViewScene.new(config)
             preview = false
         })
     elseif self.viewId == "tiltballs" then
-        self.effect = TiltBalls.new(400, 240)
+        self.effect = TiltBalls.new(400, 240, { modeId = self.modeId })
     elseif self.viewId == "wacky" then
         self.effect = WackyInflatable.new(400, 240, {
             modeId = self.modeId
@@ -138,7 +138,8 @@ function ViewScene.new(config)
         })
     elseif self.viewId == "pingpong" then
         self.effect = PingPong.new(400, 240, {
-            preview = false
+            preview = false,
+            modeId = self.modeId
         })
     elseif self.viewId == "spincounter" then
         self.effect = SpinCounter.new(400, 240, {
@@ -765,7 +766,7 @@ function ViewScene:update()
             self.effect:stepSelectedStyle(-1)
         elseif self.viewId == "crttv" then
             self.effect:handlePrimaryAction()
-        elseif self.viewId == "vibes" then
+        elseif self.viewId == "vibes" or self.viewId == "bubblepop" then
             self.effect:handlePrimaryAction()
         elseif self.viewId == "puddledrops" then
             self.effect:handlePrimaryAction()
@@ -893,9 +894,11 @@ function ViewScene:update()
     elseif self.viewId == "pingpong" or self.viewId == "spincounter" then
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
-    elseif self.viewId == "donthitme" or self.viewId == "beaverbuilder" then
-        -- These games use their dedicated button controls and do not expose
-        -- the generic effect speed API used by visual toys.
+    elseif self.viewId == "donthitme" then
+        self.effect:applyCrank(change)
+        self.crankAccumulator = 0
+    elseif self.viewId == "beaverbuilder" then
+        self.effect:applyCrank(acceleratedChange)
         self.crankAccumulator = 0
     elseif self.viewId == "smokebloom" then
         self.effect:applyCrank(change)
@@ -926,7 +929,7 @@ function ViewScene:update()
             self.effect:applyCrank(change)
         end
         self.crankAccumulator = 0
-    elseif self.viewId == "vibes" and self.effect and self.effect.usesDirectCrank and self.effect:usesDirectCrank() then
+    elseif (self.viewId == "vibes" or self.viewId == "bubblepop") and self.effect and self.effect.usesDirectCrank and self.effect:usesDirectCrank() then
         self.effect:applyCrank(change, acceleratedChange)
         self.crankAccumulator = 0
     elseif self:usesPersistentSpinControl() then
@@ -957,7 +960,7 @@ function ViewScene:update()
             pd.buttonJustPressed(pd.kButtonLeft),
             pd.buttonJustPressed(pd.kButtonRight)
         )
-    elseif self.viewId == "vibes" then
+    elseif self.viewId == "vibes" or self.viewId == "bubblepop" then
         if self.effect and self.effect.handleDirectionalInput then
             local useHeldInput = self.effect.usesHeldDirectionalInput and self.effect:usesHeldDirectionalInput()
             self.effect:handleDirectionalInput(
@@ -1167,7 +1170,7 @@ function ViewScene:update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             self:applySpeedStep(-1)
         end
-    elseif self.viewId == "gifplayer" or self.viewId == "textviewer" or self.viewId == "crttv" or self.viewId == "vibes" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "dimensionalsplit" or self.viewId == "starrytop" or self.viewId == "dropper" or self.viewId == "spaceminer" then
+    elseif self.viewId == "gifplayer" or self.viewId == "textviewer" or self.viewId == "crttv" or self.viewId == "vibes" or self.viewId == "bubblepop" or self.viewId == "tiltballs" or self.viewId == "wacky" or self.viewId == "dimensionalsplit" or self.viewId == "starrytop" or self.viewId == "dropper" or self.viewId == "spaceminer" then
     elseif self.viewId ~= "lava" then
         if self.effect and self.effect.steerDirectionToward then
             self:updateStarfieldDirection()

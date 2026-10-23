@@ -72,15 +72,25 @@ function BabyChicks.new(width, height, options)
     self:seedGrass()
 
     if self.preview then
-        self:addChick(132, 144)
-        self:addChick(200, 118)
-        self:addChick(268, 150)
+        self:addPreSpawnedChicks(3)
         self.state = "garden"
         self.status = "Garden of Chicks"
     else
         self:loadGarden()
     end
     return self
+end
+
+function BabyChicks:addPreSpawnedChicks(count)
+    count = math.max(1, math.floor(count or 1))
+    -- Keep the title's ready-made chicks spread across the entire garden
+    -- instead of clustering them around the middle egg position.
+    for index = 1, count do
+        local fraction = index / (count + 1)
+        local x = 22 + (fraction * (self.width - 44))
+        local y = 104 + (((index - 1) % 2) * 54)
+        self:addChick(x, y)
+    end
 end
 
 function BabyChicks:setPreview(enabled)

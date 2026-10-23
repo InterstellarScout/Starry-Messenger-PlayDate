@@ -15,6 +15,11 @@ local TILT_BALLS_CONFIG <const> = GameConfig and GameConfig.tiltBalls or {}
 TiltBalls = {}
 TiltBalls.__index = TiltBalls
 
+function TiltBalls.getModeLabel(modeId)
+    local count = math.max(1, math.min(13, math.floor(tonumber(modeId) or 1)))
+    return "Bouncy Ball" .. string.rep("s", count - 1)
+end
+
 local SCREEN_PADDING <const> = 4
 local MIN_RADIUS <const> = TILT_BALLS_CONFIG.minRadius or 7
 local MAX_RADIUS <const> = TILT_BALLS_CONFIG.maxRadius or 16
@@ -25,7 +30,7 @@ local BALL_BOUNCE <const> = TILT_BALLS_CONFIG.ballBounce or 0.92
 local WALL_ROLL_SPIN_SCALE <const> = TILT_BALLS_CONFIG.wallRollSpinScale or 6.5
 local MIN_SLOWDOWN <const> = TILT_BALLS_CONFIG.minSlowdown or 0.90
 local MAX_SLOWDOWN <const> = TILT_BALLS_CONFIG.maxSlowdown or 0.995
-local CRANK_WORLD_ROTATION_SCALE <const> = TILT_BALLS_CONFIG.crankWorldRotationScale or 1
+local CRANK_WORLD_ROTATION_SCALE <const> = TILT_BALLS_CONFIG.crankWorldRotationScale or 0.3
 local TILT_INFLUENCE <const> = TILT_BALLS_CONFIG.tiltInfluence or 0.18
 local PREVIEW_SPAWN_COUNT <const> = TILT_BALLS_CONFIG.previewSpawnCount or 4
 
@@ -68,7 +73,8 @@ function TiltBalls.new(width, height, options)
     self.previewPulse = 0
     self.worldAngle = 0
 
-    local initialCount = self.preview and PREVIEW_SPAWN_COUNT or 1
+    local requestedCount = math.max(1, math.min(13, math.floor(tonumber(options.modeId) or 1)))
+    local initialCount = self.preview and (options.modeId and requestedCount or PREVIEW_SPAWN_COUNT) or requestedCount
     for _ = 1, initialCount do
         self:spawnBall()
     end

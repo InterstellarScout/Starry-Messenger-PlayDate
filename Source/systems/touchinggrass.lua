@@ -11,7 +11,12 @@ TouchingGrass = {}
 TouchingGrass.__index = TouchingGrass
 
 local BLADE_SPACING <const> = 10
-local HAND_SPEED <const> = 3.4
+local HAND_SPEED <const> = 3.4 * 1.2
+local HAND_SPEED_RAMP_SECONDS <const> = 3
+local GRASS_CLUMP_COUNT <const> = 5
+local GRASS_CLUMP_RADIUS_X <const> = 47
+local GRASS_CLUMP_RADIUS_Y <const> = 27
+local GRASS_CLUMP_SPACING <const> = 8
 local HAND_RADIUS <const> = 17
 local REPEL_RADIUS <const> = 38
 local LIFTED_RADIUS <const> = 2
@@ -74,6 +79,7 @@ function TouchingGrass.new(width, height, options)
     self.bladeMoveBudget = 0
     self.handHidden = false
     self.outOfGrassFrames = 0
+    self.handMoveFrames = 0
     self.wind = nil
     self.windFramesUntilNext = self:getRandomWindDelayFrames()
     self.grassImage = gfx.image.new(width, height, gfx.kColorBlack)
@@ -94,21 +100,41 @@ function TouchingGrass:seedGrass()
         self.gridCells[index] = {}
     end
     local index = 0
+    local function addBlade(x, y, extraDense)
+        index = index + 1
+        self.blades[index] = {
+            x = x + (math.random() * 3) - 1.5,
+            y = y + (math.random() * 3) - 1.5,
+            length = (extraDense and 14 or 12) + math.random() * (extraDense and 20 or 18),
+            lean = 0,
+            velocity = 0,
+            active = false,
+            index = index,
+            seed = math.random() * math.pi * 2
+        }
+        self:addBladeToGrid(self.blades[index])
+    end
     for y = 34, self.height - 8, BLADE_SPACING do
         local rowOffset = ((math.floor(y / BLADE_SPACING) % 2) == 0) and 0 or (BLADE_SPACING * 0.5)
         for x = 8 + rowOffset, self.width - 8, BLADE_SPACING do
-            index = index + 1
-            self.blades[index] = {
-                x = x + (math.random() * 3) - 1.5,
-                y = y + (math.random() * 3) - 1.5,
-                length = 12 + math.random() * 18,
-                lean = 0,
-                velocity = 0,
-                active = false,
-                index = index,
-                seed = math.random() * math.pi * 2
-            }
-            self:addBladeToGrid(self.blades[index])
+            addBlade(x, y, false)
+        end
+    end
+
+    -- Five soft-edged patches cover about one fifth of the field. They use a
+    -- closer blade spacing, creating visibly fuller grass without making the
+    -- whole screen uniformly expensive to simulate.
+    for _ = 1, GRASS_CLUMP_COUNT do
+        local centerX = 18 + math.random() * (self.width - 36)
+        local centerY = 55 + math.random() * math.max(1, self.height - 82)
+        for y = centerY - GRASS_CLUMP_RADIUS_Y, centerY + GRASS_CLUMP_RADIUS_Y, GRASS_CLUMP_SPACING do
+            for x = centerX - GRASS_CLUMP_RADIUS_X, centerX + GRASS_CLUMP_RADIUS_X, GRASS_CLUMP_SPACING do
+                local nx = (x - centerX) / GRASS_CLUMP_RADIUS_X
+                local ny = (y - centerY) / GRASS_CLUMP_RADIUS_Y
+                if (nx * nx) + (ny * ny) <= 1 and x >= 8 and x <= self.width - 8 and y >= 34 and y <= self.height - 8 then
+                    addBlade(x, y, true)
+                end
+            end
         end
     end
     self:markGrassCacheDirty()
@@ -199,24 +225,36 @@ function TouchingGrass:handleDirectionalInput(leftHeld, rightHeld, upHeld, downH
         return
     end
 
-    local dx = 0
-    local dy = 0
+    local directionX = 0
+    local directionY = 0
     if leftHeld then
-        dx = dx - HAND_SPEED
+        directionX = directionX - 1
     end
     if rightHeld then
-        dx = dx + HAND_SPEED
+        directionX = directionX + 1
     end
     if upHeld then
-        dy = dy - HAND_SPEED
+        directionY = directionY - 1
     end
     if downHeld then
-        dy = dy + HAND_SPEED
+        directionY = directionY + 1
     end
 
-    if dx ~= 0 or dy ~= 0 then
+    if directionX ~= 0 or directionY ~= 0 then
+        self.handMoveFrames = math.min(
+            HAND_SPEED_RAMP_SECONDS * self:getRefreshRate(),
+            (self.handMoveFrames or 0) + 1
+        )
         self:markPlayerInteraction()
+    else
+        self.handMoveFrames = 0
     end
+
+    local rampProgress = clamp((self.handMoveFrames or 0) / (HAND_SPEED_RAMP_SECONDS * self:getRefreshRate()), 0, 1)
+    -- Starts 20% faster, then reaches double that speed after three seconds.
+    local speed = HAND_SPEED * (1 + rampProgress)
+    local dx = directionX * speed
+    local dy = directionY * speed
 
     self.handX = clamp(self.handX + dx, HAND_RADIUS, self.width - HAND_RADIUS)
     self.handY = clamp(self.handY + dy, HAND_RADIUS, self.height - HAND_RADIUS)

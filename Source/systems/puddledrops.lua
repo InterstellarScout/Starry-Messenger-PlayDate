@@ -23,6 +23,9 @@ local RANDOM_DROP_INTERVAL_MAX_FRAMES <const> = 150
 local DEBRIS_LIMIT <const> = 3
 local DEBRIS_INTERVAL_MIN_FRAMES <const> = 90
 local DEBRIS_INTERVAL_MAX_FRAMES <const> = 300
+local PLAYER_MOVE_RESPONSE <const> = 0.42
+local PLAYER_MOMENTUM_DAMPING <const> = 0.88
+local PLAYER_IMPACT_RADIUS <const> = 7
 
 local function roundToInt(value)
     if value >= 0 then
@@ -51,6 +54,11 @@ function PuddleDrops.new(width, height, options)
     self.pendingDebrisTimer = 0
     self.playerX = width * 0.5
     self.playerY = height * 0.5
+    self.playerVX = 0
+    self.playerVY = 0
+    self.playerInputX = 0
+    self.playerInputY = 0
+    self.playerAngle = 0
     self.playerPulseCooldown = 0
     self.randomDropTimer = 0
     self.waveCapReached = false
@@ -132,6 +140,7 @@ function PuddleDrops:spawnDropWave(fromPlayer)
         baseRadius = 0,
         speed = 0.8 + (math.random() * 1.4),
         thresholds = { 0, 4, 8, 14, 22 },
+        playerImpactRings = {},
         fromPlayer = fromPlayer == true
     }
 
@@ -164,18 +173,68 @@ function PuddleDrops:handleDirectionalInput(leftHeld, rightHeld, upHeld, downHel
         return
     end
 
+    self.playerInputX = (rightHeld and 1 or 0) - (leftHeld and 1 or 0)
+    self.playerInputY = (downHeld and 1 or 0) - (upHeld and 1 or 0)
+end
+
+function PuddleDrops:applyWaveImpact(wave, directionX, directionY, speedScale)
+    local currentAlongWave = (self.playerVX * directionX) + (self.playerVY * directionY)
+    local impactSpeed = 0.8 + (wave.speed * speedScale * 0.9)
+    if currentAlongWave > 0 then
+        -- Riding with the ring stacks its impulse onto the existing motion.
+        self.playerVX = self.playerVX + (directionX * impactSpeed)
+        self.playerVY = self.playerVY + (directionY * impactSpeed)
+    else
+        -- A head-on ring reverses the bubble, preserving only a little of its
+        -- sideways drift while making the new outward direction decisive.
+        local tangentX, tangentY = -directionY, directionX
+        local tangentSpeed = (self.playerVX * tangentX) + (self.playerVY * tangentY)
+        local redirectedSpeed = impactSpeed + (math.abs(currentAlongWave) * 0.45)
+        self.playerVX = (directionX * redirectedSpeed) + (tangentX * tangentSpeed * 0.2)
+        self.playerVY = (directionY * redirectedSpeed) + (tangentY * tangentSpeed * 0.2)
+    end
+    self.playerAngle = math.atan(directionY, directionX)
+end
+
+function PuddleDrops:checkWavePlayerImpact(wave, previousBaseRadius, currentBaseRadius, speedScale)
+    local dx = self.playerX - wave.x
+    local dy = self.playerY - wave.y
+    local distance = math.sqrt((dx * dx) + (dy * dy))
+    if distance < 0.001 then
+        -- A center hit still gets a stable, calculated outward angle.
+        self.playerAngle = math.random() * math.pi * 2
+        dx, dy, distance = math.cos(self.playerAngle), math.sin(self.playerAngle), 1
+    end
+    local directionX, directionY = dx / distance, dy / distance
+    for ringIndex, threshold in ipairs(wave.thresholds) do
+        if not wave.playerImpactRings[ringIndex] then
+            local previousRadius = previousBaseRadius - threshold
+            local currentRadius = currentBaseRadius - threshold
+            if previousRadius <= distance + PLAYER_IMPACT_RADIUS and currentRadius >= distance - PLAYER_IMPACT_RADIUS then
+                wave.playerImpactRings[ringIndex] = true
+                self:applyWaveImpact(wave, directionX, directionY, speedScale)
+            end
+        end
+    end
+end
+
+function PuddleDrops:updatePlayerMotion()
     local moveAmount = 3 + math.min(7, math.abs(self.speed or 0) * 0.1)
-    if leftHeld then
-        self.playerX = math.max(8, self.playerX - moveAmount)
+    local inputX, inputY = self.playerInputX or 0, self.playerInputY or 0
+    if inputX ~= 0 and inputY ~= 0 then
+        inputX, inputY = inputX * 0.7071, inputY * 0.7071
     end
-    if rightHeld then
-        self.playerX = math.min(self.width - 8, self.playerX + moveAmount)
+    self.playerVX = ((self.playerVX or 0) * PLAYER_MOMENTUM_DAMPING) + (inputX * moveAmount * PLAYER_MOVE_RESPONSE)
+    self.playerVY = ((self.playerVY or 0) * PLAYER_MOMENTUM_DAMPING) + (inputY * moveAmount * PLAYER_MOVE_RESPONSE)
+    self.playerX = self.playerX + self.playerVX
+    self.playerY = self.playerY + self.playerVY
+    if self.playerX < 8 or self.playerX > self.width - 8 then
+        self.playerX = math.max(8, math.min(self.width - 8, self.playerX))
+        self.playerVX = 0
     end
-    if upHeld then
-        self.playerY = math.max(8, self.playerY - moveAmount)
-    end
-    if downHeld then
-        self.playerY = math.min(self.height - 8, self.playerY + moveAmount)
+    if self.playerY < 8 or self.playerY > self.height - 8 then
+        self.playerY = math.max(8, math.min(self.height - 8, self.playerY))
+        self.playerVY = 0
     end
 end
 
@@ -187,7 +246,9 @@ function PuddleDrops:updateDropWaves()
 
     for index = #self.dropWaves, 1, -1 do
         local wave = self.dropWaves[index]
+        local previousBaseRadius = wave.baseRadius
         wave.baseRadius = wave.baseRadius + (speedScale * wave.speed)
+        self:checkWavePlayerImpact(wave, previousBaseRadius, wave.baseRadius, speedScale)
 
         local maxRadius = wave.baseRadius + wave.thresholds[#wave.thresholds]
         if maxRadius > (math.max(self.width, self.height) + 28) then
@@ -265,6 +326,7 @@ end
 
 function PuddleDrops:update()
     self:updateDropWaves()
+    self:updatePlayerMotion()
     self:updateDebris()
 end
 
@@ -303,6 +365,9 @@ function PuddleDrops:drawPlayerMarker()
     gfx.fillCircleAtPoint(roundToInt(self.playerX), roundToInt(self.playerY), 5)
     gfx.setColor(gfx.kColorBlack)
     gfx.drawCircleAtPoint(roundToInt(self.playerX), roundToInt(self.playerY), 5)
+    local tipX = self.playerX + (math.cos(self.playerAngle or 0) * 3)
+    local tipY = self.playerY + (math.sin(self.playerAngle or 0) * 3)
+    gfx.drawLine(roundToInt(self.playerX), roundToInt(self.playerY), roundToInt(tipX), roundToInt(tipY))
 end
 
 function PuddleDrops:drawDebris()

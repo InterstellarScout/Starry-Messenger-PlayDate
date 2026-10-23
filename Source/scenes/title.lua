@@ -601,7 +601,8 @@ end
 function TitleScene:drawScaledText(text, font, keyPrefix, centerX, centerY, scale)
     local cached = self:getScaledTextImage(text, font, keyPrefix)
     local constrainedScale = scale
-    if TITLE_TEXT_MAX_WIDTH > 0 then
+    -- Deliberately let the long Bouncy Ballss… mode labels escape the screen.
+    if TITLE_TEXT_MAX_WIDTH > 0 and not (keyPrefix == "mode" and string.sub(text, 1, 11) == "Bouncy Ball") then
         constrainedScale = math.min(constrainedScale, TITLE_TEXT_MAX_WIDTH / cached.width)
     end
     if TITLE_TEXT_MAX_HEIGHT > 0 then
@@ -753,11 +754,11 @@ function TitleScene:setPreview(forceFresh)
             })
         elseif actualViewId == "crttv" then
             return makeStaticImagePreview(CRTTV_TITLE_STILL_PATH)
-        elseif actualViewId == "vibes" then
+        elseif actualViewId == "vibes" or actualViewId == "bubblepop" then
             return VibesEffect.new(400, 240, {
                 preview = true,
-                modeId = selectedView.modeId,
-                selectionLocked = selectedView.openViewId == "vibes"
+                modeId = actualViewId == "bubblepop" and "bubblepop" or selectedView.modeId,
+                selectionLocked = actualViewId == "bubblepop" or selectedView.openViewId == "vibes"
             })
         elseif actualViewId == "dripdrop" then
             if selectedView.modeId == "dropper" then
@@ -780,7 +781,8 @@ function TitleScene:setPreview(forceFresh)
             })
         elseif actualViewId == "tiltballs" then
             return TiltBalls.new(400, 240, {
-                preview = true
+                preview = true,
+                modeId = selectedView.modeId
             })
         elseif actualViewId == "babychicks" then
             return BabyChicks.new(400, 240, {

@@ -5,7 +5,11 @@ PixelPlanetsAssets = PixelPlanetsAssets or {}
 local gfx <const> = playdate.graphics
 local assets = PixelPlanetsAssets
 
-local MAX_CACHED_FRAMES_PER_SET <const> = 12
+-- Asteroids rotate as several independently phased groups. A 48-frame
+-- per-family window holds all concurrently visible poses long enough to
+-- avoid decoding and evicting PNGs every frame, while remaining far smaller
+-- than permanently loading all 160 frames of every asteroid family.
+local MAX_CACHED_FRAMES_PER_SET <const> = 48
 
 assets.frameCaches = assets.frameCaches or {}
 
@@ -23,8 +27,8 @@ local function loadFrame(prefix, frameCount, frame)
     end
 
     -- Loading all 652 exported PNGs in a draw call stalls the hardware long
-    -- enough for the watchdog to reset. Decode only the requested frame and
-    -- retain a short rolling cache for nearby animation frames.
+    -- enough for the watchdog to reset. Decode only requested poses and keep
+    -- a rolling window large enough for the visible rotation cohorts.
     local path = string.format("images/pixelplanets/%s_%02d", prefix, index)
     image = gfx.image.new(path)
     if image == nil then

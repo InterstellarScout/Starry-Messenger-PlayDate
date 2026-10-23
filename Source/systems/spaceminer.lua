@@ -1520,6 +1520,12 @@ function SpaceMiner:activate()
 end
 
 function SpaceMiner:shutdown()
+    -- Persist a named campaign when the player leaves or resets the view so
+    -- selecting the same slot next time resumes the updated game state.
+    -- An unfinished new-name prompt deliberately stays unsaved.
+    if not self.nameEntryOpen then
+        self:saveModeState()
+    end
 end
 
 function SpaceMiner:getStorySaveData()

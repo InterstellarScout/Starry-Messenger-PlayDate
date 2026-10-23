@@ -193,7 +193,13 @@ local SINGLE_VIEW_ITEMS <const> = {
         modeId = PuddleDrops.MODE_STANDARD,
         getModeLabel = getDripDropModeLabel
     },
-    { id = "tiltballs", label = "Bouncy Balls" },
+    {
+        id = "tiltballs",
+        label = "Bouncy Ball",
+        modes = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 },
+        modeId = 1,
+        getModeLabel = TiltBalls.getModeLabel
+    },
     { id = "babychicks", label = "Baby Chicks" },
     { id = "donthitme", label = "Don't Hit Me" },
     {
@@ -259,7 +265,14 @@ local SINGLE_VIEW_ITEMS <const> = {
         getModeLabel = DuckGameScene.getModeLabel
     },
     { id = "beaverbuilder", label = "Beaver Builder" },
-    { id = "pingpong", label = "Ping Pong" },
+    { id = "bubblepop", label = "Bubble Pop" },
+    {
+        id = "pingpong",
+        label = "Ping Pong",
+        modes = { PingPong.MODE_SOLO, PingPong.MODE_TWO_PADDLE },
+        modeId = PingPong.MODE_SOLO,
+        getModeLabel = PingPong.getModeLabel
+    },
     { id = "orbital", label = "Orbital Defense" },
     {
         id = "rccar",

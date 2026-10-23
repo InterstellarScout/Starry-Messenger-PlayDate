@@ -25,6 +25,8 @@ local AUTO_LAUNCH_QUEUE_SIZE <const> = FIREWORKS_CONFIG.autoLaunchQueueSize or 3
 local MAX_EXPLOSION_HEIGHT_PERCENT <const> = FIREWORKS_CONFIG.maxExplosionHeightPercent or 0.95
 local MIN_EXPLOSION_HEIGHT_PERCENT <const> = FIREWORKS_CONFIG.minExplosionHeightPercent or 0.58
 local BACKGROUND_STAR_COUNT <const> = FIREWORKS_CONFIG.backgroundStarCount or 20
+local GROUND_GRASS_SPACING <const> = 8
+local GROUND_GRASS_REPEL_RADIUS <const> = 36
 
 local GRAVITY <const> = FIREWORKS_CONFIG.gravity or 0.16
 local TAU <const> = math.pi * 2
@@ -83,6 +85,7 @@ function FireworksShow.new(width, height, options)
     self.styleOrder = { "auto", "standard", "willow", "grasser" }
     self.selectedStyleIndex = 1
     self.backgroundStars = {}
+    self.groundGrass = {}
     for index = 1, BACKGROUND_STAR_COUNT do
         self.backgroundStars[index] = {
             x = randomRange(8, width - 8),
@@ -92,8 +95,29 @@ function FireworksShow.new(width, height, options)
             size = math.random() < 0.18 and 2 or 1
         }
     end
+    self:seedGroundGrass()
     self:resetAutoLaunchQueue()
     return self
+end
+
+function FireworksShow:seedGroundGrass()
+    self.groundGrass = {}
+    local seed = 1
+    -- Match Duck Game's seven-to-thirteen pixel shore blades, but keep every
+    -- base planted on Fireworks' bottom edge.
+    for x = 2, self.width - 2, GROUND_GRASS_SPACING do
+        self.groundGrass[#self.groundGrass + 1] = {
+            x = x + randomRange(-1.5, 1.5),
+            y = self.height - 4,
+            normalX = 0,
+            normalY = -1,
+            length = 7 + ((seed * 7) % 7),
+            lean = 0,
+            velocity = 0,
+            seed = seed
+        }
+        seed = seed + 1
+    end
 end
 
 function FireworksShow:setPreview(isPreview)
@@ -359,6 +383,24 @@ function FireworksShow:updateSparks()
     end
 end
 
+function FireworksShow:updateGroundGrass()
+    local launcherX = self:getWrappedLauncherX()
+    local radiusSquared = GROUND_GRASS_REPEL_RADIUS * GROUND_GRASS_REPEL_RADIUS
+    for _, blade in ipairs(self.groundGrass or {}) do
+        local targetLean = math.sin((self.backgroundPhase * 1.8) + blade.seed) * 0.12
+        local dx = launcherX - blade.x
+        local dy = (self.height - 8) - blade.y
+        local distanceSquared = (dx * dx) + (dy * dy)
+        if distanceSquared < radiusSquared then
+            local strength = 1 - (math.sqrt(distanceSquared) / GROUND_GRASS_REPEL_RADIUS)
+            targetLean = targetLean + ((dx >= 0 and -1 or 1) * strength * 0.9)
+        end
+        -- Same spring/damping response used by Duck Game's shore grass.
+        blade.velocity = ((blade.velocity or 0) + ((targetLean - (blade.lean or 0)) * 0.11)) * 0.78
+        blade.lean = clamp((blade.lean or 0) + blade.velocity, -1.1, 1.1)
+    end
+end
+
 function FireworksShow:update()
     self.backgroundPhase = self.backgroundPhase + 0.02
 
@@ -376,6 +418,7 @@ function FireworksShow:update()
     self:updateShells()
     self:updateShootingStars()
     self:updateSparks()
+    self:updateGroundGrass()
 end
 
 function FireworksShow:drawCircle(x, y, radius, filled)
@@ -484,6 +527,15 @@ function FireworksShow:drawSky()
     end
 end
 
+function FireworksShow:drawGroundGrass()
+    gfx.setColor(gfx.kColorWhite)
+    for _, blade in ipairs(self.groundGrass or {}) do
+        local tipX = blade.x + (blade.length * (blade.lean or 0))
+        local tipY = blade.y - blade.length
+        gfx.drawLine(math.floor(blade.x + 0.5), math.floor(blade.y + 0.5), math.floor(tipX + 0.5), math.floor(tipY + 0.5))
+    end
+end
+
 function FireworksShow:drawHud()
     if self.preview or (UIState and not UIState.isShown()) then
         return
@@ -498,6 +550,7 @@ end
 
 function FireworksShow:draw()
     self:drawSky()
+    self:drawGroundGrass()
 
     for _, shell in ipairs(self.shells) do
         self:drawShell(shell)

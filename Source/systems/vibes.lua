@@ -53,8 +53,7 @@ local EFFECTS <const> = {
     { id = "loopfall", label = "Loop Fall" },
     { id = "polygonstorm", label = "Polygon Storm" },
     { id = "microrotate", label = "Micro Rotate" },
-    { id = "bubblecloud", label = "Cloud Bubbles" },
-    { id = "bubblepop", label = "Bubble Pop" }
+    { id = "bubblecloud", label = "Cloud Bubbles" }
 }
 
 local GRAVEYARD_EFFECTS <const> = {
