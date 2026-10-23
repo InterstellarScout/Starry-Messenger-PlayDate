@@ -25,7 +25,9 @@ function FolderTransitionScene.new(config)
     self.accelerationFrames = math.max(1, config.accelerationFrames or 30)
     -- At 30 fps, each eight-frame black curtain stage lasts about .25 seconds.
     self.blackPullFrames = math.max(1, config.blackPullFrames or config.flashFrames or 8)
+    self.blackHoldFrames = math.max(1, config.blackHoldFrames or 8)
     self.blackReleaseFrames = math.max(1, config.blackReleaseFrames or config.settleFrames or 8)
+    self.outgoingImage = config.outgoingImage
     self.onFlashBuildScene = config.onFlashBuildScene
     self.onComplete = config.onComplete
     self.frame = 0
@@ -60,21 +62,29 @@ function FolderTransitionScene:update()
     end
 
     local pullStartFrame = self.accelerationFrames
-    local releaseStartFrame = pullStartFrame + self.blackPullFrames
+    local fullBlackFrame = pullStartFrame + self.blackPullFrames
+    local releaseStartFrame = fullBlackFrame + self.blackHoldFrames
     local finishFrame = releaseStartFrame + self.blackReleaseFrames
-    if self.frame > releaseStartFrame then
+    if self.frame > fullBlackFrame then
         -- Once the black field begins to leave, ease the star stream back down
         -- behind it instead of cutting its movement on the destination frame.
-        local settle = math.min(1, (self.frame - releaseStartFrame) / self.blackReleaseFrames)
+        local settle = math.min(1, (self.frame - fullBlackFrame) / (self.blackHoldFrames + self.blackReleaseFrames))
         self.preview.smoothTargetSpeed = self.targetSpeed + ((self.startSpeed - self.targetSpeed) * settle)
     end
 
-    -- The stars are drawn from frame one; the curtain only arrives after the
-    -- viewer has seen the launch movement.
+    -- Keep the outgoing title visibly alive beneath the stars until the
+    -- curtain is fully black. Smooth Sailing normally clears to black, so draw
+    -- only its stars here instead of calling its opaque draw method.
+    if self.frame < fullBlackFrame and self.outgoingImage ~= nil then
+        self.outgoingImage:draw(0, 0)
+    end
     self.preview:update()
-    self.preview:draw()
+    if self.frame < releaseStartFrame then
+        gfx.setColor(gfx.kColorWhite)
+        self.preview:drawSmoothSailing()
+    end
 
-    if self.frame > pullStartFrame then
+    if self.frame >= fullBlackFrame then
         if not self.flashSceneBuilt and self.onFlashBuildScene then
             self.flashSceneBuilt = true
             self.flashScene = self.onFlashBuildScene()
@@ -82,9 +92,19 @@ function FolderTransitionScene:update()
         if self.flashScene and self.flashScene.update then
             self.flashScene:update()
         end
+        -- The incoming title runs at full star speed behind opaque black and
+        -- is only drawn as the curtain opens near the end.
+        if self.frame >= releaseStartFrame and self.flashScene and self.flashScene.draw then
+            self.flashScene:draw()
+        end
+    end
+
+    if self.frame > pullStartFrame then
         local blackProgress
-        if self.frame <= releaseStartFrame then
+        if self.frame <= fullBlackFrame then
             blackProgress = math.min(1, (self.frame - pullStartFrame) / self.blackPullFrames)
+        elseif self.frame < releaseStartFrame then
+            blackProgress = 1
         else
             blackProgress = math.max(0, 1 - ((self.frame - releaseStartFrame) / self.blackReleaseFrames))
         end
@@ -97,6 +117,10 @@ function FolderTransitionScene:update()
     if self.frame >= finishFrame and self.onComplete then
         local callback = self.onComplete
         self.onComplete = nil
-        callback(self.flashScene)
+        -- setScene() shuts this transition down; detach the incoming scene so
+        -- it is not shut down again while becoming the active scene.
+        local nextScene = self.flashScene
+        self.flashScene = nil
+        callback(nextScene)
     end
 end

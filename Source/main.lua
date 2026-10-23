@@ -458,6 +458,7 @@ end
 
 local function startVibesFolderEnterTransition(onComplete)
     setScene(FolderTransitionScene.new({
+        outgoingImage = gfx.getDisplayImage(),
         startSpeed = TITLE_CONFIG and TITLE_CONFIG.warpPreviewSpeed or 1,
         targetSpeed = 100,
         accelerationFrames = 8,
@@ -474,6 +475,7 @@ end
 
 local function startVibesFolderExitTransition(onComplete)
     setScene(FolderTransitionScene.new({
+        outgoingImage = gfx.getDisplayImage(),
         startSpeed = -(TITLE_CONFIG and TITLE_CONFIG.warpPreviewSpeed or 1),
         targetSpeed = -100,
         accelerationFrames = 8,
@@ -492,6 +494,7 @@ end
 local function startCatalogFolderTransition(catalog, rootId, entering)
     local direction = entering and 1 or -1
     setScene(FolderTransitionScene.new({
+        outgoingImage = gfx.getDisplayImage(),
         startSpeed = direction * (TITLE_CONFIG and TITLE_CONFIG.warpPreviewSpeed or 1),
         targetSpeed = direction * 100,
         accelerationFrames = 8,
